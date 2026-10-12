@@ -50,6 +50,7 @@ const MESSAGES = {
   'auth/network-request-failed': 'Keine Verbindung zum Anmeldedienst.',
   'auth/unauthorized-domain': 'Diese Adresse ist in Firebase noch nicht als erlaubte Domain eingetragen.',
   'auth/operation-not-allowed': 'Diese Anmeldeart ist in Firebase noch nicht eingeschaltet.',
+  'auth/requires-recent-login': 'Aus Sicherheitsgründen bitte einmal ab- und wieder anmelden und das Löschen dann wiederholen.',
   'permission-denied': 'Kein Zugriff auf das gespeicherte Portfolio.',
   'unavailable': 'Der Speicherdienst ist gerade nicht erreichbar.',
 };
@@ -60,11 +61,12 @@ async function run(fn) {
   catch (err) { throw new Error(MESSAGES[err.code] ?? `Das hat nicht geklappt (${err.code ?? err.message}).`); }
 }
 
-// Ruft cb bei jeder An- und Abmeldung auf: { uid, email, name } oder null
+// Ruft cb bei jeder An- und Abmeldung auf: { uid, email, name, created } oder null
 export async function onUser(cb) {
   if (!available) return cb(null);
   const { au, auth } = await init();
-  au.onAuthStateChanged(auth, (u) => cb(u ? { uid: u.uid, email: u.email, name: u.displayName } : null));
+  au.onAuthStateChanged(auth, (u) => cb(u ? { uid: u.uid, email: u.email, name: u.displayName,
+    created: Date.parse(u.metadata?.creationTime ?? '') || null } : null));
 }
 
 export const register = (email, password) => run(({ au, auth }) => au.createUserWithEmailAndPassword(auth, email, password));
@@ -87,6 +89,25 @@ export function savePortfolio(uid, data) {
   const clean = JSON.parse(JSON.stringify({ positions: data.positions, cash: data.cash, reservePct: data.reservePct ?? null, reserveMode: data.reserveMode ?? 'balanced',
     // Firestore kennt keine Listen in Listen – der Bestand je Eintrag wird als Text abgelegt
     track: { states: (data.track?.states ?? []).map((s) => ({ t: s.t, cash: s.cash, in: s.in, pos: JSON.stringify(s.pos) })) },
-    log: data.log ?? [], updated: Date.now() }));
+    log: data.log ?? [], consent: data.consent ?? null, updated: Date.now() }));
   return run(({ fs, db }) => fs.setDoc(fs.doc(db, 'portfolios', uid), clean));
 }
+
+// Abo: Der Stand liegt in subscriptions/{uid} und wird nur vom Zahlungsweg geschrieben (siehe GO-LIVE.md).
+// cb erhält { status, until, cancel } oder null. Ohne Leserecht oder bei einem Fehler gilt: kein Abo.
+export async function watchSubscription(uid, cb) {
+  const { fs, db } = await init();
+  return fs.onSnapshot(fs.doc(db, 'subscriptions', uid), (snap) => {
+    const d = snap.exists() ? snap.data() : null;
+    cb(d ? { status: String(d.status ?? ''), until: Number.isFinite(d.until) ? d.until : d.until?.toMillis?.() ?? null, cancel: !!d.cancel } : null);
+  }, () => cb(null));
+}
+
+// Löscht das gespeicherte Portfolio und danach das Konto. Firebase verlangt dafür eine frische Anmeldung –
+// das wird vorab geprüft, damit nicht das Portfolio weg ist und das Konto noch besteht.
+export const deleteAccount = (uid) => run(async ({ au, fs, auth, db }) => {
+  const last = Date.parse(auth.currentUser?.metadata?.lastSignInTime ?? '');
+  if (!(Date.now() - last < 4 * 60_000)) throw Object.assign(new Error('Anmeldung zu alt'), { code: 'auth/requires-recent-login' });
+  await fs.deleteDoc(fs.doc(db, 'portfolios', uid));
+  await au.deleteUser(auth.currentUser);
+});

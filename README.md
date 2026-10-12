@@ -1,4 +1,6 @@
-# Krypto Markt
+# Coinwetter
+
+> Was für den Verkauf als Abo fertig ist und was noch fehlt, steht in [GO-LIVE.md](GO-LIVE.md). Name, Betreiber, Preise und Bezahlung werden in `js/config.js` eingestellt.
 
 Live-Kurse der Top 1000 Kryptowährungen mit Prognose-Score, Kauf-/Verkaufssignal, Markt-Index, Portfolio und Portfolio-Manager. Reine statische Website (HTML, CSS, JavaScript-Module) – kein Build-Schritt.
 
@@ -17,6 +19,8 @@ Danach `http://localhost:8123` öffnen.
 | Datei | Inhalt |
 |---|---|
 | `js/app.js` | Ansichten (Markt, Detail, Portfolio, Konto) und Datenabruf |
+| `js/config.js` | Name, Betreiber, Preise, Bezahlschranke |
+| `js/site.js` | Einstieg, Preise, Rechtstexte, Hinweise aufs Abo |
 | `js/model.js` | Prognosemodell: Indikatoren, Bewertungskurven, Markt-Index, Rückblick-Test |
 | `js/manager.js` | Portfolio-Manager: Regeln für Kaufen, Verkaufen, Tauschen, Gewinnmitnahme |
 | `js/api.js` | Datenquellen: CoinGecko (Kurse), Binance (Kursgeschichte), alternative.me (Fear & Greed), cryptocurrency.cv (Nachrichten) |

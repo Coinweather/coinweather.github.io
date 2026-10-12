@@ -3,19 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Krypto Markt – Live-Kurse, Prognosen & Portfolio</title>
-  <meta name="description" content="Live-Kurse der Top 1000 Kryptowährungen mit Prognose, Kauf-/Verkaufssignal, Markt-Index und Portfolio-Manager mit Wertentwicklung.">
+  <title>Coinwetter – die Wetterlage am Kryptomarkt</title>
+  <meta name="description" content="Coinwetter zeigt für 1000 Kryptowährungen Signale mit Trefferquote, Markt-Index und Portfolio mit Wertentwicklung – als Wahrscheinlichkeit, nicht als Versprechen. Keine Anlageberatung.">
   <meta name="theme-color" content="#0b0f17">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Krypto Markt – Prognosen, Signale und Portfolio-Manager">
-  <meta property="og:description" content="Kaufscores und Aussichten für die Top 1000 Coins, Reserve-Ziel nach Marktlage, Portfolio mit Wertentwicklung – jede Regel an Kursen seit 2018 geprüft.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%23f7931a%27/%3E%3Cpath d=%27M16 44l11-13 8 7 13-18%27 fill=%27none%27 stroke=%27%23111%27 stroke-width=%276%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E">
+  <meta property="og:title" content="Coinwetter – die Wetterlage am Kryptomarkt">
+  <meta property="og:description" content="Signale mit Trefferquote für 1000 Coins, Markt-Index, Portfolio mit Wertentwicklung. Jede Regel an Kursen seit 2018 geprüft, jedes Signal offen nachgemessen. Keine Anlageberatung.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%23f7931a%27/%3E%3Cg transform=%27translate(8 8) scale(2)%27%3E%3Ccircle cx=%2715.5%27 cy=%278.5%27 r=%274.2%27 fill=%27%23fff%27 opacity=%27.55%27/%3E%3Cpath d=%27M7 19a4 4 0 0 1 .5-7.97A5.5 5.5 0 0 1 18 12.5 3.3 3.3 0 0 1 17.5 19z%27 fill=%27%23fff%27/%3E%3C/g%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="top">
     <div class="wrap top-inner">
-      <a class="brand" href="#/">Krypto Markt</a>
+      <a class="brand" href="#/">Coinwetter</a>
       <nav>
         <a href="#/" data-nav="market">Markt</a>
         <a href="#/daytrading" data-nav="trading">Daytrading</a>
@@ -34,18 +34,22 @@
     <div id="view"></div>
 
     <footer class="note">
-      <h2>So entstehen die Prognosen</h2>
+      <div class="foot-links">
+        <a href="#/preise">Preise</a><a href="#/risiko">Risikohinweis</a><a href="#/agb">AGB</a>
+        <a href="#/datenschutz">Datenschutz</a><a href="#/impressum">Impressum</a>
+      </div>
+      <h2>So entstehen die Signale</h2>
       <p>
         Jeder Coin bekommt einen Score von −100 bis +100 aus Marktphase, Kursverlauf und Schwankung, geprüft an Tageskursen
         von 84 Coins seit 2018. Im Bärenmarkt und bei extremer Gier gibt es keine Kaufsignale. Alle Preise in US-Dollar.
         <button type="button" class="info-btn" data-info="model"><span aria-hidden="true">i</span>So wird gerechnet</button>
       </p>
       <p class="disclaimer">
-        <strong>Keine Anlageberatung, keine Garantie.</strong> Kurse lassen sich nicht sicher vorhersagen. Die Signale
+        <strong>Keine Anlageberatung, keine Garantie.</strong> Coinwetter ist ein Informationsdienst. Kurse lassen sich nicht sicher vorhersagen. Die Signale
         beruhen auf vergangenen Kursen und einer groben Stichwort-Auswertung von Schlagzeilen, kennen nicht deine persönliche Situation –
-        sie können falsch liegen. Kryptowährungen sind hochriskant: Investiere nur Geld, dessen Verlust du verkraften kannst.
+        sie können falsch liegen. Kryptowährungen sind hochriskant: Setze nur Geld ein, dessen Verlust du verkraften kannst. Mehr im <a href="#/risiko">Risikohinweis</a>.
       </p>
-      <p class="source">Kursdaten: <a href="https://www.coingecko.com/" target="_blank" rel="noopener">CoinGecko</a> ·
+      <p class="source">Data provided by <a href="https://www.coingecko.com/en/api" target="_blank" rel="noopener">CoinGecko</a> ·
         Kursgeschichte: Binance · Fear &amp; Greed Index: <a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener">alternative.me</a> ·
         Nachrichten: cryptocurrency.cv · Bewertungen werden alle 20 Minuten zentral berechnet, Kurse minütlich aktualisiert</p>
     </footer>

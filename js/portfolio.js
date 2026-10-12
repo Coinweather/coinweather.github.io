@@ -5,7 +5,7 @@ import * as tr from './track.js';
 const KEY = 'krypto-markt-depot';
 const LEGACY_KEY = 'krypto-markt-portfolio';   // frühere Version: nur die Liste der Positionen
 
-export const empty = () => ({ positions: [], cash: 0, reservePct: null, reserveMode: 'balanced', track: tr.empty(), log: [] });
+export const empty = () => ({ positions: [], cash: 0, reservePct: null, reserveMode: 'balanced', track: tr.empty(), log: [], consent: null });
 
 // Macht aus beliebigen gespeicherten Daten ein gültiges Portfolio
 export function normalise(data) {
@@ -23,7 +23,9 @@ export function normalise(data) {
     // Welchem Vorschlag gefolgt wird, solange kein eigener Wert gesetzt ist
     reserveMode: ['cautious', 'contrarian'].includes(data?.reserveMode) ? data.reserveMode : 'balanced',
     // Aufzeichnung der Bestände für die Wertentwicklung und Liste der letzten Änderungen
-    track: tr.normalise(data?.track), log: tr.normaliseLog(data?.log) };
+    track: tr.normalise(data?.track), log: tr.normaliseLog(data?.log),
+    // Zustimmung zu AGB und Risikohinweis: Stand der Texte und Zeitpunkt
+    consent: typeof data?.consent?.v === 'string' && Number.isFinite(data.consent.t) ? { v: data.consent.v, t: data.consent.t } : null };
 }
 
 export function load() {

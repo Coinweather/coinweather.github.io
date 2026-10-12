@@ -84,8 +84,9 @@ code { background: var(--panel-2); padding: 1px 6px; border-radius: 5px; font-si
   background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: saturate(160%) blur(14px); -webkit-backdrop-filter: saturate(160%) blur(14px); }
 .top-inner { display: flex; align-items: center; gap: 10px 22px; padding-top: 12px; padding-bottom: 12px; flex-wrap: wrap; }
 .brand { display: inline-flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
-.brand::before { content: "₿"; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px;
-  background: linear-gradient(135deg, var(--accent-2), var(--accent)); color: var(--on-accent); font-size: 18px; }
+.brand::before { content: ""; width: 32px; height: 32px; border-radius: 10px; flex: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='15.5' cy='8.5' r='4.2' fill='%23fff' opacity='.55'/%3E%3Cpath d='M7 19a4 4 0 0 1 .5-7.97A5.5 5.5 0 0 1 18 12.5 3.3 3.3 0 0 1 17.5 19z' fill='%23fff'/%3E%3C/svg%3E") center / 24px no-repeat,
+    linear-gradient(135deg, var(--accent-2), var(--accent)); }
 nav { display: flex; align-items: center; gap: 4px; flex: 1; }
 nav a { padding: 8px 14px; border-radius: 999px; color: var(--muted); font-weight: 600; font-size: 14.5px; transition: color .15s, background .15s; }
 nav a:hover { color: var(--text); background: var(--panel-2); }
@@ -476,3 +477,45 @@ h2 + .info-btn, .label + .info-btn { margin-top: 8px; }
   nav::-webkit-scrollbar { display: none; }
   nav a { flex: 0 0 auto; padding: 6px 9px; font-size: 13.5px; }
 }
+
+/* Einstieg, Preise, Abo-Hinweise und Rechtstexte */
+.intro { display: grid; grid-template-columns: 1.15fr 1fr; gap: 28px; align-items: center; padding: 28px; margin: 6px 0 22px;
+  border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+  background: radial-gradient(700px 300px at 0% 0%, var(--bg-glow), transparent 70%), var(--panel); }
+.intro h1 { margin: 12px 0 10px; font-size: clamp(28px, 4.2vw, 42px); line-height: 1.08; letter-spacing: -.03em; }
+.intro .lead { color: var(--muted); font-size: 16.5px; line-height: 1.55; max-width: 56ch; margin: 0 0 18px; }
+.intro-tag { display: inline-block; font-size: 12.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--up-bg); color: var(--up); }
+.intro-note { color: var(--muted); font-size: 12.5px; margin: 14px 0 0; }
+.intro-points { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.intro-points li { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; display: grid; gap: 2px; }
+.intro-points span { color: var(--muted); font-size: 13.5px; }
+@media (max-width: 860px) { .intro { grid-template-columns: 1fr; padding: 20px; gap: 20px; } }
+.plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); gap: 16px; align-items: stretch; margin: 16px 0 12px; }
+.plan { display: flex; flex-direction: column; gap: 8px; }
+.plan.featured { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--shadow); }
+.plan-price { font-size: 34px; font-weight: 800; letter-spacing: -.02em; }
+.plan-price small { font-size: 14px; font-weight: 600; color: var(--muted); }
+.plan-list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; font-size: 14.5px; }
+.plan-list .yes { padding-left: 24px; position: relative; }
+.plan-list .yes::before { content: "✓"; position: absolute; left: 2px; color: var(--up); font-weight: 800; }
+.plan-cta { margin-top: auto; padding-top: 14px; }
+.faq { display: grid; gap: 10px; }
+.faq summary { cursor: pointer; font-weight: 600; }
+.faq p { margin: 10px 0 0; color: var(--muted); line-height: 1.55; }
+.upsell { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 24px; border-style: dashed; }
+.upsell h3 { margin: 4px 0; }
+.upsell p { margin: 0; max-width: 60ch; }
+.picks .upsell { grid-column: 1 / -1; }
+.legal { max-width: 78ch; line-height: 1.6; }
+.legal h3 { margin: 26px 0 6px; font-size: 16px; }
+.legal ul, .info-body ul { padding-left: 20px; }
+.legal li { margin: 8px 0; }
+.legal a, .info-body a, .hint a, .disclaimer a, .faq a { color: var(--accent); }
+.todo { background: var(--hold-bg); color: var(--hold); border-radius: 4px; padding: 0 4px; }
+.notice.ok { background: var(--up-bg); border-left-color: var(--up); }
+.foot-links { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 16px; font-weight: 600; font-size: 14px; }
+.foot-links a { color: var(--muted); }
+.foot-links a:hover { color: var(--text); }
+.link.danger { color: var(--down); }
+.dialog-actions { margin-top: 18px; }
+.label a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }

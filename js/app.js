@@ -1,4 +1,6 @@
 import { $, esc, settings, sleep, isNum, money, compact, num, signed, tone, pct } from './util.js';
+import { SITE } from './config.js';
+import * as site from './site.js';
 import * as api from './api.js';
 import * as pf from './portfolio.js';
 import * as auth from './auth.js';
@@ -595,6 +597,26 @@ document.addEventListener('click', (e) => {
   infoDialog.scrollTop = 0;
 });
 
+// Dialog, der eine Entscheidung verlangt – er lässt sich nicht nebenbei schließen. Ergebnis: true bei Zustimmung.
+function decide(html, yes, no) {
+  return new Promise((resolve) => {
+    const dlg = document.createElement('dialog');
+    dlg.className = 'dialog wide';
+    dlg.innerHTML = `<div><div class="info-body">${html}</div>
+      <div class="btn-row dialog-actions"><button class="btn" type="button" data-yes>${yes}</button><button class="btn ghost" type="button" data-no>${no}</button></div></div>`;
+    document.body.append(dlg);
+    dlg.addEventListener('cancel', (e) => e.preventDefault());
+    dlg.addEventListener('click', (e) => {
+      const button = e.target.closest('[data-yes], [data-no]');
+      if (!button) return;
+      dlg.close(); dlg.remove();
+      resolve(button.hasAttribute('data-yes'));
+    });
+    dlg.showModal();
+    dlg.scrollTop = 0;
+  });
+}
+
 function factorList(factors) {
   if (!factors.length) return '<p class="muted">Keine Daten für diesen Zeitraum.</p>';
   return `<ul class="factors">${factors.map((f) => `<li>
@@ -607,12 +629,13 @@ function factorList(factors) {
 const SORTS = {
   rank: (c) => c.market_cap_rank, name: (c) => c.name.toLowerCase(), price: (c) => c.current_price,
   h24: (c) => c.price_change_percentage_24h_in_currency, d7: (c) => c.price_change_percentage_7d_in_currency,
-  d30: (c) => c.price_change_percentage_30d_in_currency, mcap: (c) => c.market_cap, score: (c) => c.analysis.score,
+  d30: (c) => c.price_change_percentage_30d_in_currency, mcap: (c) => c.market_cap, score: (c) => (lockedCoin(c) ? null : c.analysis.score),
 };
 
 function marketView() {
   const th = (key, label, cls = '') => `<th class="${cls} sortable" data-sort="${key}">${label}</th>`;
   view.innerHTML = `
+    <div id="intro"></div>
     <section class="hero">
       <div class="panel gauge-panel" id="g-market"></div>
       <div class="panel gauge-panel" id="g-fng"></div>
@@ -719,11 +742,11 @@ function marketView() {
         ${rec.d7 ? '' : '<p class="hint">Die Messung hat gerade begonnen. Erste Ergebnisse gibt es 7 Tage nach den ersten Signalen.</p>'}`;
     }
     const f = state.fng;
-    $('#g-fng').innerHTML = f ? `<div class="label">Fear &amp; Greed Index</div>${gauge(f.value, SELL_TO_BUY)}
+    $('#g-fng').innerHTML = f ? `<div class="label">Fear &amp; Greed Index · <a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener">alternative.me</a></div>${gauge(f.value, SELL_TO_BUY)}
         <div class="gauge-value">${f.value}<small> / 100</small></div><span class="badge none big">${fngLabel(f.value)}</span>
         <div class="hint">Vor 7 Tagen: ${isNum(f.history[7]?.value) ? f.history[7].value : '–'} · vor 30 Tagen: ${isNum(f.history[29]?.value) ? f.history[29].value : '–'}${f.cmc ? `<br>CoinMarketCap: ${f.cmc.value}${f.cmc.label ? ` (${esc(f.cmc.label)})` : ''}` : ''}</div>
         ${fngEffect(m?.regime)}${infoBtn('fng', 'Wirkung im Modell')}`
-      : '<div class="label">Fear &amp; Greed Index</div><p class="muted">Wird geladen …</p>';
+      : '<div class="label">Fear &amp; Greed Index · <a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener">alternative.me</a></div><p class="muted">Wird geladen …</p>';
     $('#market-parts').innerHTML = m ? `<div class="head-row"><div class="label">So setzt sich der Markt-Index zusammen</div>${infoBtn('index')}</div>
         ${factorList(m.parts)}
         <details><summary>Heutige Einzelwerte der Marktphase</summary>${factorList(m.regime.factors)}</details>`
@@ -731,6 +754,7 @@ function marketView() {
   }
 
   function picks() {
+    if (!access().premium) { $('#picks').innerHTML = site.upsell('picks', access()); return; }
     // Riskantere Coins brauchen einen höheren Score, um vorne zu landen
     const list = state.coins.filter((c) => c.analysis.signal === 'buy' && (c.market_cap_rank ?? 9999) <= 500 &&
       c.total_volume >= 1e6 && !DERIVATIVE.test(c.name))
@@ -748,7 +772,7 @@ function marketView() {
     const q = state.query.trim().toLowerCase();
     const get = SORTS[state.sort.key];
     const list = state.coins.filter((c) =>
-      (state.filter === 'all' || c.analysis.signal === state.filter) &&
+      (state.filter === 'all' || (!lockedCoin(c) && c.analysis.signal === state.filter)) &&
       (!q || c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q)))
       .sort((a, b) => {
         const x = get(a), y = get(b);
@@ -766,7 +790,7 @@ function marketView() {
     }
 
     $('#rows').innerHTML = rows.length ? rows.map((c) => {
-      const a = c.analysis, d7 = c.price_change_percentage_7d_in_currency;
+      const a = c.analysis, d7 = c.price_change_percentage_7d_in_currency, lock = lockedCoin(c);
       return `<tr class="coin" data-id="${esc(c.id)}">
         <td class="num muted col-rank">${c.market_cap_rank ?? ''}</td>
         <td class="col-coin"><a class="coin-cell" href="#/coin/${encodeURIComponent(c.id)}"><img src="${esc(c.image)}" alt="" loading="lazy">
@@ -777,10 +801,10 @@ function marketView() {
         <td class="num col-30d">${pct(c.price_change_percentage_30d_in_currency)}</td>
         <td class="num col-cap">${compact(c.market_cap)}</td>
         <td class="col-chart">${sparkline(c.sparkline_in_7d?.price, !isNum(d7) || d7 >= 0)}</td>
-        <td class="col-score">${scoreCell(a.score)}</td>
-        <td class="col-hold">${a.horizon}</td>
+        <td class="col-score">${lock ? '<span class="muted">–</span>' : scoreCell(a.score)}</td>
+        <td class="col-hold">${lock ? '<span class="muted">–</span>' : a.horizon}</td>
         <td class="col-risk">${riskTag(a.risk)}</td>
-        <td>${badge(a)}</td>
+        <td>${lock ? '<a class="badge none" href="#/preise">Im Abo</a>' : badge(a)}</td>
       </tr>`;
     }).join('') : `<tr><td colspan="12" class="empty">${state.coins.length ? 'Keine Coins gefunden.' : 'Lade Kurse …'}</td></tr>`;
 
@@ -790,7 +814,16 @@ function marketView() {
       : '';
   }
 
-  return { update() { hero(); picks(); table(); } };
+  // Einstieg für Besucher ohne Konto – erst, wenn die Anmeldung geprüft ist, damit er nicht kurz aufblitzt
+  let introShown = null;
+  function intro() {
+    const show = depot.ready && !depot.user;
+    if (show === introShown) return;
+    introShown = show;
+    $('#intro').innerHTML = show ? site.landing() : '';
+  }
+
+  return { update() { intro(); hero(); picks(); table(); } };
 }
 
 // ---------- Detailansicht ----------
@@ -980,6 +1013,7 @@ function detailView(id) {
   }
 
   function head(c, a) {
+    if (lockedCoin(c)) a = { ...a, signal: 'none', label: 'Im Abo', score: null, horizon: '–', scope: null, mood: null, agreement: null };
     const strength = { Kaufen: 'deutlich', 'Eher kaufen': 'schwach – leichter Vorteil', Verkaufen: 'deutlich', 'Eher verkaufen': 'schwach' }[a.label];
     $('#d-head').innerHTML = `<section class="panel d-head">
       <div class="d-coin"><img src="${esc(c.image)}" alt="">
@@ -1019,6 +1053,7 @@ function detailView(id) {
 
   function forecast(c, a) {
     if (a.signal === 'none') { $('#d-forecast').innerHTML = `<section class="panel"><h2>Prognose</h2><p>${esc(a.notes[0])}</p></section>`; return; }
+    if (lockedCoin(c)) { $('#d-forecast').innerHTML = site.upsell('coin', access()); return; }
     // Bausteine des Scores: Bewertung des bisherigen Kursverlaufs und ihr Beitrag in Punkten. Eine Prognose sind sie
     // nicht – die steht einmal, als Prozentwert mit Einordnung, in den drei Feldern darüber.
     const weightSum = Object.keys(WEIGHTS).reduce((sum, k) => sum + (a[k].score === null ? 0 : WEIGHTS[k]), 0);
@@ -1178,6 +1213,50 @@ function saveDepot(data, { internal = false, note = null } = {}) {
   current?.update();
 }
 
+// ---------- Abo und Zustimmung ----------
+
+// Wer darf den vollen Umfang sehen? Ohne Bezahlschranke alle; sonst zahlende Konten und neue Konten in der Testzeit.
+const abo = { sub: null, stop: null };
+function access() {
+  if (!SITE.paywall) return { premium: true, reason: 'open' };
+  if (!depot.user) return { premium: false, reason: 'guest' };
+  const s = abo.sub;
+  if (s && ['active', 'trialing'].includes(s.status) && (!s.until || s.until > Date.now())) return { premium: true, reason: 'paid', until: s.until, cancel: s.cancel };
+  const trialEnd = (depot.user.created ?? 0) + SITE.trialDays * 86_400_000;
+  if (SITE.trialDays > 0 && Date.now() < trialEnd) return { premium: true, reason: 'trial', until: trialEnd };
+  return { premium: false, reason: 'expired' };
+}
+// Ohne Abo gibt es Signale nur für die größten Coins (Stablecoins und Ähnliches haben ohnehin keins)
+const lockedCoin = (c) => !access().premium && c.analysis?.signal !== 'none' && (c.market_cap_rank ?? 9999) > SITE.freeCoins;
+const lockedView = (kind) => { view.innerHTML = site.upsell(kind, access()); return { update() {} }; };
+
+// Nach dem ersten Anmelden und nach geänderten Rechtstexten: Zustimmung zu AGB und Risikohinweis einholen und festhalten
+let consentOpen = false;
+async function askConsent() {
+  if (consentOpen || !depot.user || depot.data.consent?.v === SITE.legalVersion) return;
+  consentOpen = true;
+  const uid = depot.user.uid;
+  const agreed = await decide(site.consentHtml(), 'Ich stimme zu', 'Abmelden');
+  consentOpen = false;
+  if (depot.user?.uid !== uid) return;
+  if (agreed) saveDepot({ ...depot.data, consent: { v: SITE.legalVersion, t: Date.now() } }, { internal: true });
+  else auth.logout().catch(() => {});
+}
+
+// Daytrading zeigt Hebel – vor dem ersten Besuch wird der Risikohinweis bestätigt (gilt je Gerät)
+const TRADING_ACK = 'coinwetter-risiko-handel';
+let tradingAsked = false;
+function tradingAck() {
+  try { if (localStorage.getItem(TRADING_ACK) === SITE.legalVersion) return; } catch { /* dann wird jedes Mal gefragt */ }
+  if (tradingAsked) return;
+  tradingAsked = true;
+  decide(site.tradingRiskHtml(), 'Verstanden', 'Zurück zum Markt').then((ok) => {
+    tradingAsked = false;
+    if (!ok) { location.hash = '#/'; return; }
+    try { localStorage.setItem(TRADING_ACK, SITE.legalVersion); } catch { /* nicht speicherbar */ }
+  });
+}
+
 function renderAccountLink() {
   const link = $('#nav-account');
   link.textContent = depot.user ? (depot.user.name || depot.user.email || 'Konto') : 'Anmelden';
@@ -1190,6 +1269,16 @@ auth.onUser(async (user) => {
   const before = depot.user;
   depot.user = user;
   depot.ready = true;
+  abo.stop?.();
+  abo.stop = null; abo.sub = null;
+  if (user && SITE.paywall) {
+    auth.watchSubscription(user.uid, (sub) => {
+      if (depot.user?.uid !== user.uid) return;
+      const before = access().premium;
+      abo.sub = sub;
+      if (access().premium !== before) route(); else current?.update();
+    }).then((stop) => { if (depot.user?.uid === user.uid) abo.stop = stop; else stop(); }, () => {});
+  }
   if (user) {
     depot.sync = 'saving';
     let first = true;
@@ -1199,6 +1288,7 @@ auth.onUser(async (user) => {
           // Eigene, noch nicht bestätigte Änderungen sind lokal schon da
           if (!pending) { depot.data = pf.normalise(cloud); pf.save(depot.data); }
           depot.sync = 'synced';
+          askConsent();   // auch bei noch unbestätigtem Speichern: Der Stand der Zustimmung liegt dann schon lokal vor
         } else if (first) saveDepot(depot.data);   // erstes Anmelden: Portfolio aus dem Browser ins Konto übernehmen
         first = false;
         current?.update();
@@ -1211,7 +1301,8 @@ auth.onUser(async (user) => {
   }
   renderAccountLink();
   // Das Portfolio gibt es nur angemeldet – nach An- oder Abmelden die Ansicht neu wählen
-  if (/^#\/(portfolio|konto)/.test(location.hash)) route(); else current?.update();
+  // … und mit Bezahlschranke hängt jede Ansicht davon ab, wer angemeldet ist
+  if (SITE.paywall || /^#\/(portfolio|konto|preise)/.test(location.hash)) route(); else current?.update();
 });
 
 const SYNC_TEXT = {
@@ -1348,8 +1439,8 @@ function accountView(gate = false) {
   const key = () => (!depot.ready ? 'wait' : depot.user?.uid ?? (auth.available ? 'out' : 'off'));
   const BENEFITS = `<ul class="benefits">
       <li><div><strong>Dein Portfolio, überall</strong><span>Im Konto gespeichert und auf jedem Gerät abrufbar.</span></div></li>
-      <li><div><strong>Konkrete Schritte</strong><span>Der Portfolio-Manager sagt, was du kaufen, halten oder verkaufen solltest – mit Begründung, Gebühr und Zeitrahmen.</span></div></li>
-      <li><div><strong>Schutz bei fallenden Kursen</strong><span>Verkaufsempfehlung, sobald ein Coin deutlich unter sein Hoch fällt oder der Markt dreht.</span></div></li>
+      <li><div><strong>Modell-Schritte für deinen Bestand</strong><span>Der Portfolio-Manager rechnet nach festen, geprüften Regeln aus, was das Modell für deinen Bestand vorsieht – mit Begründung, Gebühr und Zeitrahmen. Die Entscheidung triffst du.</span></div></li>
+      <li><div><strong>Warnung bei fallenden Kursen</strong><span>Verkaufssignal, sobald ein Coin deutlich unter sein Hoch fällt oder der Markt dreht.</span></div></li>
       <li><div><strong>Wertentwicklung im Blick</strong><span>Diagramm deines Portfolios mit Gewinn, Einzahlungen und Vergleich zu Bitcoin.</span></div></li>
     </ul>`;
 
@@ -1367,13 +1458,26 @@ function accountView(gate = false) {
       return;
     }
     if (depot.user) {
+      const a = access(), until = a.until ? new Date(a.until).toLocaleDateString('de-DE') : null;
+      const planText = a.reason === 'open' ? 'Einführungsphase – zurzeit sind alle Funktionen kostenlos.'
+        : a.reason === 'paid' ? `Dein Abo ist aktiv${until ? ` bis ${until}` : ''}${a.cancel ? ' und verlängert sich nicht mehr' : ''}.`
+        : a.reason === 'trial' ? `Testzeit bis ${until} – alle Funktionen sind frei.` : 'Kein Abo – es gilt der kostenlose Umfang.';
       view.innerHTML = `<h2>Konto</h2><section class="panel">
         <p>Angemeldet als <strong>${esc(depot.user.email ?? depot.user.name ?? '')}</strong></p>
         <p class="hint" id="a-sync"></p>
         <p><a class="btn" href="#/portfolio">Zum Portfolio</a> <button class="btn ghost" id="a-logout">Abmelden</button></p>
         <p id="a-msg" class="notice" hidden></p>
-      </section>`;
+      </section>
+      <section class="panel"><div class="label">Abo</div><p>${planText}</p>
+        <p><a class="btn ghost" href="#/preise">Preise und Leistungen</a>${a.reason === 'paid' && SITE.manageUrl ? ` <a class="btn ghost" href="${esc(SITE.manageUrl)}" target="_blank" rel="noopener">Abo verwalten</a>` : ''}</p></section>
+      <section class="panel"><div class="label">Deine Daten</div>
+        <p class="hint">Dein Portfolio kannst du auf der Portfolio-Seite als Tabelle exportieren. Löschst du dein Konto, werden Portfolio und Anmeldung endgültig entfernt.${a.reason === 'paid' ? ' Ein laufendes Abo kündigst du bitte vorher.' : ''}</p>
+        <p><button class="link danger" id="a-delete" type="button">Konto und Daten löschen</button></p></section>`;
       $('#a-logout').addEventListener('click', () => act(() => auth.logout()));
+      $('#a-delete').addEventListener('click', () => {
+        if (!confirm('Konto wirklich löschen? Portfolio, Wertentwicklung und Anmeldung werden endgültig entfernt.')) return;
+        act(() => auth.deleteAccount(depot.user.uid));
+      });
       return;
     }
     const form = `<section class="panel account">
@@ -1389,12 +1493,14 @@ function accountView(gate = false) {
           </div>
           <button class="link" type="button" id="a-reset">Passwort vergessen?</button>
         </form>
+        <p class="hint">Mit dem Erstellen eines Kontos akzeptierst du die <a href="#/agb">AGB</a> und bestätigst, den <a href="#/risiko">Risikohinweis</a>
+          und die <a href="#/datenschutz">Datenschutzerklärung</a> gelesen zu haben. ${esc(SITE.name)} ist keine Anlageberatung.</p>
         <p id="a-msg" class="notice" hidden></p>
       </section>`;
     view.innerHTML = `<div class="gate">
         <div>
-          <h1>${gate ? 'Melde dich an, um dein Portfolio zu sehen' : 'Dein Konto bei Krypto Markt'}</h1>
-          <p class="lead">Das Portfolio und der Portfolio-Manager sind an ein Konto gebunden. Kurse, Prognosen und Markt-Index bleiben ohne Anmeldung frei.</p>
+          <h1>${gate ? 'Melde dich an, um dein Portfolio zu sehen' : `Dein Konto bei ${esc(SITE.name)}`}</h1>
+          <p class="lead">Das Portfolio und der Portfolio-Manager sind an ein Konto gebunden. Kurse und Markt-Index bleiben ohne Anmeldung frei.${SITE.paywall ? ` Neue Konten testen ${SITE.trialDays} Tage lang den vollen Umfang.` : ''}</p>
           ${BENEFITS}
         </div>
         ${form}
@@ -1774,7 +1880,7 @@ function portfolioView() {
 
   $('#p-clear').addEventListener('click', () => {
     if (!confirm('Portfolio wirklich leeren? Bestand, Wertentwicklung und Verlauf werden gelöscht.')) return;
-    message = 'Portfolio geleert.'; saveDepot(pf.empty());
+    message = 'Portfolio geleert.'; saveDepot({ ...pf.empty(), consent: depot.data.consent });
   });
   // Bestand als Tabelle herunterladen – mit Semikolon und Komma, so öffnet Excel die Datei richtig
   $('#p-export').addEventListener('click', () => {
@@ -1925,6 +2031,7 @@ function portfolioView() {
   let optionCount = -1;
 
   function update() {
+    $('#p-open-reserve').hidden = !access().premium;   // das Reserve-Ziel gehört zum Abo
     const list = depot.data.positions;
     $('#p-where').textContent = depot.sync === 'error' ? `Speichern im Konto fehlgeschlagen: ${depot.error}` : SYNC_TEXT[depot.sync];
     $('#p-msg').hidden = !message; $('#p-msg').textContent = message;
@@ -2053,6 +2160,7 @@ function portfolioView() {
   function manager(rows, total) {
     const el = $('#p-manager');
     if (!(total > 0)) { advice = null; el.innerHTML = ''; return; }
+    if (!access().premium) { advice = null; el.innerHTML = site.upsell('manager', access()); return; }
     // Vorschläge erst zeigen, wenn alle Kurse und Bewertungen geladen sind – vorher würden sie sich ständig ändern
     const ready = state.pagesLoaded >= api.PAGES && state.refineDone && !!state.market;
     const key = JSON.stringify([depot.data.positions.map((p) => [pf.keyOf(p), p.amount, p.cost]), depot.data.cash, depot.data.reservePct, depot.data.reserveMode]);
@@ -2123,14 +2231,17 @@ function portfolioView() {
 
 function route() {
   const [name, arg] = location.hash.replace(/^#\/?/, '').split('/');
-  const section = name === 'portfolio' ? 'portfolio' : name === 'konto' ? 'account' : name === 'daytrading' ? 'trading' : 'market';
+  const pages = ['preise', ...site.LEGAL_KINDS];
+  const section = name === 'portfolio' ? 'portfolio' : name === 'konto' ? 'account' : name === 'daytrading' ? 'trading' : pages.includes(name) ? null : 'market';
   for (const a of document.querySelectorAll('nav a')) a.classList.toggle('active', a.dataset.nav === section);
   let id = arg;
   try { id = decodeURIComponent(arg ?? ''); } catch { /* fehlerhafte Adresse – unverändert verwenden */ }
   if (name === 'coin' && id) current = detailView(id);
   else if (name === 'portfolio') current = depot.user ? portfolioView() : accountView(true);
   else if (name === 'konto') current = accountView();
-  else if (name === 'daytrading') current = tradingView();
+  else if (name === 'daytrading') { current = access().premium ? tradingView() : lockedView('trading'); if (access().premium) tradingAck(); }
+  else if (name === 'preise') current = site.pricingView(view, { access, user: () => depot.user });
+  else if (site.LEGAL_KINDS.includes(name)) current = site.legalView(view, name);
   else current = marketView();
   current.update();
   window.scrollTo(0, 0);
