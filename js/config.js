@@ -21,13 +21,13 @@ export const SITE = {
   hosting: 'GitHub Pages (GitHub Inc., USA)',
 
   // Abo: zwei Pakete, monatliche Abrechnung, kein kostenloser Umfang. Preise inklusive Mehrwertsteuer.
+  // Standard zeigt den Markt (Index, Signale, Detailansichten), Komplett zusätzlich Portfolio und Daytrading.
   paywall: true,       // true: Inhalte nur mit Abo. false: alles offen – nur zum Entwickeln
   currency: '€',
   plans: {
     standard: { name: 'Standard', price: 3.99, checkout: '' },   // checkout: Bezahl-Link des Zahlungsanbieters
     full: { name: 'Komplett', price: 7.99, checkout: '' },
   },
-  standardCoins: 100,  // Standard: Signale für die größten Coins; Komplett: alle
   manageUrl: '',       // Seite des Zahlungsanbieters, auf der Kunden kündigen und Rechnungen abrufen
   paymentProvider: '', // Name des Zahlungsanbieters, erscheint in AGB und Datenschutz
 

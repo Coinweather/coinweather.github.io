@@ -35,20 +35,18 @@ function landing() {
     <ul class="intro-points">
       <li><strong>Signale mit Trefferquote</strong><span>Zu jedem Signal steht, wie oft vergleichbare Fälle im Plus endeten.</span></li>
       <li><strong>Großwetterlage</strong><span>Markt-Index, Fear &amp; Greed und Zyklus – wann das Modell kauft und wann es abwartet.</span></li>
-      <li><strong>Portfolio mit Wertentwicklung</strong><span>Dein Bestand im Vergleich zu Bitcoin, im Paket ${esc(SITE.plans.full.name)} mit Reserve-Ziel und Modell-Schritten.</span></li>
+      <li><strong>Portfolio und Daytrading</strong><span>Im Paket ${esc(SITE.plans.full.name)}: dein Bestand mit Wertentwicklung, Reserve-Ziel und Modell-Schritten, dazu geprüfte Handelsmuster.</span></li>
       <li><strong>Offene Erfolgskontrolle</strong><span>Jedes Kaufsignal wird nach 7 und 30 Tagen nachgemessen – auch die schlechten.</span></li>
     </ul>
   </section>`;
 }
 
-// ---------- Hinweis auf das größere Paket an gesperrten Stellen ----------
+// ---------- Hinweis auf das größere Paket: Portfolio und Daytrading ----------
 
 const FULL = SITE.plans.full.name, STD = SITE.plans.standard.name;
 const UPSELL = {
-  coin: ['Signal und Aussicht für diesen Coin', `Im Paket ${STD} sind die ${SITE.standardCoins} größten Coins enthalten. ${FULL} zeigt Signal, Aussicht und Rückblick für alle 1000.`],
-  picks: ['Die stärksten Kaufsignale', `Welche Coins im Modell gerade am besten abschneiden, gehört zum Paket ${FULL}.`],
+  portfolio: ['Portfolio', `Dein Bestand mit Wertentwicklung, Vergleich zu Bitcoin, Reserve-Ziel und Modell-Schritten gehört zum Paket ${FULL}.`],
   trading: ['Daytrading-Muster', `Geprüfte Muster mit Einstieg, Ziel und Stopp gehören zum Paket ${FULL}.`],
-  manager: ['Reserve-Ziel und Modell-Schritte', `Was das Modell nach seinen Regeln für deinen Bestand vorsieht, gehört zum Paket ${FULL}. Dein Portfolio und seine Wertentwicklung bleiben sichtbar.`],
 };
 
 export function upsell(kind) {
@@ -62,7 +60,7 @@ export function upsell(kind) {
 // ---------- Preise: zugleich die Seite, die ohne Abo überall erscheint ----------
 
 const FAQ = [
-  [`Was ist der Unterschied zwischen ${STD} und ${FULL}?`, `${STD} enthält Markt-Index, Signale und Aussicht für die ${SITE.standardCoins} größten Coins und dein Portfolio mit Wertentwicklung. ${FULL} zeigt alle 1000 Coins und dazu die stärksten Kaufsignale, das Reserve-Ziel mit Modell-Schritten für dein Portfolio und die Daytrading-Muster.`],
+  [`Was ist der Unterschied zwischen ${STD} und ${FULL}?`, `${STD} zeigt den Markt: Markt-Index, Signale und Aussicht für alle 1000 Coins, die stärksten Kaufsignale und die Detailansichten. ${FULL} enthält zusätzlich das Portfolio mit Wertentwicklung, Reserve-Ziel und Modell-Schritten sowie die Daytrading-Muster.`],
   ['Gibt es eine kostenlose Version oder eine Testzeit?', 'Nein. Dafür ist das Abo monatlich kündbar, und du kannst den Kauf 14 Tage lang widerrufen.'],
   ['Ist das eine Anlageberatung?', `Nein. ${SITE.name} ist ein Informationsdienst. Alle sehen dieselben Signale; sie berücksichtigen weder dein Vermögen noch deine Ziele oder deine Erfahrung. Was du kaufst oder verkaufst, entscheidest du allein.`],
   ['Wie gut sind die Signale?', 'Ehrlich: Ein „Eher kaufen“ ist ein schwaches Signal – in der Prüfung lief etwas mehr als jeder zweite Fall ins Plus. Der Vorteil entsteht über viele Käufe, nicht beim einzelnen. Die Erfolgskontrolle zeigt, was aus den Signalen der Seite tatsächlich geworden ist.'],
@@ -76,11 +74,12 @@ export function pricingView(el, { access, user, record }) {
   let shown = null;
   function render() {
     const a = access();
-    const manage = (label) => (SITE.manageUrl ? `<a class="btn ghost" href="${esc(SITE.manageUrl)}" target="_blank" rel="noopener">${label}</a>` : '<span class="muted">Über die Abo-Verwaltung deines Zahlungsanbieters.</span>');
+    const manage = (label, otherwise) => (SITE.manageUrl ? `<a class="btn ghost" href="${esc(SITE.manageUrl)}" target="_blank" rel="noopener">${label}</a>` : otherwise);
     const button = (key) => {
       const plan = SITE.plans[key];
       if (a.reason === 'open' || a.reason === 'owner') return '<span class="muted">Für dich freigeschaltet.</span>';
-      if (a.reason === 'paid') return a.plan === key ? `<span class="badge buy">Dein Paket</span> ${manage('Abo verwalten')}` : manage('Paket wechseln');
+      if (a.reason === 'paid') return a.plan === key ? `<span class="badge buy">Dein Paket</span> ${manage('Abo verwalten', '')}`
+        : manage('Paket wechseln', '<span class="muted">Wechsel über die Abo-Verwaltung deines Zahlungsanbieters.</span>');
       if (!selling()) return '<span class="muted">Der Verkauf startet in Kürze.</span>';
       if (!user()) return '<a class="btn" href="#/konto">Konto erstellen und abonnieren</a>';
       // Die Konto-Kennung geht mit, damit die Zahlung dem Konto zugeordnet werden kann
@@ -110,11 +109,10 @@ export function pricingView(el, { access, user, record }) {
         <p class="hint">Zwei Pakete, monatliche Abrechnung, jederzeit zum Monatsende kündbar.</p></div></div>
       ${status}
       <div class="plans">
-        ${card('standard', false, 'Der Überblick über den Markt und dein Portfolio.', ['Markt-Index „Jetzt kaufen?“, Fear &amp; Greed und Zyklus',
-          `Signale und Aussicht für die ${SITE.standardCoins} größten Coins`, 'Detailansicht mit Score-Bausteinen und Rückblick',
-          'Portfolio mit Wertentwicklung und Vergleich zu Bitcoin', 'Import und Export als Tabelle'])}
-        ${card('full', true, 'Alle Funktionen, alle Coins.', [`Alles aus ${esc(STD)}`, 'Signale und Aussicht für alle 1000 Coins', 'Die stärksten Kaufsignale auf einen Blick',
-          'Reserve-Ziel und Modell-Schritte für dein Portfolio', 'Daytrading-Muster mit Einstieg, Ziel und Stopp'])}
+        ${card('standard', false, 'Der Markt im Überblick.', ['Markt-Index „Jetzt kaufen?“, Fear &amp; Greed und Zyklus',
+          'Signale und Aussicht für alle 1000 Coins', 'Die stärksten Kaufsignale auf einen Blick', 'Detailansicht mit Score-Bausteinen und Rückblick'])}
+        ${card('full', true, 'Der Markt, dein Portfolio und Daytrading.', [`Alles aus ${esc(STD)}`, 'Portfolio mit Wertentwicklung und Vergleich zu Bitcoin',
+          'Reserve-Ziel und Modell-Schritte für dein Portfolio', 'Import und Export als Tabelle', 'Daytrading-Muster mit Einstieg, Ziel und Stopp'])}
       </div>
       <p class="hint">Preise pro Monat inklusive Mehrwertsteuer. Das Abo verlängert sich jeweils um einen Monat, bis du kündigst. 14 Tage Widerrufsrecht.
         Es gelten die <a href="#/agb">AGB</a> und der <a href="#/risiko">Risikohinweis</a>. ${esc(SITE.name)} ist keine Anlageberatung.</p>

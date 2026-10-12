@@ -629,7 +629,7 @@ function factorList(factors) {
 const SORTS = {
   rank: (c) => c.market_cap_rank, name: (c) => c.name.toLowerCase(), price: (c) => c.current_price,
   h24: (c) => c.price_change_percentage_24h_in_currency, d7: (c) => c.price_change_percentage_7d_in_currency,
-  d30: (c) => c.price_change_percentage_30d_in_currency, mcap: (c) => c.market_cap, score: (c) => (lockedCoin(c) ? null : c.analysis.score),
+  d30: (c) => c.price_change_percentage_30d_in_currency, mcap: (c) => c.market_cap, score: (c) => c.analysis.score,
 };
 
 function marketView() {
@@ -753,7 +753,6 @@ function marketView() {
   }
 
   function picks() {
-    if (!fullAccess()) { $('#picks').innerHTML = site.upsell('picks'); return; }
     // Riskantere Coins brauchen einen höheren Score, um vorne zu landen
     const list = state.coins.filter((c) => c.analysis.signal === 'buy' && (c.market_cap_rank ?? 9999) <= 500 &&
       c.total_volume >= 1e6 && !DERIVATIVE.test(c.name))
@@ -771,7 +770,7 @@ function marketView() {
     const q = state.query.trim().toLowerCase();
     const get = SORTS[state.sort.key];
     const list = state.coins.filter((c) =>
-      (state.filter === 'all' || (!lockedCoin(c) && c.analysis.signal === state.filter)) &&
+      (state.filter === 'all' || c.analysis.signal === state.filter) &&
       (!q || c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q)))
       .sort((a, b) => {
         const x = get(a), y = get(b);
@@ -789,7 +788,7 @@ function marketView() {
     }
 
     $('#rows').innerHTML = rows.length ? rows.map((c) => {
-      const a = c.analysis, d7 = c.price_change_percentage_7d_in_currency, lock = lockedCoin(c);
+      const a = c.analysis, d7 = c.price_change_percentage_7d_in_currency;
       return `<tr class="coin" data-id="${esc(c.id)}">
         <td class="num muted col-rank">${c.market_cap_rank ?? ''}</td>
         <td class="col-coin"><a class="coin-cell" href="#/coin/${encodeURIComponent(c.id)}"><img src="${esc(c.image)}" alt="" loading="lazy">
@@ -800,10 +799,10 @@ function marketView() {
         <td class="num col-30d">${pct(c.price_change_percentage_30d_in_currency)}</td>
         <td class="num col-cap">${compact(c.market_cap)}</td>
         <td class="col-chart">${sparkline(c.sparkline_in_7d?.price, !isNum(d7) || d7 >= 0)}</td>
-        <td class="col-score">${lock ? '<span class="muted">–</span>' : scoreCell(a.score)}</td>
-        <td class="col-hold">${lock ? '<span class="muted">–</span>' : a.horizon}</td>
+        <td class="col-score">${scoreCell(a.score)}</td>
+        <td class="col-hold">${a.horizon}</td>
         <td class="col-risk">${riskTag(a.risk)}</td>
-        <td>${lock ? `<a class="badge none" href="#/preise">${esc(SITE.plans.full.name)}</a>` : badge(a)}</td>
+        <td>${badge(a)}</td>
       </tr>`;
     }).join('') : `<tr><td colspan="12" class="empty">${state.coins.length ? 'Keine Coins gefunden.' : 'Lade Kurse …'}</td></tr>`;
 
@@ -1003,7 +1002,6 @@ function detailView(id) {
   }
 
   function head(c, a) {
-    if (lockedCoin(c)) a = { ...a, signal: 'none', label: `Paket ${SITE.plans.full.name}`, score: null, horizon: '–', scope: null, mood: null, agreement: null };
     const strength = { Kaufen: 'deutlich', 'Eher kaufen': 'schwach – leichter Vorteil', Verkaufen: 'deutlich', 'Eher verkaufen': 'schwach' }[a.label];
     $('#d-head').innerHTML = `<section class="panel d-head">
       <div class="d-coin"><img src="${esc(c.image)}" alt="">
@@ -1043,7 +1041,6 @@ function detailView(id) {
 
   function forecast(c, a) {
     if (a.signal === 'none') { $('#d-forecast').innerHTML = `<section class="panel"><h2>Prognose</h2><p>${esc(a.notes[0])}</p></section>`; return; }
-    if (lockedCoin(c)) { $('#d-forecast').innerHTML = site.upsell('coin'); return; }
     // Bausteine des Scores: Bewertung des bisherigen Kursverlaufs und ihr Beitrag in Punkten. Eine Prognose sind sie
     // nicht – die steht einmal, als Prozentwert mit Einordnung, in den drei Feldern darüber.
     const weightSum = Object.keys(WEIGHTS).reduce((sum, k) => sum + (a[k].score === null ? 0 : WEIGHTS[k]), 0);
@@ -1216,8 +1213,7 @@ function access() {
   return { plan: null, reason: 'none' };
 }
 const fullAccess = () => access().plan === 'full';
-// Das kleinere Paket zeigt Signale nur für die größten Coins (Stablecoins und Ähnliches haben ohnehin keins)
-const lockedCoin = (c) => !fullAccess() && c.analysis?.signal !== 'none' && (c.market_cap_rank ?? 9999) > SITE.standardCoins;
+// Portfolio und Daytrading gehören zum größeren Paket
 const lockedView = (kind) => { view.innerHTML = site.upsell(kind); return { update() {} }; };
 const waitView = () => { view.innerHTML = '<section class="panel"><p class="muted">Anmeldung wird geprüft …</p></section>'; return { update() {} }; };
 
@@ -1459,7 +1455,7 @@ function accountView(gate = false) {
       view.innerHTML = `<h2>Konto</h2><section class="panel">
         <p>Angemeldet als <strong>${esc(depot.user.email ?? depot.user.name ?? '')}</strong></p>
         <p class="hint" id="a-sync"></p>
-        <p><a class="btn" href="#/portfolio">Zum Portfolio</a> <button class="btn ghost" id="a-logout">Abmelden</button></p>
+        <p><a class="btn" href="#/">Zum Markt</a> <button class="btn ghost" id="a-logout">Abmelden</button></p>
         <p id="a-msg" class="notice" hidden></p>
       </section>
       <section class="panel"><div class="label">Abo</div><p>${planText}</p>
@@ -1521,7 +1517,7 @@ function accountView(gate = false) {
     update();
     try {
       await fn();
-      if (toPortfolio) location.hash = '#/portfolio';
+      if (toPortfolio) location.hash = gate ? '#/portfolio' : '#/';
     } catch (err) { message = err.message; }
     busy = false;
     if (current === self) update();
@@ -2026,7 +2022,6 @@ function portfolioView() {
   let optionCount = -1;
 
   function update() {
-    $('#p-open-reserve').hidden = !fullAccess();   // das Reserve-Ziel gehört zum größeren Paket
     const list = depot.data.positions;
     $('#p-where').textContent = depot.sync === 'error' ? `Speichern im Konto fehlgeschlagen: ${depot.error}` : SYNC_TEXT[depot.sync];
     $('#p-msg').hidden = !message; $('#p-msg').textContent = message;
@@ -2155,7 +2150,6 @@ function portfolioView() {
   function manager(rows, total) {
     const el = $('#p-manager');
     if (!(total > 0)) { advice = null; el.innerHTML = ''; return; }
-    if (!fullAccess()) { advice = null; el.innerHTML = site.upsell('manager'); return; }
     // Vorschläge erst zeigen, wenn alle Kurse und Bewertungen geladen sind – vorher würden sie sich ständig ändern
     const ready = state.pagesLoaded >= api.PAGES && state.refineDone && !!state.market;
     const key = JSON.stringify([depot.data.positions.map((p) => [pf.keyOf(p), p.amount, p.cost]), depot.data.cash, depot.data.reservePct, depot.data.reserveMode]);
@@ -2237,7 +2231,7 @@ function route() {
   if (SITE.paywall && !open && (!depot.ready || (depot.user && !depot.owner && !abo.loaded))) current = waitView();
   else if (!open && !access().plan) current = sales();   // ohne Abo gibt es keine Inhalte
   else if (name === 'coin' && id) current = detailView(id);
-  else if (name === 'portfolio') current = depot.user ? portfolioView() : accountView(true);
+  else if (name === 'portfolio') current = !depot.user ? accountView(true) : fullAccess() ? portfolioView() : lockedView('portfolio');
   else if (name === 'konto') current = accountView();
   else if (name === 'daytrading') { current = fullAccess() ? tradingView() : lockedView('trading'); if (fullAccess()) tradingAck(); }
   else if (name === 'preise') current = sales();

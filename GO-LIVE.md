@@ -11,8 +11,8 @@ Stand: 12. Oktober 2026. Diese Liste ersetzt keine Rechtsberatung. Die Rechtstex
 - Eigener Risikohinweis vor dem Bereich Daytrading
 - Konto: Abo-Stand, Konto und Daten löschen, Portfolio als Tabelle exportieren
 - Abo-Logik: zwei Pakete mit monatlicher Abrechnung, kein kostenloser Umfang und keine Testzeit. Ohne Abo erscheint überall die Seite
-  „Pakete und Preise“. Standard (3,99 €): Markt-Index, Signale für die 100 größten Coins, Portfolio mit Wertentwicklung.
-  Komplett (7,99 €): alle 1000 Coins, stärkste Kaufsignale, Reserve-Ziel mit Modell-Schritten, Daytrading.
+  „Pakete und Preise“. Standard (3,99 €): der Markt – Index, Signale und Detailansichten für alle 1000 Coins.
+  Komplett (7,99 €): zusätzlich Portfolio (Wertentwicklung, Reserve-Ziel, Modell-Schritte) und Daytrading.
   Freischaltung über `subscriptions/{Konto-Kennung}`; alles in `js/config.js` einstellbar. Die Bezahlschranke ist eingeschaltet,
   kaufen lässt sich noch nichts („Der Verkauf startet in Kürze“).
 - Betreiber-Zugang ohne Abo: über eine bestätigte E-Mail-Adresse (Google-Anmeldung) oder die Konto-Kennung in `owners`.
