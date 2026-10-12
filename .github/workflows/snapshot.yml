@@ -23,6 +23,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # Die Erfolgskontrolle (track.json) wächst von Lauf zu Lauf. Schlägt das Holen fehl, bricht der Lauf ab –
+      # sonst würde die bisherige Messung überschrieben. Fehlt nur die Datei, beginnt die Messung neu.
+      - name: Bisherige Erfolgskontrolle holen
+        run: |
+          mkdir -p out
+          git fetch --depth 1 origin data
+          git show FETCH_HEAD:track.json > out/track.json 2>/dev/null || rm -f out/track.json
       - name: Berechnen
         run: node scripts/snapshot.mjs out/snapshot.json
         env:
@@ -34,6 +41,6 @@ jobs:
           git init -q -b data
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add snapshot.json
+          git add snapshot.json track.json
           git commit -q -m "Daten vom $(date -u +'%Y-%m-%d %H:%M') UTC"
           git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" data

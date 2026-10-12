@@ -24,6 +24,27 @@ const BEAR_CAP = 0.11;          // im Bärenmarkt gibt es kein Kaufsignal
 // die Kurse weiter stark stiegen – dafür lässt sich keine Regel belegen, deshalb endet die Bremse dort.
 const GREED_FROM = 75, GREED_TO = 86, GREED_CAP = 0.14;
 export const greedZone = (regime) => isNum(regime?.fng?.avg7) && regime.fng.avg7 >= GREED_FROM && regime.fng.avg7 < GREED_TO;
+
+// Angst-Zone, von 0 (keine) bis 1 (voll): Der Fear-&-Greed-Index stand an mindestens 9 von 10 der letzten 60 Tage unter 45
+// oder fast durchgehend 14 Tage unter 25, und Bitcoin liegt mindestens 30–40 % unter seinem Allzeithoch.
+// Dieselbe Regel senkt das Reserve-Ziel (manager.js) und hebt den Kaufscore von Bitcoin und Ethereum.
+// Auswertung 2018–2026, ein Jahr später: Bitcoin in 86–100 % der Fälle höher, Ethereum in 64–100 %, große Altcoins in
+// 50–65 %, die übrigen Coins in 29–58 % (2018–22 im Mittel −34 %). Deshalb gilt die Regel nur für die beiden Kern-Coins.
+const FEAR = { shareFrom: 0.9, shareFull: 1, extremeFrom: 0.8, extremeFull: 1, ddFrom: -30, ddFull: -40 };
+export function fearZone(regime) {
+  const f = regime?.fng, dd = regime?.cycle?.dd;
+  if (!f || !isNum(f.fearShare60) || !isNum(dd)) return 0;
+  const deep = clamp((FEAR.ddFrom - dd) / (FEAR.ddFrom - FEAR.ddFull), 0, 1);
+  return deep * Math.max(clamp((f.fearShare60 - FEAR.shareFrom) / (FEAR.shareFull - FEAR.shareFrom), 0, 1),
+    clamp(((f.extremeFearShare14 ?? 0) - FEAR.extremeFrom) / (FEAR.extremeFull - FEAR.extremeFrom), 0, 1));
+}
+
+// Kern-Coins: Für sie gilt tief im Zyklus der antizyklische Einstieg – im Reserve-Ziel wie im Kaufscore.
+// Ein Jahr nach Ständen von mindestens 40 % unter dem Allzeithoch stand Bitcoin in 77–100 % der Fälle höher,
+// Ethereum in 57–100 %. Eigene Regeln je Altcoin (kein Kauf im eigenen Abwärtstrend, kein Kauf nach eigener Gier,
+// Kauf nach eigener Angst) halfen jeweils nur in einem der beiden Prüfzeiträume und sind deshalb nicht eingebaut.
+export const CORE_IDS = new Set(['bitcoin', 'ethereum']);
+export const CORE_DD = -40;
 const W_NEWS = 0.1;             // Nachrichten verschieben den Score um höchstens ±10 Punkte
 // Schwellen des Gesamt-Scores (-100 … +100). Kaufsignal ab 15: Erst ab dort lag das mittlere Ergebnis
 // nach 7 und nach 30 Tagen im Plus – ein Kaufsignal soll sich mit einer positiven Prognose begründen lassen.
@@ -271,8 +292,9 @@ export function regimeSmooth(btc, j, fngAt = () => undefined, days = 7) {
   }
   // bearShare: Anteil der letzten Tage im Bärenmarkt. Damit greift die Bremse der Reserve über wenige Tage verteilt
   // statt von einem Tag auf den anderen, und ein Hin und Her an der Grenze gleicht sich aus.
-  const recent = flags.slice(0, BEAR_DAYS);
-  return { ...today, score: sum / n, today: today.score, bearShare: recent.filter(Boolean).length / recent.length };
+  // Für den Kaufscore gilt der Bärenmarkt, wenn die Mehrheit dieser Tage darin lag – dieselbe Grundlage wie bei der Reserve.
+  const recent = flags.slice(0, BEAR_DAYS), bearShare = recent.filter(Boolean).length / recent.length;
+  return { ...today, score: sum / n, today: today.score, bearShare, bear: bearShare >= 0.5, bearToday: today.bear };
 }
 
 export const REGIME_DAYS = 14;
@@ -477,8 +499,18 @@ function assemble(c, short, medium, long, regime, volDaily, news) {
     raw = Math.min(raw, BEAR_CAP);
     notes.push('Bärenmarkt-Filter aktiv: Bitcoin liegt unter seinem 200-Tage-Schnitt im Abwärtstrend. In solchen Phasen gibt das Modell keine Kaufsignale.');
   }
+  // Antizyklischer Einstieg bei Bitcoin und Ethereum: tief im Zyklus hebt die Regel der Reserve auch den Kaufscore –
+  // auf die Kaufschwelle, in der Angst-Zone bis auf „Kaufen“. Sonst zeigte der Score „Halten“, während der
+  // Portfolio-Manager genau diese Coins aufstockt.
+  const deep = CORE_IDS.has(c.id) && isNum(regime?.cycle?.dd) && regime.cycle.dd <= CORE_DD;
+  const fear = deep ? fearZone(regime) : 0;
+  const anticyclical = deep && raw < (BUY + (STRONG_BUY - BUY) * fear) / 100;
+  // Die Prognosen für 7 und 30 Tage rechnen weiter mit dem Score ohne diese Anhebung – sie sagt nur etwas über 12 Monate
+  const trendScore = Math.round(clamp(raw) * 100);
+  if (anticyclical) raw = (BUY + (STRONG_BUY - BUY) * fear) / 100;
   const score = Math.round(clamp(raw) * 100);
   let [signal, label] = signalOf(score);
+  if (anticyclical) label = 'Antizyklisch kaufen';
 
   const turnover = c.market_cap ? c.total_volume / c.market_cap : 0;
   if (signal === 'buy' && (turnover < 0.003 || c.total_volume < 50_000)) {
@@ -498,21 +530,33 @@ function assemble(c, short, medium, long, regime, volDaily, news) {
 
   // Das Signal bewertet die nächsten Wochen. Zeigt die Jahressicht nach unten, ist ein Kaufsignal nur ein
   // Handel auf Zeit – das muss dastehen, sonst widersprechen sich Signal und 12-Monats-Prognose.
-  const forecast = forecastOf(score, volDaily, short.score, long.score, regime, c.id === 'bitcoin');
+  const forecast = forecastOf(trendScore, volDaily, short.score, long.score, regime, c.id === 'bitcoin');
   // Ein Kaufsignal muss sich mit den Prozent-Prognosen decken: 7 und 30 Tage im Plus, sonst nur „Halten“
-  if (signal === 'buy' && (forecast.short.mid <= 0 || forecast.medium.mid <= 0)) {
+  if (anticyclical) {
+    hold = 'mindestens 12 Monate';
+    notes.unshift(`Antizyklischer Einstieg: Bitcoin liegt ${num(-regime.cycle.dd, 0)} % unter seinem Allzeithoch${fear > 0 ? ' und der Fear-&-Greed-Index steht seit Wochen in der Angstzone' : ''}. `
+      + `Aus solchen Lagen stand ${c.id === 'bitcoin' ? 'Bitcoin ein Jahr später in 77–100 %' : 'Ethereum ein Jahr später in 57–100 %'} der Fälle höher. `
+      + 'Kurzfristig kann der Kurs weiter fallen – das Signal gilt für Käufe in Raten und eine Haltedauer von mindestens 12 Monaten.');
+  } else if (signal === 'buy' && (forecast.short.mid <= 0 || forecast.medium.mid <= 0)) {
     [signal, label, hold] = ['hold', 'Halten', 'Abwarten'];
     notes.push('Der Score reicht für ein Kaufsignal, aber die Prognose für 7 oder 30 Tage liegt nicht im Plus – deshalb nur „Halten“.');
   }
   const yearDown = forecast.long && forecast.long.mid <= -5;
-  if (signal === 'buy' && yearDown) {
+  if (signal === 'buy' && yearDown && !anticyclical) {
     if (hold === '1–3 Monate') hold = '2–4 Wochen';
     notes.unshift(`Das Kaufsignal gilt für die nächsten Wochen, nicht zum langen Halten: Auf 12 Monate lag das mittlere Ergebnis vergleichbarer Coins bei ${signed(forecast.long.mid, 0)} %. Wer kauft, sollte nach der Haltedauer neu prüfen und bei einem Verkaufssignal aussteigen.`);
   }
   return { signal, label, score, stable: false, short, medium, long, regime, news: news ?? null, horizon: hold,
-    scope: signal === 'buy' ? (yearDown ? 'weeks' : 'open') : null,
+    anticyclical, scope: signal !== 'buy' ? null : anticyclical ? 'year' : yearDown ? 'weeks' : 'open',
     risk: riskOf(c, volDaily), agreement: agreementOf(forecast, signal === 'sell' ? -1 : signal === 'buy' ? 1 : Math.sign(score)), notes,
-    forecast, reasons: reasons(short, medium, long, regime) };
+    forecast, reasons: withAnticyclical(reasons(short, medium, long, regime), anticyclical ? score - trendScore : 0, regime) };
+}
+
+// Der antizyklische Einstieg erscheint als eigener Grund – er ist kein Kursmerkmal, sondern die Regel der Reserve
+function withAnticyclical(why, points, regime) {
+  if (points > 0) why.pro.unshift({ name: 'Antizyklischer Einstieg', horizon: '12 Monate', points,
+    text: `Bitcoin ${num(-regime.cycle.dd, 0)} % unter dem Allzeithoch${fearZone(regime) > 0 ? ', seit Wochen Angst am Markt' : ''}` });
+  return why;
 }
 
 // Starker Tagesrückgang. Auswertung 2018–2026: Fiel ein Coin an einem Tag um mehr als 20 %, stand er 3 Tage

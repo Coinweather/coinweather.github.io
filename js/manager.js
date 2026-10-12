@@ -11,6 +11,8 @@
 //      ignoriert, getauscht wird nur bei deutlich besserem Score.
 // Die Regeln wurden mit Gebühren über mehrere Jahre zurückgerechnet (siehe Hinweise auf der Seite).
 
+import { fearZone, CORE_IDS, CORE_DD } from './model.js';
+
 export const DEFAULTS = {
   fee: 0.0025,            // Gebühr je Kauf oder Verkauf
   maxPositions: 8,
@@ -26,14 +28,14 @@ export const DEFAULTS = {
   stopLoss: null,         // Verkauf, wenn der Kurs so weit unter den Kaufpreis fällt
   pairSwaps: true,        // Verkäufe und Käufe als Tausch vorschlagen
   coreFill: true,         // tief im Zyklus Bitcoin und Ethereum auch ohne Kaufsignal aufstocken
-  coreFillDd: -40,        // ab diesem Abstand zum Allzeithoch gilt der Markt als tief im Zyklus
+  coreFillDd: CORE_DD,    // ab diesem Abstand zum Allzeithoch gilt der Markt als tief im Zyklus
   profitRepeat: 1.3,      // erneute Gewinnmitnahme erst, wenn der Kurs seit der letzten um 30 % gestiegen ist
   // Fear & Greed verschiebt die Investitionsquote (siehe fngTilt), Angaben als Anteil des Portfolios:
   fearTilt: 0.5,          // so viel mehr investieren nach langer Angst tief im Zyklus
   greedTilt: 0,           // so viel weniger investieren bei extremer Gier nahe am Allzeithoch
 };
 
-const CORE = new Set(['bitcoin', 'ethereum']);
+const CORE = CORE_IDS;
 const RISK_WEIGHT = [1, 0.9, 0.75, 0.55];
 const RISK_CAP = [1, 1, 0.75, 0.5];      // riskante Coins bekommen eine kleinere Obergrenze
 
@@ -75,9 +77,9 @@ export const RESERVE_MODES = {
 };
 // perYear/drawdown: 2018–2026; recent: 2022–2026 (schwächerer der beiden Prüfzeiträume)
 export const RESERVE_BACKTEST = {
-  balanced: { perYear: 86, recent: 61, drawdown: 40 },
-  contrarian: { perYear: 67, recent: 57, drawdown: 40 },
-  cautious: { perYear: 59, recent: 35, drawdown: 25 },
+  balanced: { perYear: 86, recent: 62, drawdown: 40 },
+  contrarian: { perYear: 68, recent: 59, drawdown: 40 },
+  cautious: { perYear: 60, recent: 36, drawdown: 25 },
 };
 
 // Was der Gesamtmarkt 30 Tage nach einer vergleichbaren Marktphase getan hat (alle 86 Coins, 2018–2026):
@@ -120,16 +122,13 @@ const unit = (x) => Math.min(1, Math.max(0, x));
 // Gier-Abschlag: Liegt der 7-Tage-Schnitt über 68 (voll ab 80) und Bitcoin höchstens 15–25 % unter dem Allzeithoch,
 // wird weniger investiert. Das kostete in der Rückrechnung Rendite (2018–22 deutlich, 2022–26 kaum) und senkte den
 // größten Rückgang nur 2022–26 leicht – deshalb ist es nur in der Strategie „Antizyklisch“ eingeschaltet.
-const FEAR = { shareFrom: 0.9, shareFull: 1, extremeFrom: 0.8, extremeFull: 1, ddFrom: -30, ddFull: -40 };
 const GREED = { from: 68, full: 80, ddFrom: -25, ddFull: -15 };
 
 export function fngTilt(regime, o = DEFAULTS) {
   const f = regime?.fng, dd = regime?.cycle?.dd;
   const none = { delta: 0, fear: 0, greed: 0, text: '' };
   if (!f || !Number.isFinite(f.avg7) || !Number.isFinite(dd)) return none;
-  const deep = unit((FEAR.ddFrom - dd) / (FEAR.ddFrom - FEAR.ddFull));
-  const fear = !o.fearTilt ? 0 : deep * Math.max(unit((f.fearShare60 - FEAR.shareFrom) / (FEAR.shareFull - FEAR.shareFrom)),
-    unit((f.extremeFearShare14 - FEAR.extremeFrom) / (FEAR.extremeFull - FEAR.extremeFrom)));
+  const fear = !o.fearTilt ? 0 : fearZone(regime);
   const greed = !o.greedTilt ? 0 : unit((f.avg7 - GREED.from) / (GREED.full - GREED.from)) * unit((dd - GREED.ddFrom) / (GREED.ddFull - GREED.ddFrom));
   const delta = fear * o.fearTilt - greed * o.greedTilt;
   if (!delta) return none;
@@ -355,7 +354,7 @@ export function plan({ holdings, cash = 0, candidates = [], core = [], regime, o
         reason: `${exposure.text} Gekürzt wird zuerst, was den schwächsten Score hat (${fmt(score(c))}).`,
         horizon: 'In den nächsten Tagen umsetzen.', review: review(7), reviewText: 'In einer Woche prüfen, ob sich die Marktphase gebessert hat.' });
     } else {
-      if (c.coreBuy && signal(c) !== 'buy') moves.push({ ...base, type: c.held ? 'add' : 'buy', title: c.held ? `${c.name} nachkaufen` : `${c.name} kaufen`,
+      if (c.coreBuy && (signal(c) !== 'buy' || c.analysis?.anticyclical)) moves.push({ ...base, type: c.held ? 'add' : 'buy', title: c.held ? `${c.name} nachkaufen` : `${c.name} kaufen`,
         goal: 'Antizyklisch einsteigen, solange der Markt tief im Zyklus steht.',
         reason: `Bitcoin liegt ${Math.round(-dd)} % unter seinem Allzeithoch. Aus vergleichbaren Ständen stand Bitcoin ein Jahr später ${Number.isFinite(regime.cycle.btcUp) ? `in ${regime.cycle.btcUp} % der Fälle` : 'meist'} höher – kurzfristig kann der Kurs aber weiter fallen.${suggested.fear ? ' Dazu steht der Fear-&-Greed-Index seit Wochen in der Angstzone.' : ''}`,
         horizon: 'Haltedauer: mindestens 12 Monate.', review: review(30), reviewText: 'In Raten kaufen und monatlich prüfen.' });

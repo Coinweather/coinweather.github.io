@@ -1,9 +1,11 @@
 // Portfolio: Speicherung im Browser und Import aus Tabellen-Dateien (z. B. Export aus CoinMarketCap)
 
+import * as tr from './track.js';
+
 const KEY = 'krypto-markt-depot';
 const LEGACY_KEY = 'krypto-markt-portfolio';   // frühere Version: nur die Liste der Positionen
 
-export const empty = () => ({ positions: [], cash: 0, reservePct: null, reserveMode: 'balanced' });
+export const empty = () => ({ positions: [], cash: 0, reservePct: null, reserveMode: 'balanced', track: tr.empty(), log: [] });
 
 // Macht aus beliebigen gespeicherten Daten ein gültiges Portfolio
 export function normalise(data) {
@@ -19,7 +21,9 @@ export function normalise(data) {
     // Gewünschte Reserve in Prozent; null bedeutet: dem Vorschlag der Seite folgen
     reservePct: Number.isFinite(pct) && pct >= 0 && pct <= 100 ? pct : null,
     // Welchem Vorschlag gefolgt wird, solange kein eigener Wert gesetzt ist
-    reserveMode: ['cautious', 'contrarian'].includes(data?.reserveMode) ? data.reserveMode : 'balanced' };
+    reserveMode: ['cautious', 'contrarian'].includes(data?.reserveMode) ? data.reserveMode : 'balanced',
+    // Aufzeichnung der Bestände für die Wertentwicklung und Liste der letzten Änderungen
+    track: tr.normalise(data?.track), log: tr.normaliseLog(data?.log) };
 }
 
 export function load() {

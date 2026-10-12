@@ -4,8 +4,8 @@
 //
 // Aufruf: node scripts/snapshot.mjs out/snapshot.json
 
-import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import { quickAnalyse, detailAnalyse, marketIndex, prepare, analyseNews } from '../js/model.js';
 
 const OUT = process.argv[2] ?? 'out/snapshot.json';
@@ -117,9 +117,58 @@ async function worker() {
 await Promise.all([worker(), worker(), worker(), worker()]);
 console.log(`${refined} Coins mit Tageskursen verfeinert`);
 
+// ---------- Erfolgskontrolle ----------
+// Einmal am Tag werden die stärksten Kaufsignale mit ihrem Kurs festgehalten. 7 und 30 Tage später wird nachgesehen,
+// was aus ihnen geworden ist. So entsteht eine Messung mit echten, vorher unbekannten Kursen – die Rückrechnung kann
+// das nicht leisten. Die Datei track.json liegt neben snapshot.json im Zweig "data"; der Workflow holt sie vor jedem Lauf.
+const TRACK = join(dirname(OUT), 'track.json');
+const TRACK_SIGNALS = 25, TRACK_KEEP_DAYS = 400;
+const today = Math.floor(Date.now() / 86_400_000);
+let track = { version: 1, since: today, days: [] };
+try {
+  // Eine vorhandene, aber unlesbare Datei bricht den Lauf ab – sonst würde die bisherige Messung überschrieben
+  track = JSON.parse(await readFile(TRACK, 'utf8'));
+  if (!Array.isArray(track.days)) throw new Error('track.json hat ein unerwartetes Format');
+} catch (err) { if (err.code !== 'ENOENT') throw err; }
+
+const byId = new Map(coins.map((c) => [c.id, c]));
+// Ergebnis eines Tages nach einer Frist: wie viele Signale höher stehen, mittlere Veränderung, Bitcoin zum Vergleich
+function outcome(entry) {
+  const rets = entry.sig.map(([id, , price]) => byId.get(id)?.current_price / price - 1).filter(Number.isFinite);
+  if (!rets.length || !(btc?.current_price > 0)) return null;
+  return { n: rets.length, up: rets.filter((r) => r > 0).length, avg: Number((rets.reduce((a, b) => a + b, 0) / rets.length * 100).toFixed(2)),
+    btc: Number(((btc.current_price / entry.btc - 1) * 100).toFixed(2)) };
+}
+for (const e of track.days) {
+  if (!e.sig) continue;
+  const age = today - e.d;
+  // Fiel die Berechnung länger aus, wird die Frist nicht nachträglich mit einem späteren Kurs „erfüllt“ (false = ausgelassen)
+  if (e.e7 === undefined && age >= 7) e.e7 = age <= 10 ? outcome(e) : false;
+  if (e.e30 === undefined && age >= 30) { e.e30 = age <= 35 ? outcome(e) : false; delete e.sig; }   // danach wird die Liste nicht mehr gebraucht
+}
+if (!track.days.some((e) => e.d === today) && btc?.current_price > 0) {
+  // dieselbe Auswahl wie bei den Kaufvorschlägen im Portfolio: große, handelbare Coins, keine verpackten Token
+  const sig = coins.filter((c) => c.analysis.signal === 'buy' && (c.market_cap_rank ?? 9999) <= 300 && c.total_volume >= 5e6 && c.current_price > 0
+    && !/wrapped|staked|staking|bridged|restaked|usd|usd/i.test(c.name))
+    .sort((a, b) => b.analysis.score - a.analysis.score).slice(0, TRACK_SIGNALS)
+    .map((c) => [c.id, c.symbol, c.current_price, c.analysis.score]);
+  track.days.push({ d: today, btc: btc.current_price, idx: market.value, sig });
+}
+track.days = track.days.filter((e) => today - e.d <= TRACK_KEEP_DAYS);
+// Zusammenfassung für die Seite
+const sumUp = (key) => {
+  const done = track.days.map((e) => e[key]).filter(Boolean);
+  const n = done.reduce((a, o) => a + o.n, 0);
+  if (!n) return null;
+  return { days: done.length, n, up: done.reduce((a, o) => a + o.up, 0), avg: Number((done.reduce((a, o) => a + o.avg * o.n, 0) / n).toFixed(2)),
+    btc: Number((done.reduce((a, o) => a + o.btc, 0) / done.length).toFixed(2)) };
+};
+const record = { since: track.since, days: track.days.length, d7: sumUp('e7'), d30: sumUp('e30') };
+
 const snapshot = {
   version: 1,
   time: Date.now(),
+  record,
   market: { value: market.value, signal: market.signal, label: market.label, parts: market.parts, regime, cycle: market.cycle, forecast: market.forecast },
   fng: fng ? { value: fng.value, week: fng.week, month: fng.month, cmc } : null,
   coins: coins.map((c) => {
@@ -135,4 +184,5 @@ const snapshot = {
 
 await mkdir(dirname(OUT), { recursive: true });
 await writeFile(OUT, JSON.stringify(snapshot));
+await writeFile(TRACK, JSON.stringify(track));
 console.log(`Geschrieben: ${OUT} (${(JSON.stringify(snapshot).length / 1e6).toFixed(1)} MB, ${Math.round((Date.now() - started) / 1000)} s) · Markt-Index ${market.value} ${market.label}`);

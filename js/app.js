@@ -2,6 +2,7 @@ import { $, esc, settings, sleep, isNum, money, compact, num, signed, tone, pct 
 import * as api from './api.js';
 import * as pf from './portfolio.js';
 import * as auth from './auth.js';
+import * as tr from './track.js';
 import { plan, applyMove, adjusted, reserveAdvice, fngTilt, RESERVE_MODES, RESERVE_BACKTEST } from './manager.js';
 import { quickAnalyse, detailAnalyse, marketIndex, prepare, backtest, expectedMove, outlook, analyseNews, TRADE_SETUPS, TRADE_LIMITS, TRADE_LEVERAGE, SHORT_TESTS, outlookOf, greedZone } from './model.js';
 
@@ -229,6 +230,7 @@ async function loadSnapshot() {
       state.raw.set(c.id, c);
     }
     state.market = { ...snap.market, time: new Date(snap.time) };
+    state.record = snap.record ?? null;
     if (snap.fng && !state.fng?.history) {
       // Bis der vollständige Verlauf geladen ist, reichen heute, vor 7 und vor 30 Tagen
       const history = [];
@@ -383,6 +385,192 @@ function fngEffect(regime) {
 
 const moodLabel = (v) => (v < 15 ? 'extreme Angst' : v < 25 ? 'Angst' : v < 45 ? 'gedrückt' : v <= 55 ? 'neutral' : v <= 75 ? 'zuversichtlich' : v <= 85 ? 'Gier' : 'extreme Gier');
 
+// ---------- Erklärungen ----------
+// Wie etwas berechnet wird, steht nicht über die Seite verteilt, sondern hinter einem kleinen Info-Knopf.
+
+const infoBtn = (key, label = 'So wird gerechnet') =>
+  `<button type="button" class="info-btn" data-info="${key}"><span aria-hidden="true">i</span>${label}</button>`;
+
+const LIMITS = `<p class="muted">Alle Rückrechnungen enthalten nur Coins, die es heute noch gibt, und die Regeln wurden an denselben Jahren
+  ausgewählt, an denen sie gemessen sind. Echte Ergebnisse fallen deshalb schlechter aus. Kurse lassen sich nicht sicher vorhersagen.</p>`;
+
+const INFO = {
+  model: { title: 'So entstehen die Prognosen', body: () => `
+    <p>Jeder Coin bekommt einen Score von −100 bis +100. Er setzt sich aus vier Bausteinen zusammen:</p>
+    <ul><li><strong>Marktphase (45 %)</strong> – Stärke von Bitcoin (RSI, Veränderung über 30 Tage, Abstand zum 50- und 200-Tage-Schnitt) und Fear &amp; Greed, über 14 Tage geglättet.</li>
+      <li><strong>Kurzfristig (20 %)</strong> – Erholung nach einem Ausverkauf; ein starker Tagesrückgang zählt nur, wenn der Markt mitfällt.</li>
+      <li><strong>Mittelfristig (25 %)</strong> – Schwung über 2–4 Wochen und Handelsvolumen.</li>
+      <li><strong>Langfristig (10 %)</strong> – ein früher Aufwärtstrend ist gut, Überdehnung schlecht.</li></ul>
+    <p>In jedem Baustein zählt die Schwankung des Coins mit: Ruhigere Coins schnitten in der Prüfung in beiden Zeiträumen besser ab als der Markt.</p>
+    <h3>Drei Regeln stehen über dem Score</h3>
+    <ul><li><strong>Bärenmarkt:</strong> Liegt Bitcoin unter seinem 200-Tage-Schnitt im Abwärtstrend, gibt es keine Kaufsignale.</li>
+      <li><strong>Gier-Bremse:</strong> Liegt Fear &amp; Greed im 7-Tage-Schnitt bei 75–85, gibt es keine Kaufsignale.</li>
+      <li><strong>Antizyklischer Einstieg:</strong> Liegt Bitcoin mindestens 40 % unter seinem Allzeithoch, bekommen Bitcoin und Ethereum ein Kaufsignal für mindestens 12 Monate – stärker, wenn der Markt seit Wochen in Angst ist.</li></ul>
+    <p>Dieselben drei Regeln steuern das Reserve-Ziel im Portfolio. Eigene Regeln je Altcoin (kein Kauf im eigenen Abwärtstrend, kein Kauf nach eigener Gier, Kauf nach eigener Angst)
+      halfen in der Prüfung jeweils nur in einem von zwei Zeiträumen und sind deshalb nicht eingebaut.</p>
+    <h3>Grundlage</h3>
+    <p>Tageskurse von 84 Coins seit 2018 (rund 174 000 Coin-Tage), geprüft in zwei getrennten Zeiträumen. Tageskurse gibt es nur für Coins, die bei Binance gehandelt werden;
+      die übrigen bekommen eine einfachere Schnellbewertung. Token auf Aktien, Fonds, Edelmetalle und Währungen erhalten keine Prognose.</p>${LIMITS}` },
+
+  index: { title: 'Jetzt kaufen? – der Markt-Index', body: () => `
+    <p>Der Index reicht von 0 (klar verkaufen) über 50 (neutral) bis 100 (klar kaufen) und bewertet die nächsten Wochen.</p>
+    <ul><li><strong>70 % Marktphase:</strong> Stärke von Bitcoin, über 14 Tage geglättet – ein einzelner schwacher Tag verschiebt sie kaum.</li>
+      <li><strong>20 % Marktbreite:</strong> Anteil der 200 größten Coins, die über 7 und 30 Tage im Plus liegen.</li>
+      <li><strong>10 % Nachrichtenlage:</strong> grobe Stichwort-Auswertung englischer Schlagzeilen.</li></ul>
+    <p>Die Marktphase fließt mit 45 % in jeden Coin-Score ein. Ist die Gier-Bremse aktiv, bleibt der Index höchstens bei „Halten“.</p>` },
+
+  cycle: { title: 'Zyklus – die Sicht auf 12 Monate', body: () => `
+    <p>Gemessen wird, wie weit Bitcoin unter seinem Allzeithoch steht. Auf Jahressicht galt bisher: Je tiefer unter dem Hoch, desto besser waren die Einstiege –
+      nahe am Hoch waren sie am schlechtesten. Für den durchschnittlichen Altcoin fiel das Ergebnis in jeder Lage schlechter aus als für Bitcoin.</p>
+    <p>Das ist die langfristige Sicht. „Jetzt kaufen?“ bewertet dagegen die nächsten Wochen und folgt dem Trend. Der Reserve-Vorschlag im Portfolio folgt ebenfalls dem Trend
+      und stockt tief im Zyklus Bitcoin und Ethereum auf.</p>
+    <p class="muted">Grundlage sind nur zwei Marktzyklen, die sich teils widersprechen. Beide zählen je zur Hälfte – das ist eine Tendenz, keine Gewissheit.</p>` },
+
+  forecast: { title: 'Prognose für den Gesamtmarkt', body: () => `
+    <p>Die fette Zahl ist das mittlere Ergebnis nach vergleichbaren Marktlagen seit 2018. Darunter steht die Spanne, in der die Hälfte der Fälle lag –
+      jeder vierte Fall lag darüber, jeder vierte darunter – und wie oft der Kurs höher stand.</p>
+    <ul><li><strong>7 und 30 Tage</strong> hängen an der Marktphase, in der Gier-Zone an den Ergebnissen dieser Zone.</li>
+      <li><strong>12 Monate</strong> hängen am Stand im Zyklus (Abstand von Bitcoin zum Allzeithoch).</li></ul>
+    <p>Der mittlere Coin schnitt auf Jahressicht meist schlechter ab als Bitcoin. Kaufsignale bei einzelnen Coins beziehen sich auf die nächsten Wochen;
+      ist die 12-Monats-Sicht negativ, steht das beim Coin dabei.</p>${LIMITS}` },
+
+  fng: { title: 'Fear & Greed im Modell', body: () => `
+    <p>Der Index misst die Stimmung am Kryptomarkt von 0 (extreme Angst) bis 100 (extreme Gier). Geprüft wurde, was seit 2018 auf Angst und Gier folgte:</p>
+    <ul><li><strong>Gier-Bremse:</strong> Lag der 7-Tage-Schnitt bei 75–85, stand der mittlere Coin 30 Tage später nur in 20–33 % der Fälle höher (im Mittel rund −20 %). Dann gibt es keine Kaufsignale.</li>
+      <li><strong>Angst-Käufe:</strong> Stand der Index an mindestens 54 der letzten 60 Tage unter 45 und liegt Bitcoin mindestens 40 % unter seinem Hoch, sinkt das Reserve-Ziel,
+        und Bitcoin und Ethereum bekommen ein starkes antizyklisches Kaufsignal. Ein Jahr später stand Bitcoin in 86–100 % der Fälle höher, Ethereum in 64–100 %.</li>
+      <li><strong>Nicht eingebaut:</strong> Altcoins in Angst kaufen (ein Jahr später meist tiefer) und bei Gier alles verkaufen (Ende 2020 stiegen die Kurse trotz extremer Gier monatelang weiter).
+        Über 85 gibt es nur diese eine Phase – dafür lässt sich keine Regel belegen.</li></ul>
+    <p>Gerechnet wird mit dem Index von alternative.me, weil er seit 2018 vorliegt. Der Index von CoinMarketCap existiert erst seit Mitte 2023; er wird angezeigt, wenn ein Schlüssel hinterlegt ist.</p>${LIMITS}` },
+
+  percent: { title: 'Kursprognose in Prozent', body: () => `
+    <p>Die große Zahl ist das mittlere Ergebnis, das Coins mit diesem Score und dieser Schwankung seit 2018 erreicht haben – gemessen vom jetzigen Kurs.
+      In der Spanne lag die Hälfte der Fälle; jeder vierte Fall lag darüber, jeder vierte darunter.</p>
+    <ul><li><strong>7 Tage:</strong> Score, dazu die kurzfristigen Merkmale (nach einem Ausverkauf folgte meist eine Erholung).</li>
+      <li><strong>30 Tage:</strong> Score; in der Gier-Zone deutlich tiefer.</li>
+      <li><strong>12 Monate:</strong> vor allem der Stand im Zyklus. Hier ist die Unsicherheit am größten – nur zwei Marktzyklen als Grundlage.</li></ul>
+    <p><strong>Das spricht dafür / dagegen:</strong> die Merkmale mit dem größten Beitrag zum Score, in Punkten. Ein Kaufsignal entsteht nur, wenn die Gründe dafür klar überwiegen
+      und die Prognosen für 7 und 30 Tage im Plus liegen.</p>${LIMITS}` },
+
+  horizons: { title: 'Prognose nach Zeithorizont', body: () => `
+    <p>Jede Karte zeigt die Merkmale eines Zeitraums. Die Punkte je Merkmal reichen von −100 (klar negativ) bis +100 (klar positiv).</p>
+    <p>Oben rechts steht die Prozent-Prognose für diesen Zeitraum mit ihrer Einordnung. In sie fließen neben den Merkmalen der Karte auch der Gesamt-Score und die Marktphase ein –
+      Wort und Zahl stammen aus derselben Rechnung.</p>
+    <p>„Verfeinert“ heißt: Für diesen Coin liegen Tageskurse aus bis zu 4 Jahren vor. Sonst gilt die Schnellbewertung aus den Marktdaten der letzten 7 Tage bis 12 Monate.</p>` },
+
+  mood: { title: 'Stimmung des Coins', body: () => `
+    <p>Ein eigener Angst-und-Gier-Wert für den einzelnen Coin von 0 (Angst) bis 100 (Gier) – einen fertigen Index je Coin gibt es nicht frei verfügbar.
+      Er entsteht aus dem Kursverlauf: RSI (30 %), Lage in der Spanne der letzten 30 Tage (30 %) und Veränderung über 30 Tage, gemessen an der üblichen Schwankung (40 %).</p>
+    <p>In der Prüfung sagte der Wert für sich wenig voraus:</p>
+    <ul><li>Unter 15: 7 Tage später stand der Kurs in 59 % der Fälle höher, nach 30 Tagen aber nur in 43 %.</li>
+      <li>Mehr als 14 Tage über 75: 7 Tage später nur in 43 % der Fälle höher.</li></ul>
+    <p>Er wird deshalb angezeigt, fließt aber nicht in den Score ein. Die kurze Erholung nach einem Ausverkauf steckt bereits im kurzfristigen Baustein.</p>` },
+
+  swing: { title: 'Übliche Schwankungsbreite', body: () => `
+    <p>Abgeleitet aus den Tagesschwankungen der letzten 90 Tage. In etwa zwei von drei Fällen bleibt der Kurs in dieser Spanne –
+      Ausreißer nach oben und unten sind jederzeit möglich. Die Spanne sagt nichts über die Richtung.</p>` },
+
+  backtest: { title: 'Rückblick-Test', body: () => `
+    <p>Wie gut war das Modell bei genau diesem Coin? Der Score wurde für jeden Tag nur mit den damals bekannten Kursen berechnet und mit der tatsächlichen Entwicklung danach verglichen.
+      Nachrichten sind im Rückblick nicht enthalten.</p>
+    <p class="muted">Die Bewertungskurven wurden an den letzten Jahren großer Coins ausgerichtet. Die Trefferquoten im Rückblick fallen deshalb eher zu gut aus und sind keine Zusage für die Zukunft.</p>` },
+
+  news: { title: 'Nachrichten', body: () => `
+    <p>Englischsprachige Meldungen der letzten 7 Tage, automatisch nach Stichwörtern als positiv oder negativ eingestuft. Die Einstufung ist grob und kann danebenliegen –
+      sie erkennt weder Ironie noch Zusammenhang.</p>
+    <p>In den Score der einzelnen Coins fließen die Meldungen nicht ein; die allgemeine Nachrichtenlage zählt mit 10 % im Markt-Index.</p>` },
+
+  sizing: { title: 'Einsatz und Hebel', body: () => `
+    <p>Das Risiko ist der Betrag, den du verlierst, wenn der Stopp greift. Üblich sind 0,5 bis 2 % des Kontos je Handel. Daraus ergibt sich die Positionsgröße:
+      Risiko geteilt durch den Abstand zum Stopp. Der Hebel ändert daran nichts – er bestimmt nur, wie viel Sicherheit du hinterlegst.</p>
+    <p>Vorgeschlagen wird höchstens der Hebel, bei dem die Zwangsauflösung (rund 90 % geteilt durch den Hebel unter dem Einstieg) mindestens doppelt so weit entfernt liegt wie der Stopp, und nie mehr als 3-fach.</p>
+    <h3>Was Hebel in der Rückrechnung bewirkt hätte</h3>
+    <p class="muted">An jedem Signaltag 10 % des Kontos als Sicherheit, verteilt auf höchstens 5 Vorschläge.</p>
+    ${Object.entries(TRADE_LEVERAGE).map(([k, rows]) => `<div class="label">${TRADE_SETUPS[k].label}</div><div class="table-wrap"><table class="fc-table">
+      <thead><tr><th>Hebel</th><th class="num">pro Jahr</th><th class="num">größter Rückgang</th><th class="num">Zwangsauflösungen</th></tr></thead>
+      <tbody>${rows.map(([l, y, dd, liq]) => `<tr><td>${l}×</td><td class="num ${tone(y)}">${signed(y, 0)} %</td><td class="num">−${dd} %</td><td class="num">${liq}</td></tr>`).join('')}</tbody></table></div>`).join('')}
+    <p>Bis zum 3-fachen Hebel wuchsen Ertrag und Rückgang etwa im Gleichschritt – der Hebel macht einen Handel nicht besser, nur größer.
+      Ab dem 5-fachen häuften sich die Zwangsauflösungen, beim 10-fachen blieb vom Vorteil nichts übrig.</p>${LIMITS}` },
+
+  setups: { title: 'So entstehen die Handelsvorschläge', body: () => {
+    const row = (s, when) => `<li><strong>${esc(s.label)}:</strong> ${when} Ziel ${s.target}-fache, Stopp ${s.stop}-fache Tagesschwankung des Coins, höchstens ${s.days} Tage.
+      Rückblick über ${num(s.cases, 0)} Fälle an ${s.signalDays} Tagen: ${s.hit} % im Plus, im Mittel ${signed(s.avg, 1)} % je Handel (je Signaltag gemittelt ${signed(s.dayAvg, 1)} %);
+      in den vier Zeitabschnitten ${s.blocks.map((b) => signed(b, 1) + ' %').join(', ')}. ${esc(s.caveat)}</li>`;
+    return `<p>Ein Muster kommt nur auf die Seite, wenn es in allen vier Zwei-Jahres-Abschnitten seit 2018 nach Gebühren im Plus lag. Das schaffen zwei:</p>
+      <ul>${row(TRADE_SETUPS.selloff, `Der Coin ist in 7 Tagen um mindestens ${-TRADE_LIMITS.selloff} % gefallen, der mittlere Coin am Markt um mindestens ${-TRADE_LIMITS.market} %, es herrscht kein Bärenmarkt und Fear &amp; Greed steht im 7-Tage-Schnitt bei mindestens ${TRADE_LIMITS.fng}.`)}
+        ${row(TRADE_SETUPS.score, `Der Prognose-Score liegt bei mindestens +${TRADE_LIMITS.score}.`)}</ul>
+      <p>Geprüft an Tageskursen mit Hoch und Tief von 84 Coins, mit 0,5 % Gebühren je Handel. Trifft eine Tageskerze Ziel und Stopp, zählt der Stopp.
+        Vorschläge gibt es nur für Coins mit Tageskursen von Binance und genug Handelsvolumen. Sie gelten für Tage, nicht für Minuten:
+        Für Handeln im Minutentakt gibt es hier keine geprüfte Grundlage.</p>${LIMITS}`; } },
+
+  short: { title: 'Warum es keine Short-Vorschläge gibt', body: () => {
+    const cell = (v) => (v === null ? '<td class="num muted">–</td>' : `<td class="num ${tone(v)}">${signed(v, 1)} %</td>`);
+    return `<p>Ein Short-Muster kommt nur auf die Seite, wenn es in allen vier Zeitabschnitten seit 2018 nach Kosten im Plus lag. Geprüft wurden über 20 Varianten,
+        darunter „bei extremer Gier shorten“. Keine hat das geschafft – die besten im Überblick (mittlerer Ertrag je Handel):</p>
+      <div class="table-wrap"><table class="fc-table"><thead><tr><th>Muster</th><th class="num">2018–20</th><th class="num">2020–22</th><th class="num">2022–24</th><th class="num">2024–26</th></tr></thead>
+        <tbody>${SHORT_TESTS.map(([label, v]) => `<tr><td>${esc(label)}</td>${v.map(cell).join('')}</tr>`).join('')}</tbody></table></div>
+      <p>Am nächsten kam „extreme Gier nahe am Allzeithoch“: 2022–2026 im Plus, Ende 2020 aber mit Verlust, weil die Kurse trotz Gier monatelang weiterstiegen.
+        Shorts haben zudem ein Risiko, das Käufe nicht haben: Ein Coin kann sich in Tagen verdoppeln, der Verlust ist nach oben offen.</p>
+      <p>Was die Daten stützen, steckt stattdessen in der Gier-Bremse (keine Käufe bei extremer Gier) und in der Reserve-Strategie „Antizyklisch“.</p>`; } },
+
+  reserve: { title: 'Reserve-Ziel und Strategien', body: () => `
+    <p>Das Reserve-Ziel sagt, wie viel des Portfolios als Bargeld oder Stablecoins liegen soll. Es folgt denselben Regeln wie die Kaufscores:</p>
+    <ul><li><strong>Trend:</strong> Je stärker die Marktphase, desto weniger Reserve.</li>
+      <li><strong>Bärenbremse:</strong> Im Bärenmarkt bleiben höchstens 15 % investiert. Die Bremse greift über 5 Tage verteilt, damit der Wert nicht springt.</li>
+      <li><strong>Angst-Käufe:</strong> Nach langer Angst tief im Zyklus sinkt die Reserve; gekauft werden Bitcoin und Ethereum.</li>
+      <li><strong>Gier:</strong> Bei extremer Gier gibt es keine Kaufsignale. Nur die Strategie „Antizyklisch“ erhöht zusätzlich die Reserve, wenn die Gier nahe am Allzeithoch auftritt.</li></ul>
+    <h3>Rückrechnung 2018–2026</h3>
+    <div class="table-wrap"><table class="fc-table"><thead><tr><th>Strategie</th><th class="num">pro Jahr</th><th class="num">2022–26</th><th class="num">größter Rückgang</th></tr></thead>
+      <tbody>${Object.entries(RESERVE_MODES).map(([k, m]) => `<tr><td>${m.label}</td><td class="num up">+${RESERVE_BACKTEST[k].perYear} %</td><td class="num up">+${RESERVE_BACKTEST[k].recent} %</td><td class="num">−${RESERVE_BACKTEST[k].drawdown} %</td></tr>`).join('')}
+        <tr><td>Reserve nur nach Fear &amp; Greed</td><td class="num up">+29 %</td><td class="num up">+24 %</td><td class="num">−56 %</td></tr>
+        <tr><td>Bitcoin halten</td><td class="num up">+38 %</td><td class="num up">+44 %</td><td class="num">−77 %</td></tr></tbody></table></div>
+    <p class="muted">Mit 0,25 % Gebühr je Handel, wöchentlich geprüft, Mittel aus 7 Starttagen. Je nach Starttag schwankt das Ergebnis um rund ±10 Punkte pro Jahr.</p>${LIMITS}` },
+
+  manager: { title: 'So arbeitet der Portfolio-Manager', body: () => `
+    <ul><li><strong>Feste Vorschläge:</strong> Sie werden einmal berechnet und bleiben stehen, bis du etwas am Portfolio änderst oder „Neu berechnen“ wählst.</li>
+      <li><strong>Erst das Risiko:</strong> Das Reserve-Ziel bestimmt, wie viel investiert sein soll. Du kannst es überschreiben.</li>
+      <li><strong>Verkaufen, wenn Kurse fallen:</strong> Verkaufssignale werden verkauft. Fällt ein Coin 25 % unter sein Hoch seit dem Kauf, greift die Schutzregel – unabhängig vom Score.</li>
+      <li><strong>Gewinner laufen lassen:</strong> Bei hohen Gewinnen wird ein Teil gesichert, wenn der Trend überdehnt ist.</li>
+      <li><strong>Antizyklischer Kern:</strong> Liegt Bitcoin mehr als 40 % unter seinem Hoch, werden Bitcoin und Ethereum aufgestockt und nicht per Stop verkauft.</li>
+      <li><strong>Kein Klumpen:</strong> höchstens 20 % je Coin (Bitcoin und Ethereum 40 %, riskante Coins weniger), höchstens 8 Positionen.</li>
+      <li><strong>Tauschen:</strong> Passen ein Verkauf und ein Kauf zusammen, schlägt der Manager einen direkten Tausch vor – gerechnet mit zweimal 0,25 % Gebühr.</li>
+      <li><strong>Wenig handeln:</strong> Abweichungen unter 4 % des Portfolios bleiben liegen, getauscht wird nur bei mindestens 30 Punkten besserem Score.</li>
+      <li>Die Seite handelt nicht selbst. Du setzt die Schritte bei deiner Börse um und trägst sie hier als umgesetzt ein.</li></ul>
+    <p>Etwa 45 % der Monate endeten in der Rückrechnung im Minus; Verluste lassen sich nicht ausschließen.</p>${LIMITS}` },
+
+  record: { title: 'Erfolgskontrolle', body: () => `
+    <p>Einmal am Tag hält die zentrale Berechnung die bis zu 25 stärksten Kaufsignale mit ihrem Kurs fest – Coins aus den Top 300 mit genug Handelsvolumen.
+      7 und 30 Tage später wird nachgesehen, wo der Kurs steht.</p>
+    <p>Anders als die Rückrechnung arbeitet diese Messung mit Kursen, die beim Signal noch niemand kannte. Sie ist damit der ehrlichste Maßstab dafür, ob die Signale etwas taugen.</p>
+    <ul><li><strong>Im Mittel:</strong> durchschnittliche Kursveränderung aller festgehaltenen Signale nach der Frist, ohne Gebühren.</li>
+      <li><strong>Im Plus:</strong> Anteil der Signale, deren Kurs höher steht.</li>
+      <li><strong>Bitcoin:</strong> Veränderung von Bitcoin über dieselben Zeiträume, zum Vergleich.</li></ul>
+    <p class="muted">Die Messung wird mit jedem Tag aussagekräftiger. Wenige Wochen sagen wenig – in einer fallenden Marktphase liegen auch gute Signale im Minus.</p>` },
+
+  performance: { title: 'Wertentwicklung', body: () => `
+    <p>Die Seite hält jeden geänderten Bestand mit seinem Zeitpunkt fest. Aus den Beständen und den Tageskursen rechnet sie den Wert für jeden Tag nach –
+      auch für Tage, an denen du die Seite nicht geöffnet hattest.</p>
+    <ul><li><strong>Wert:</strong> alle Coins zum Tageskurs plus Bargeld.</li>
+      <li><strong>Eingezahlt:</strong> Geld, das von außen kam – neue Positionen und Bargeld, abzüglich Entnahmen. Käufe, Verkäufe und Tausche innerhalb des Portfolios zählen nicht dazu.</li>
+      <li><strong>Wertentwicklung in Prozent:</strong> zeitgewichtet, also ohne den Einfluss von Ein- und Auszahlungen.</li>
+      <li><strong>Vergleich mit Bitcoin:</strong> Jede Einzahlung wäre am selben Tag in Bitcoin geflossen.</li></ul>
+    <p>Links der Markierung „Beginn der Erfassung“ ist zurückgerechnet, wie sich dein damaliger Bestand entwickelt hätte. Für Coins ohne Kursgeschichte wird der heutige Kurs angenommen.</p>` },
+};
+
+const infoDialog = document.createElement('dialog');
+infoDialog.className = 'dialog wide';
+document.body.append(infoDialog);
+infoDialog.addEventListener('click', (e) => { if (e.target === infoDialog || e.target.closest('[data-close]')) infoDialog.close(); });
+document.addEventListener('click', (e) => {
+  const key = e.target.closest?.('[data-info]')?.dataset.info;
+  if (!key || !INFO[key]) return;
+  e.preventDefault();
+  infoDialog.innerHTML = `<div><div class="dialog-top"><h2>${INFO[key].title}</h2><button class="icon" type="button" data-close aria-label="Schließen">✕</button></div>
+    <div class="info-body">${INFO[key].body()}</div></div>`;
+  infoDialog.showModal();
+  infoDialog.scrollTop = 0;
+});
+
 function factorList(factors) {
   if (!factors.length) return '<p class="muted">Keine Daten für diesen Zeitraum.</p>';
   return `<ul class="factors">${factors.map((f) => `<li>
@@ -413,6 +601,7 @@ function marketView() {
       <p class="hint">Coins aus den Top 500 mit ausreichend Handelsvolumen, sortiert nach Prognose-Score – riskantere Coins werden dabei abgewertet.</p>
       <div id="picks" class="picks"></div>
     </section>
+    <section class="panel" id="record" hidden></section>
     <section class="controls">
       <input id="search" type="search" placeholder="Coin suchen (z. B. Bitcoin, ETH) …" aria-label="Coin suchen" value="${esc(state.query)}">
       <div class="chips" id="filters" role="group" aria-label="Nach Signal filtern">
@@ -467,14 +656,11 @@ function marketView() {
     $('#cycle').hidden = !cy;
     if (cy) {
       $('#cycle').className = `panel cycle ${cy.zone}`;
-      $('#cycle').innerHTML = `<div class="panel-top"><div><div class="label">Zyklus – Sicht auf 12 Monate</div><h2>${esc(cy.label)}</h2></div>
+      $('#cycle').innerHTML = `<div class="panel-top"><div><div class="label">Zyklus – Sicht auf 12 Monate</div><h2>${esc(cy.label)}</h2>${infoBtn('cycle')}</div>
           <strong class="cycle-dd">${num(-cy.dd, 0)} %<small> unter Allzeithoch</small></strong></div>
         <p>Bitcoin liegt ${num(-cy.dd, 0)} % unter seinem Allzeithoch. Aus vergleichbaren Ständen seit 2018 stand Bitcoin ein Jahr später
           in <strong>${cy.btcUp} %</strong> der Fälle höher (mittleres Ergebnis ${signed(cy.btcMedian, 0)} %), ein durchschnittlicher Coin in
-          <strong>${cy.altUp} %</strong> der Fälle (${signed(cy.altMedian, 0)} %).</p>
-        <p class="hint">Antizyklisch gilt: Je tiefer unter dem Hoch, desto besser waren die Einstiege auf Jahressicht – nahe am Hoch waren sie am schlechtesten.
-          Das ist die langfristige Sicht; „Jetzt kaufen?“ oben bewertet die nächsten Wochen und folgt dem Trend. Der Reserve-Vorschlag folgt dem Trend
-          und stockt nach langer Angst tief im Zyklus Bitcoin und Ethereum auf. Grundlage sind nur zwei Marktzyklen – eine Tendenz, keine Gewissheit.</p>`;
+          <strong>${cy.altUp} %</strong> der Fälle (${signed(cy.altMedian, 0)} %).</p>`;
     }
     const fc = m?.forecast;
     $('#market-forecast').hidden = !fc;
@@ -482,24 +668,31 @@ function marketView() {
       const cell = (s) => (s ? `<td class="num"><strong class="${tone(Math.round(s.mid))}">${signed(s.mid, Math.abs(s.mid) < 10 ? 1 : 0)} %</strong>
         <div class="muted fc-range">${signed(s.low, 0)} … ${signed(s.high, 0)} %</div>${isNum(s.up) ? `<div class="muted fc-range">höher in ${s.up} %</div>` : ''}</td>` : '<td class="num muted">–</td>');
       const row = (label, hint, f) => `<tr><td><strong>${label}</strong><div class="muted fc-range">${hint}</div></td>${cell(f.short)}${cell(f.medium)}${cell(f.long)}</tr>`;
-      $('#market-forecast').innerHTML = `<div class="label">Prognose für den Gesamtmarkt</div>
+      $('#market-forecast').innerHTML = `<div class="head-row"><div class="label">Prognose für den Gesamtmarkt</div>${infoBtn('forecast')}</div>
         <div class="table-wrap"><table class="fc-table"><thead><tr><th></th><th class="num">7 Tage</th><th class="num">30 Tage</th><th class="num">12 Monate</th></tr></thead>
-          <tbody>${row('Bitcoin', 'Leitwährung', fc.btc)}${row('Mittlerer Coin', 'typischer Altcoin', fc.alt)}</tbody></table></div>
-        <p class="hint">Fett: das mittlere Ergebnis nach vergleichbaren Marktlagen seit 2018. Darunter die Spanne, in der die Hälfte der Fälle lag –
-          jeder vierte Fall lag darüber, jeder vierte darunter. 7 und 30 Tage hängen an der Marktphase, 12 Monate am Stand im Zyklus.
-          Der mittlere Coin schnitt auf Jahressicht meist schlechter ab als Bitcoin.
-          Kaufsignale bei einzelnen Coins beziehen sich auf die nächsten Wochen; ist die 12-Monats-Sicht negativ, steht das beim Coin dabei.</p>`;
+          <tbody>${row('Bitcoin', 'Leitwährung', fc.btc)}${row('Mittlerer Coin', 'typischer Altcoin', fc.alt)}</tbody></table></div>`;
+    }
+    // Erfolgskontrolle: was aus den Kaufsignalen der Seite tatsächlich geworden ist
+    const rec = state.record;
+    $('#record').hidden = !rec;
+    if (rec) {
+      const line = (label, o) => (o ? `<div><div class="label">${label}</div><div class="value ${tone(o.avg)}">${signed(o.avg, 1)} %</div>
+          <div class="muted">${num(o.up / o.n * 100, 0)} % im Plus (${o.up} von ${o.n}) · Bitcoin ${signed(o.btc, 1)} %</div></div>`
+        : `<div><div class="label">${label}</div><div class="value muted">–</div><div class="muted">noch keine Ergebnisse</div></div>`);
+      $('#record').innerHTML = `<div class="head-row"><div><div class="label">Erfolgskontrolle</div>
+          <div class="muted">Kaufsignale der Seite, gemessen seit ${new Date(rec.since * 86_400_000).toLocaleDateString('de-DE')}</div></div>${infoBtn('record', 'So wird gemessen')}</div>
+        <div class="stat-grid">${line('Nach 7 Tagen', rec.d7)}${line('Nach 30 Tagen', rec.d30)}</div>
+        ${rec.d7 ? '' : '<p class="hint">Die Messung hat gerade begonnen. Erste Ergebnisse gibt es 7 Tage nach den ersten Signalen.</p>'}`;
     }
     const f = state.fng;
     $('#g-fng').innerHTML = f ? `<div class="label">Fear &amp; Greed Index</div>${gauge(f.value, SELL_TO_BUY)}
         <div class="gauge-value">${f.value}<small> / 100</small></div><span class="badge none big">${fngLabel(f.value)}</span>
         <div class="hint">Vor 7 Tagen: ${isNum(f.history[7]?.value) ? f.history[7].value : '–'} · vor 30 Tagen: ${isNum(f.history[29]?.value) ? f.history[29].value : '–'}${f.cmc ? `<br>CoinMarketCap: ${f.cmc.value}${f.cmc.label ? ` (${esc(f.cmc.label)})` : ''}` : ''}</div>
-        ${fngEffect(m?.regime)}`
+        ${fngEffect(m?.regime)}${infoBtn('fng', 'Wirkung im Modell')}`
       : '<div class="label">Fear &amp; Greed Index</div><p class="muted">Wird geladen …</p>';
-    $('#market-parts').innerHTML = m ? `<div class="label">So setzt sich der Markt-Index zusammen</div>
+    $('#market-parts').innerHTML = m ? `<div class="head-row"><div class="label">So setzt sich der Markt-Index zusammen</div>${infoBtn('index')}</div>
         ${factorList(m.parts)}
-        <details><summary>Heutige Einzelwerte der Marktphase</summary>${factorList(m.regime.factors)}</details>
-        <p class="hint">0 = klar verkaufen, 50 = neutral, 100 = klar kaufen. Der Index fließt als Marktphase in jede Coin-Prognose ein.</p>`
+        <details><summary>Heutige Einzelwerte der Marktphase</summary>${factorList(m.regime.factors)}</details>`
       : '<div class="label">Markt-Index</div><p class="muted">Wird berechnet …</p>';
   }
 
@@ -571,7 +764,7 @@ function marketView() {
 const RANGES = { '1T': 1, '7T': 7, '30T': 30, '90T': 90, '1J': 365, '4J': 1461 };
 const INTRADAY_REFRESH_MS = 2 * 60_000;
 
-function drawChart(el, { t, p, overlays = [], hourly, intraday, note }) {
+function drawChart(el, { t, p, overlays = [], hourly, intraday, note, marker }) {
   if (p.length < 2) { el.innerHTML = '<p class="muted">Keine Kursdaten für diesen Zeitraum.</p>'; return; }
   // In echten Pixeln zeichnen, damit die Beschriftung auf schmalen Bildschirmen lesbar bleibt
   const W = Math.max(el.clientWidth, 280), narrow = W < 600;
@@ -614,6 +807,7 @@ function drawChart(el, { t, p, overlays = [], hourly, intraday, note }) {
       <path d="${path(p)}L${x(p.length - 1)} ${H - B}L${L} ${H - B}Z" fill="${color}" opacity=".08"/>
       ${overlays.map((o) => `<path d="${path(o.values)}" fill="none" stroke="${o.color}" stroke-width="1.5" stroke-dasharray="5 4"/>`).join('')}
       <path d="${path(p)}" fill="none" stroke="${color}" stroke-width="2"/>
+      ${marker ? `<line x1="${x(marker.index)}" x2="${x(marker.index)}" y1="${T}" y2="${H - B}" class="cross"/><text x="${x(marker.index) + (marker.index > p.length * 0.6 ? -6 : 6)}" y="${T + 10}" text-anchor="${marker.index > p.length * 0.6 ? 'end' : 'start'}" class="axis">${esc(marker.label)}</text>` : ''}
       <g class="cursor" hidden><line y1="${T}" y2="${H - B}" class="cross"/><circle r="4" fill="${color}"/></g>
     </svg>
     <div class="tip" hidden></div>
@@ -805,20 +999,12 @@ function detailView(id) {
       : `<div><div class="label">${title}</div><div class="value muted">–</div></div>`);
     const why = a.reasons;
     const reasonList = (list) => list.map((f) => `<li><strong class="${tone(f.points)}">${signed(f.points, 0)}</strong> ${esc(f.name)} <span class="muted">(${f.horizon})</span>: ${esc(f.text)}</li>`).join('');
-    const percent = !fcast ? '' : `<section class="panel"><h2>Kursprognose in Prozent</h2>
+    const percent = !fcast ? '' : `<section class="panel"><div class="head-row"><h2>Kursprognose in Prozent</h2>${infoBtn('percent')}</div>
         <div class="stat-grid">${fbox('In 7 Tagen', fcast.short)}${fbox('In 30 Tagen', fcast.medium)}${fbox('In 12 Monaten', fcast.long)}</div>
-        <p class="hint">Die große Zahl ist das mittlere Ergebnis, das Coins mit diesem Score und dieser Schwankung seit 2018 erreicht haben – gemessen vom jetzigen Kurs.
-          In der Spanne lag die Hälfte der Fälle; jeder vierte Fall lag darüber, jeder vierte darunter. Auf 12 Monate zählt vor allem der Stand im Zyklus,
-          dort ist die Unsicherheit am größten (nur zwei Marktzyklen als Grundlage).</p>
         ${why && (why.pro.length || why.contra.length) ? `<div class="h-cards reasons">
           <div><h3>Das spricht dafür</h3>${why.pro.length ? `<ul class="plain">${reasonList(why.pro)}</ul>` : '<p class="muted">Kein Merkmal spricht derzeit deutlich für den Coin.</p>'}</div>
-          <div><h3>Das spricht dagegen</h3>${why.contra.length ? `<ul class="plain">${reasonList(why.contra)}</ul>` : '<p class="muted">Kein Merkmal spricht derzeit deutlich dagegen.</p>'}</div></div>
-          <p class="hint">Punkte = Beitrag des Merkmals zum Prognose-Score. Ein Kaufsignal entsteht nur, wenn die Gründe dafür klar überwiegen.</p>` : ''}
-        ${a.mood ? `<p class="hint"><strong>Stimmung des Coins: ${a.mood.value} von 100 (${moodLabel(a.mood.value)}${a.mood.fearDays > 1 ? `, seit ${a.mood.fearDays} Tagen in Angst` : a.mood.greedDays > 1 ? `, seit ${a.mood.greedDays} Tagen in Gier` : ''}).</strong>
-          Ein eigener Angst-und-Gier-Wert aus dem Kursverlauf dieses Coins (0 = Angst, 100 = Gier) – einen fertigen Index je Coin gibt es nicht frei verfügbar.
-          ${a.mood.value < 15 ? 'Nach so tiefen Werten stand der Kurs 7 Tage später in 59 % der Fälle höher, nach 30 Tagen aber nur in 43 %.'
-            : a.mood.greedDays >= 14 ? 'Nach mehr als zwei Wochen Gier stand der Kurs 7 Tage später nur in 43 % der Fälle höher.'
-            : 'Für sich allein sagte dieser Wert in der Prüfung wenig voraus; er fließt deshalb nicht in den Score ein.'}</p>` : ''}
+          <div><h3>Das spricht dagegen</h3>${why.contra.length ? `<ul class="plain">${reasonList(why.contra)}</ul>` : '<p class="muted">Kein Merkmal spricht derzeit deutlich dagegen.</p>'}</div></div>` : ''}
+        ${a.mood ? `<p class="hint mood-line">Stimmung des Coins: <strong>${a.mood.value} von 100</strong> (${moodLabel(a.mood.value)}${a.mood.fearDays > 1 ? `, seit ${a.mood.fearDays} Tagen in Angst` : a.mood.greedDays > 1 ? `, seit ${a.mood.greedDays} Tagen in Gier` : ''}) ${infoBtn('mood', 'Was heißt das?')}</p>` : ''}
       </section>`;
 
     let extra = '';
@@ -831,23 +1017,19 @@ function detailView(id) {
       const move = expectedMove(d.data.p);
       const span = (m) => `${money(c.current_price * Math.exp(-m))} bis ${money(c.current_price * Math.exp(m))}`;
       const years = d.ind.n / 365;
-      extra = `<section class="panel"><h2>Übliche Schwankungsbreite</h2>
-          <p class="hint">Abgeleitet aus den Tagesschwankungen der letzten 90 Tage. In etwa zwei von drei Fällen bleibt der Kurs in dieser Spanne – Ausreißer nach oben und unten sind jederzeit möglich.</p>
+      extra = `<section class="panel"><div class="head-row"><h2>Übliche Schwankungsbreite</h2>${infoBtn('swing')}</div>
           ${move ? `<div class="stat-grid">
             <div><div class="label">In 7 Tagen</div><div class="value">± ${num(move.d7 * 100, 0)} %</div><div class="muted">${span(move.d7)}</div></div>
             <div><div class="label">In 30 Tagen</div><div class="value">± ${num(move.d30 * 100, 0)} %</div><div class="muted">${span(move.d30)}</div></div></div>` : ''}
         </section>
-        <h2>Rückblick-Test über ${years >= 1.5 ? num(years, 1) + ' Jahre' : num(d.ind.n, 0) + ' Tage'}</h2>
-        <p class="hint">Wie gut war das Modell bei diesem Coin? Es wurde für jeden Tag nur mit den damals bekannten Kursen berechnet (Datenquelle: ${d.source}) und mit der tatsächlichen Entwicklung danach verglichen. Nachrichten sind im Rückblick nicht enthalten.</p>
-        <div class="h-cards">${d.tests.map(testBox).join('') || '<p class="muted">Zu wenig Kursgeschichte für einen Rückblick-Test.</p>'}</div>
-        <p class="hint">Wichtig: Die Bewertungskurven wurden an den letzten 4 Jahren großer Coins ausgerichtet. Die Trefferquoten im Rückblick fallen deshalb eher zu gut aus und sind keine Zusage für die Zukunft.</p>`;
+        <div class="head-row"><h2>Rückblick-Test über ${years >= 1.5 ? num(years, 1) + ' Jahre' : num(d.ind.n, 0) + ' Tage'}</h2>${infoBtn('backtest')}</div>
+        <p class="hint">Kursgeschichte von ${d.source}.</p>
+        <div class="h-cards">${d.tests.map(testBox).join('') || '<p class="muted">Zu wenig Kursgeschichte für einen Rückblick-Test.</p>'}</div>`;
     } else if (d.error) extra = `<section class="panel"><p class="muted">${esc(d.error)}</p></section>`;
 
     $('#d-forecast').innerHTML = `${percent}
-      <h2>Prognose nach Zeithorizont</h2>
-      <p class="hint">${d.ind ? `Verfeinert mit ${num(d.ind.n, 0)} Tageskursen.` : 'Schnellbewertung – die verfeinerte Prognose wird geladen …'}
-        Die Punkte je Faktor reichen von −100 (klar negativ) bis +100 (klar positiv). Die Einordnung oben rechts in jeder Karte ist die Prozent-Prognose für diesen Zeitraum;
-        in sie fließen neben den Merkmalen der Karte auch der Gesamt-Score und die Marktphase ein.</p>
+      <div class="head-row"><h2>Prognose nach Zeithorizont</h2>${infoBtn('horizons')}</div>
+      <p class="hint">${d.ind ? `Verfeinert mit ${num(d.ind.n, 0)} Tageskursen.` : 'Schnellbewertung – die verfeinerte Prognose wird geladen …'}</p>
       ${a.notes.map((n) => `<p class="notice">${esc(n)}</p>`).join('')}
       <div class="h-cards">${card('Kurzfristig', 'Prognose für 7 Tage', a.short, a.forecast?.short ?? null)}${card('Mittelfristig', 'Prognose für 30 Tage', a.medium, a.forecast?.medium ?? null)}
         ${card('Langfristig', 'Prognose für 12 Monate – vor allem vom Zyklus bestimmt, die Trendmerkmale unten verschieben sie', a.long, a.forecast?.long ?? null)}${card('Marktphase', 'gilt für alle Coins · Schnitt aus 14 Tagen, Einzelwerte von heute', a.regime)}</div>
@@ -864,8 +1046,7 @@ function detailView(id) {
       <ul class="news">${n.items.slice(0, 8).map((it) => `<li>${tag(it.tone)}
         <span>${/^https?:\/\//.test(it.link) ? `<a href="${esc(it.link)}" target="_blank" rel="noopener">${esc(it.title)}</a>` : esc(it.title)}
         <br><span class="muted">${esc(it.source ?? '')} · ${new Date(it.time).toLocaleDateString('de-DE')}</span></span></li>`).join('')}</ul>`;
-    el.innerHTML = `<section class="panel"><h2>Nachrichten</h2>
-      <p class="hint">Englischsprachige Meldungen der letzten 7 Tage, automatisch nach Stichwörtern als positiv oder negativ eingestuft. Die Einstufung ist grob und kann danebenliegen. ${state.server ? 'In den Score dieses Coins fließen sie nicht ein; die allgemeine Nachrichtenlage steckt im Markt-Index.' : 'Deshalb verschieben Nachrichten den Score um höchstens 10 Punkte.'}</p>
+    el.innerHTML = `<section class="panel"><div class="head-row"><h2>Nachrichten</h2>${infoBtn('news')}</div>
       ${body}</section>`;
   }
 
@@ -911,8 +1092,29 @@ function detailView(id) {
 // Das Portfolio liegt immer im Browser und, wenn angemeldet, zusätzlich im Konto
 const depot = { data: pf.load(), user: null, ready: !auth.available, sync: 'local', error: null, stop: null };
 
-function saveDepot(data) {
-  depot.data = pf.normalise(data);
+// Coin zu einer Position: nach ID, sonst nach Kürzel oder Name
+const coinOf = (pos) => (pos.id && state.byId.get(pos.id))
+  || state.bySymbol.get((pos.symbol || pos.name || '').toLowerCase())
+  || state.byName.get((pos.name || pos.symbol || '').toLowerCase())
+  || state.bySymbol.get((pos.name || '').toLowerCase());
+
+// Wert eines Portfolios zu den aktuellen Kursen; Positionen ohne Kurs zählen nicht mit
+const depotValue = (data) => data.cash + data.positions.reduce((sum, pos) => {
+  const c = coinOf(pos);
+  return sum + (c && isNum(c.current_price) ? pos.amount * c.current_price : 0);
+}, 0);
+
+// internal: Kauf, Verkauf oder Tausch innerhalb des Portfolios – kein Geld von außen. note: Eintrag für den Verlauf.
+function saveDepot(data, { internal = false, note = null } = {}) {
+  const before = depot.data;
+  const next = pf.normalise(data);
+  // Geänderten Bestand für die Wertentwicklung festhalten – nur wenn Kurse da sind, sonst wäre der Wert falsch
+  if (state.coins.length) {
+    const held = { cash: next.cash, positions: next.positions.map((pos) => ({ id: pos.id ?? coinOf(pos)?.id ?? null, amount: pos.amount })) };
+    next.track = tr.record(next.track, held, { valueBefore: depotValue(before), valueAfter: depotValue(next), internal });
+  }
+  if (note) next.log = tr.addLog(next.log, note);
+  depot.data = next;
   pf.save(depot.data);
   if (depot.user) {
     depot.sync = 'saving';
@@ -983,16 +1185,15 @@ function tradingView() {
   } catch { /* Voreinstellung */ }
   view.innerHTML = `
     <div class="page-head"><div><h1>Daytrading</h1>
-      <p class="hint">Kurzfristige Vorschläge mit Einstieg, Ziel, Stopp und Hebel – nur wenn ein geprüftes Muster vorliegt. An vielen Tagen bleibt die Liste leer.</p></div></div>
+      <p class="hint">Vorschläge mit Einstieg, Ziel, Stopp und Hebel – nur wenn ein geprüftes Muster vorliegt. An vielen Tagen bleibt die Liste leer.</p></div>
+      <div class="actions">${infoBtn('setups', 'So entstehen die Vorschläge')}</div></div>
     <section class="panel">
-      <div class="label">Einsatz berechnen</div>
+      <div class="head-row"><div class="label">Einsatz berechnen</div>${infoBtn('sizing', 'Einsatz und Hebel')}</div>
       <form id="t-sizing" class="sizing">
         <label>Kontogröße (USD)<input id="t-account" inputmode="decimal" placeholder="z. B. 5.000" value="${sizing.account ? String(sizing.account).replace('.', ',') : ''}"></label>
         <label>Risiko je Handel (% des Kontos)<input id="t-risk" inputmode="decimal" value="${String(sizing.risk).replace('.', ',')}"></label>
       </form>
       <p class="notice" id="t-risk-note" hidden>Gerechnet wird mit höchstens 5 % Risiko je Handel.</p>
-      <p class="hint">Das Risiko ist der Betrag, den du verlierst, wenn der Stopp greift. Üblich sind 0,5 bis 2 % des Kontos je Handel –
-        daraus ergibt sich bei jedem Vorschlag die Positionsgröße. Der Hebel ändert daran nichts; er bestimmt nur, wie viel Sicherheit du hinterlegst.</p>
     </section>
     <section id="t-long"></section>
     <section id="t-short"></section>
@@ -1060,20 +1261,12 @@ function tradingView() {
           <span class="muted">${lev === 1 ? 'Der Stopp liegt so weit entfernt, dass ein Hebel die Zwangsauflösung zu nahe brächte.'
             : `Dann läge die Zwangsauflösung bei etwa −${num(90 / lev, 0)} %, mindestens doppelt so weit weg wie der Stopp. Ohne Hebel bleibt die sichere Wahl.`}</span></p>
         <p class="trade-size">${sizeText(t, lev)}</p>
-        <p class="hint">Rückblick über ${num(s.cases, 0)} Fälle: ${s.hit} % der Handel endeten im Plus, im Mittel ${signed(s.avg, 1)} % je Handel nach Gebühren
-          (je Signaltag gemittelt ${signed(s.dayAvg, 1)} %). ${esc(s.caveat)}</p>
+        <p class="hint">Rückblick: ${s.hit} % der Handel im Plus, im Mittel ${signed(s.avg, 1)} % nach Gebühren. ${esc(s.caveat)}</p>
       </div>`; }).join('')}</div>`
       : `<div class="panel"><p><strong>Heute kein Long-Vorschlag.</strong></p><p class="muted">${why}</p></div>`);
 
-    const cellS = (v) => (v === null ? '<td class="num muted">–</td>' : `<td class="num ${tone(v)}">${signed(v, 1)} %</td>`);
-    $('#t-short').innerHTML = `<h2>Short – auf fallende Kurse</h2><div class="panel"><p><strong>Kein Short-Vorschlag – kein Muster hat die Prüfung bestanden.</strong></p>
-      <p class="muted">Ein Short-Muster kommt nur auf die Seite, wenn es in allen vier Zeitabschnitten seit 2018 nach Kosten im Plus lag. Geprüft wurden über 20 Varianten,
-        darunter die Idee „bei extremer Gier shorten“. Keine hat das geschafft – die besten im Überblick (mittlerer Ertrag je Handel):</p>
-      <div class="table-wrap"><table class="fc-table"><thead><tr><th>Muster</th><th class="num">2018–20</th><th class="num">2020–22</th><th class="num">2022–24</th><th class="num">2024–26</th></tr></thead>
-        <tbody>${SHORT_TESTS.map(([label, v]) => `<tr><td>${esc(label)}</td>${v.map(cellS).join('')}</tr>`).join('')}</tbody></table></div>
-      <p class="hint">Am nächsten kam „extreme Gier nahe am Allzeithoch“: 2022–2026 im Plus, Ende 2020 aber mit Verlust, weil die Kurse trotz Gier monatelang weiterstiegen.
-        Shorts haben zudem ein Risiko, das Käufe nicht haben: Ein Coin kann sich in Tagen verdoppeln, der Verlust ist nach oben offen.
-        Was die Daten stützen, steckt stattdessen in der Gier-Bremse (keine Käufe bei extremer Gier) und in der Reserve-Strategie „Antizyklisch“.</p></div>`;
+    $('#t-short').innerHTML = `<h2>Short – auf fallende Kurse</h2><div class="panel"><p><strong>Kein Short-Vorschlag.</strong>
+      Über 20 Short-Muster geprüft – keines lag in allen vier Zeitabschnitten seit 2018 im Plus.</p>${infoBtn('short', 'Geprüfte Muster und Ergebnisse')}</div>`;
 
     // Beobachtungsliste: was einem Muster am nächsten kommt oder knapp an einer Bedingung scheitert
     const near = state.coins.filter((c) => c.analysis.trade && !c.analysis.trade.kind && liquid(c)).map((c) => {
@@ -1091,24 +1284,8 @@ function tradingView() {
             <td class="num">${pct(c.price_change_percentage_24h_in_currency)}</td><td>${esc(text)}</td></tr>`).join('')}</tbody></table></div>`
       : '<div class="panel"><p class="muted">Im Moment ist kein Coin in der Nähe eines Musters.</p></div>');
 
-    const row = (s, when) => `<li><strong>${esc(s.label)}:</strong> ${when} Ziel ${s.target}-fache, Stopp ${s.stop}-fache Tagesschwankung des Coins, höchstens ${s.days} Tage.
-      Rückblick über ${num(s.cases, 0)} Fälle an ${s.signalDays} Tagen: ${s.hit} % im Plus, im Mittel ${signed(s.avg, 1)} % je Handel; in den vier Zeitabschnitten ${s.blocks.map((b) => signed(b, 1) + ' %').join(', ')}. ${esc(s.caveat)}</li>`;
-    const lev = (rows) => rows.map(([l, y, dd, liq]) => `<tr><td>${l}×</td><td class="num ${tone(y)}">${signed(y, 0)} %</td><td class="num">−${dd} %</td><td class="num">${liq}</td></tr>`).join('');
-    const levTable = (title, rows) => `<div><div class="label">${title}</div><div class="table-wrap"><table class="fc-table">
-        <thead><tr><th>Hebel</th><th class="num">pro Jahr</th><th class="num">größter Rückgang</th><th class="num">Liquidationen</th></tr></thead><tbody>${lev(rows)}</tbody></table></div></div>`;
-    $('#t-rules').innerHTML = `<h2>So entstehen die Vorschläge</h2>
-      <ul class="plain">${row(TRADE_SETUPS.selloff, `Der Coin ist in 7 Tagen um mindestens ${-TRADE_LIMITS.selloff} % gefallen, der mittlere Coin am Markt um mindestens ${-TRADE_LIMITS.market} %, es herrscht kein Bärenmarkt und der Fear-&-Greed-Index steht im 7-Tage-Schnitt bei mindestens ${TRADE_LIMITS.fng}.`)}
-        ${row(TRADE_SETUPS.score, `Der Prognose-Score liegt bei mindestens +${TRADE_LIMITS.score}.`)}</ul>
-      <h3>Was Hebel bewirkt hätte</h3>
-      <p class="hint">Rückrechnung: An jedem Signaltag wurden 10 % des Kontos als Sicherheit eingesetzt, verteilt auf höchstens 5 Vorschläge.
-        Eine Position gilt als zwangsaufgelöst (Sicherheit weg), sobald der Kurs um rund 90 % geteilt durch den Hebel fällt.</p>
-      <div class="h-cards">${levTable(TRADE_SETUPS.selloff.label, TRADE_LEVERAGE.selloff)}${levTable(TRADE_SETUPS.score.label, TRADE_LEVERAGE.score)}</div>
-      <p class="hint">Bis zum 3-fachen Hebel wuchsen Ertrag und Rückgang etwa im Gleichschritt – der Hebel macht einen Handel nicht besser, nur größer.
-        Ab dem 5-fachen häuften sich die Zwangsauflösungen, beim 10-fachen blieb vom Vorteil nichts übrig. Deshalb schlägt die Seite nie mehr als 3-fach vor.</p>
-      <p class="hint">Geprüft an Tageskursen von 84 Coins seit 2018, mit 0,5 % Gebühren je Handel, in vier getrennten Zeitabschnitten. Nur Coins mit Tageskursen von Binance und genug Handelsvolumen.
-        Die Vorschläge gelten für Tage, nicht für Minuten: Für echtes Handeln im Minutentakt gibt es hier keine geprüfte Grundlage.</p>
-      <p class="notice">Sicher ist kein Handel. Auch beim besten Muster endete etwa jeder sechste Handel im Minus, beim zweiten fast jeder zweite – und weil der Stopp weit entfernt liegt, ist ein einzelner Verlust groß.
-        Mit Hebel kann die hinterlegte Sicherheit vollständig verloren gehen. Die Rückrechnung enthält nur Coins, die heute noch gehandelt werden – echte Ergebnisse fallen schlechter aus. Keine Anlageberatung.</p>`;
+    $('#t-rules').innerHTML = `<p class="notice">Sicher ist kein Handel. Auch beim besten Muster endete etwa jeder sechste Handel im Minus, beim zweiten fast jeder zweite –
+      und weil der Stopp weit entfernt liegt, ist ein einzelner Verlust groß. Mit Hebel kann die hinterlegte Sicherheit vollständig verloren gehen. Keine Anlageberatung.</p>`;
   }
   return { update };
 }
@@ -1121,6 +1298,7 @@ function accountView(gate = false) {
       <li><div><strong>Dein Portfolio, überall</strong><span>Im Konto gespeichert und auf jedem Gerät abrufbar.</span></div></li>
       <li><div><strong>Konkrete Schritte</strong><span>Der Portfolio-Manager sagt, was du kaufen, halten oder verkaufen solltest – mit Begründung, Gebühr und Zeitrahmen.</span></div></li>
       <li><div><strong>Schutz bei fallenden Kursen</strong><span>Verkaufsempfehlung, sobald ein Coin deutlich unter sein Hoch fällt oder der Markt dreht.</span></div></li>
+      <li><div><strong>Wertentwicklung im Blick</strong><span>Diagramm deines Portfolios mit Gewinn, Einzahlungen und Vergleich zu Bitcoin.</span></div></li>
     </ul>`;
 
   function render() {
@@ -1220,8 +1398,12 @@ const dateText = (d) => d.toLocaleDateString('de-DE', { day: '2-digit', month: '
 let advice = null;
 const ADVICE_STALE_MS = 30 * 60_000;
 
+const PERF_RANGES = { '30T': 30, '90T': 90, '1J': 365, 'Seit Beginn': null };
+
 function portfolioView() {
   let message = '';
+  let perfRange = '90T';
+  let trackStarted = false;
   let imp = null;          // Import: eingelesene Tabelle und Spaltenzuordnung
   let recalc = false;
   view.innerHTML = `
@@ -1238,14 +1420,22 @@ function portfolioView() {
     <div id="p-body">
       <section id="p-summary" class="summary"></section>
       <div id="p-alloc"></div>
+      <section class="panel" id="p-perf" hidden>
+        <div class="panel-top"><div><h2>Wertentwicklung</h2>${infoBtn('performance')}</div>
+          <div class="chips" id="p-perf-ranges">${Object.keys(PERF_RANGES).map((r) => `<button class="chip" data-perf="${r}">${r}</button>`).join('')}</div></div>
+        <div id="p-perf-chart" class="chart"></div>
+        <div class="stat-grid" id="p-perf-stats"></div>
+        <p class="hint" id="p-perf-note"></p>
+      </section>
       <h2>Bestand</h2>
       <div class="table-wrap"><table>
         <thead><tr><th class="col-coin">Coin</th><th class="num">Menge</th><th class="num col-7d">Kurs</th><th class="num">24 h</th><th class="num">Wert</th><th class="num col-cap">Anteil</th>
           <th class="num col-30d">Ø Kaufpreis</th><th class="num">Gewinn / Verlust</th><th class="col-score">Prognose</th><th>Signal</th><th></th></tr></thead>
         <tbody id="p-rows"></tbody>
       </table></div>
-      <p class="foot-actions"><button class="link" id="p-clear" type="button">Portfolio leeren</button></p>
+      <p class="foot-actions"><button class="link" id="p-export" type="button">Als CSV exportieren</button> · <button class="link" id="p-clear" type="button">Portfolio leeren</button></p>
       <div id="p-manager"></div>
+      <div id="p-log"></div>
     </div>
 
     <dialog id="dlg-add" class="dialog">
@@ -1282,6 +1472,7 @@ function portfolioView() {
     <dialog id="dlg-reserve" class="dialog">
       <div>
         <div class="dialog-top"><h2>Reserve-Ziel</h2><button class="icon" type="button" data-close aria-label="Schließen">✕</button></div>
+        ${infoBtn('reserve', 'Strategien und Rückrechnung')}
         <p class="hint">So viel deines Portfolios <em>soll</em> als Reserve liegen (Bargeld und Stablecoins) statt in Coins. Das ist ein Ziel – die Vorschläge zeigen, wie du dorthin kommst.</p>
         <p id="r-actual"></p>
         <strong class="reserve-value" id="r-value"></strong>
@@ -1306,12 +1497,10 @@ function portfolioView() {
     </dialog>`;
 
   const say = (text) => { message = text; update(); };
+  const amountText = (v) => v.toLocaleString('de-DE', { maximumFractionDigits: 12, useGrouping: false });
   const copy = () => depot.data.positions.map((p) => ({ ...p }));
-  const store = (positions, extra = {}) => saveDepot({ ...depot.data, positions, ...extra });
-  const find = (pos) => (pos.id && state.byId.get(pos.id))
-    || state.bySymbol.get((pos.symbol || pos.name || '').toLowerCase())
-    || state.byName.get((pos.name || pos.symbol || '').toLowerCase())
-    || state.bySymbol.get((pos.name || '').toLowerCase());
+  const store = (positions, extra = {}, opts = {}) => saveDepot({ ...depot.data, positions, ...extra }, opts);
+  const find = coinOf;
 
   // ----- Dialoge -----
   for (const d of view.querySelectorAll('dialog')) {
@@ -1339,7 +1528,8 @@ function portfolioView() {
     message = `${c.name} hinzugefügt.`;
     e.target.reset();
     $('#dlg-add').close();
-    store(pf.add(copy(), { id: c.id, symbol: c.symbol, name: c.name, amount, cost: cost > 0 ? cost : c.current_price, costCur: 'usd', since: Date.now(), peak: c.current_price }));
+    store(pf.add(copy(), { id: c.id, symbol: c.symbol, name: c.name, amount, cost: cost > 0 ? cost : c.current_price, costCur: 'usd', since: Date.now(), peak: c.current_price }),
+      {}, { note: `${amountText(amount)} ${c.symbol.toUpperCase()} hinzugefügt` });
   });
 
   // ----- Import in zwei Schritten: Datei wählen, dann Zuordnung prüfen -----
@@ -1399,7 +1589,7 @@ function portfolioView() {
       message = `${fresh.length} Positionen importiert.`;
       const replace = $('#imp-replace').checked;
       $('#dlg-import').close();
-      store(replace ? fresh : fresh.reduce(pf.add, copy()));
+      store(replace ? fresh : fresh.reduce(pf.add, copy()), {}, { note: `Import: ${fresh.length} Positionen${replace ? ', bisheriger Bestand ersetzt' : ' ergänzt'}` });
     });
   }
 
@@ -1422,7 +1612,7 @@ function portfolioView() {
     if (!(cash >= 0)) return say('Bitte einen Betrag von 0 oder mehr eingeben.');
     message = 'Bargeld gespeichert.';
     $('#p-cash-value').blur();
-    saveDepot({ ...depot.data, cash });
+    saveDepot({ ...depot.data, cash }, { note: `Bargeld auf ${money(cash)} gesetzt` });
   });
 
   // ----- Position ändern: tauschen, verkaufen oder entfernen -----
@@ -1432,7 +1622,6 @@ function portfolioView() {
     remove: { button: 'Entfernen', help: 'Nimmt die Menge aus dem Portfolio, ohne etwas zu verbuchen – z. B. um einen Eintrag zu korrigieren.' },
   };
   let edit = null;   // { key, action }
-  const amountText = (v) => v.toLocaleString('de-DE', { maximumFractionDigits: 12, useGrouping: false });
 
   const resolveCoin = (text) => {
     const m = text.match(/^(.*)\(([^)]+)\)$/);
@@ -1514,7 +1703,7 @@ function portfolioView() {
     if (edit.action === 'remove') {
       message = `${units} ${sym} entfernt.`;
       $('#dlg-edit').close();
-      return store(copy().map((x) => (pf.keyOf(x) === edit.key ? { ...x, amount: x.amount - p.amount } : x)));
+      return store(copy().map((x) => (pf.keyOf(x) === edit.key ? { ...x, amount: x.amount - p.amount } : x)), {}, { note: `${units} ${sym} entfernt` });
     }
     // Importierte Positionen kennen ihre Coin-ID noch nicht – hier wird sie ergänzt
     const withIds = copy().map((x) => ({ ...x, id: x.id ?? find(x)?.id ?? null }));
@@ -1527,10 +1716,31 @@ function portfolioView() {
     message = edit.action === 'sell' ? `${units} ${sym} verkauft, ${money(p.proceeds)} ins Bargeld gebucht.`
       : `${units} ${sym} in ${p.to.name} getauscht.`;
     $('#dlg-edit').close();
-    saveDepot({ ...depot.data, positions: result.positions, cash: result.cash });
+    saveDepot({ ...depot.data, positions: result.positions, cash: result.cash }, { internal: true,
+      note: edit.action === 'sell' ? `${units} ${sym} verkauft für ${money(p.proceeds)}` : `${units} ${sym} in ${p.to.name} getauscht` });
   });
 
-  $('#p-clear').addEventListener('click', () => { message = 'Portfolio geleert.'; saveDepot(pf.empty()); });
+  $('#p-clear').addEventListener('click', () => {
+    if (!confirm('Portfolio wirklich leeren? Bestand, Wertentwicklung und Verlauf werden gelöscht.')) return;
+    message = 'Portfolio geleert.'; saveDepot(pf.empty());
+  });
+  // Bestand als Tabelle herunterladen – mit Semikolon und Komma, so öffnet Excel die Datei richtig
+  $('#p-export').addEventListener('click', () => {
+    const de = (v) => (isNum(v) ? String(v).replace('.', ',') : '');
+    const lines = [['Coin', 'Kürzel', 'Menge', 'Kaufpreis USD', 'Kurs USD', 'Wert USD']];
+    for (const pos of depot.data.positions) {
+      const c = find(pos);
+      lines.push([c?.name ?? pos.name ?? '', (c?.symbol ?? pos.symbol ?? '').toUpperCase(), de(pos.amount), de(pos.cost), de(c?.current_price), de(c ? pos.amount * c.current_price : null)]);
+    }
+    if (depot.data.cash) lines.push(['Bargeld', 'USD', de(depot.data.cash), '', '1', de(depot.data.cash)]);
+    // Vorangestelltes Zeichen U+FEFF: damit erkennt Excel die Umlaute
+    const csv = String.fromCharCode(0xFEFF) + lines.map((row) => row.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(';')).join(String.fromCharCode(13, 10));
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `portfolio-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
 
   $('#p-manager').addEventListener('click', (e) => {
     if (e.target.closest('[data-recalc]')) { recalc = true; return update(); }
@@ -1544,7 +1754,7 @@ function portfolioView() {
     const result = applyMove(withIds, depot.data.cash, move, { stableIds });
     if (!result) return say('Für diesen Kauf fehlt die Reserve. Trag zuerst die Verkäufe als umgesetzt ein oder erhöhe das Bargeld.');
     message = `Eingetragen: ${move.title}.`;
-    saveDepot({ ...depot.data, positions: result.positions, cash: result.cash });
+    saveDepot({ ...depot.data, positions: result.positions, cash: result.cash }, { internal: true, note: `Vorschlag umgesetzt: ${move.title} (${money(move.usd)})` });
   });
 
   // Höchster Kurs seit dem Kauf: gespeicherter Wert, aktueller Kurs und – wenn vorhanden – die Tageskurse seit dem Kaufdatum
@@ -1555,6 +1765,108 @@ function portfolioView() {
       for (let i = c.ind.n - 1; i >= 0 && c.ind.times[i] >= pos.since; i--) peak = Math.max(peak, c.ind.prices[i]);
     }
     return peak;
+  }
+
+  // ----- Wertentwicklung -----
+  const historyTried = new Set();
+  let historyLoading = false;
+  const closes = new WeakMap();    // Tageskurse je Coin als Nachschlagetabelle: Tag → Schlusskurs
+
+  // Schlusskurs an einem Tag; vor dem ersten bekannten Tag gilt der erste Kurs, bei Lücken null
+  function closeOn(daily, day) {
+    if (!daily?.t?.length) return null;
+    let c = closes.get(daily);
+    if (!c) {
+      c = { map: new Map(daily.t.map((t, i) => [tr.dayOf(t), daily.p[i]])), first: tr.dayOf(daily.t[0]) };
+      closes.set(daily, c);
+    }
+    return day < c.first ? daily.p[0] : c.map.get(day) ?? null;
+  }
+
+  // Tageskurse der gehaltenen Coins nachladen: Binance, ersatzweise CoinGecko (dort nur wenige Abrufe)
+  async function loadHistories(ids) {
+    historyLoading = true;
+    let fallbacks = 0;
+    for (const id of ids) {
+      historyTried.add(id);
+      const c = state.byId.get(id);
+      if (!c) continue;
+      let data = null, source = 'Binance';
+      try { data = await api.history(c.symbol); } catch { /* Binance nicht erreichbar */ }
+      if (data && Math.abs(data.p[data.p.length - 1] / c.current_price - 1) > 0.1) data = null;   // gleiches Kürzel, anderer Coin
+      if (!data && fallbacks < 3) {
+        fallbacks++; source = 'CoinGecko';
+        try { data = await api.chart(id, settings.currency); } catch { /* Limit erreicht – es bleibt beim heutigen Kurs */ }
+      }
+      if (data) state.daily.set(id, { ...data, source });
+    }
+    historyLoading = false;
+    rebuild();
+    if (current === self) update();
+  }
+
+  $('#p-perf-ranges').addEventListener('click', (e) => {
+    const r = e.target.closest('[data-perf]')?.dataset.perf;
+    if (r) { perfRange = r; performancePanel(); }
+  });
+
+  function performancePanel() {
+    const el = $('#p-perf'), track = depot.data.track;
+    el.hidden = !track.states.length;
+    if (!track.states.length) return;
+    for (const b of $('#p-perf-ranges').children) b.classList.toggle('active', b.dataset.perf === perfRange);
+    const today = tr.dayOf(Date.now()), start = tr.dayOf(track.states[0].t);
+    const ids = [...new Set(track.states.flatMap((st) => st.pos.map((x) => x[0])))];
+    const wanted = ids.filter((id) => !state.daily.has(id) && !historyTried.has(id) && state.byId.get(id) && !state.byId.get(id).analysis.stable);
+    if (wanted.length && !historyLoading && state.pagesLoaded >= api.PAGES) loadHistories(wanted);
+    if (wanted.length || historyLoading) {
+      $('#p-perf-chart').innerHTML = '<p class="loading"><span class="spinner" aria-hidden="true"></span> Lade die Kursgeschichte deiner Coins …</p>';
+      $('#p-perf-stats').innerHTML = ''; $('#p-perf-note').textContent = '';
+      return;
+    }
+
+    // Kurs eines Coins an einem Tag; ohne Kursgeschichte gilt der heutige Kurs
+    const flat = new Set();
+    const price = (id, day) => {
+      const c = state.byId.get(id);
+      if (day >= today) return c?.current_price ?? null;
+      const daily = state.daily.get(id);
+      if (!daily) { if (c && !c.analysis.stable) flat.add(c.name); return c?.current_price ?? null; }
+      return closeOn(daily, day);
+    };
+    const btc = (day) => (day >= today ? state.byId.get('bitcoin')?.current_price ?? null : closeOn(state.btcData, day));
+    const span = PERF_RANGES[perfRange];
+    const from = span ? today - span : Math.min(start, today - 30);
+    const pts = tr.series(track, { fromDay: from, toDay: today, priceOn: price, btcOn: btc });
+    const all = tr.series(track, { fromDay: start, toDay: today, priceOn: price, btcOn: btc });
+    const first = pts.findIndex((x) => x.tracked);
+    drawChart($('#p-perf-chart'), {
+      t: pts.map((x) => x.day * 86_400_000 + 43_200_000), p: pts.map((x) => x.value),
+      overlays: [{ label: 'Eingezahlt', color: 'var(--muted)', values: pts.map((x) => x.in) },
+        { label: 'Dasselbe Geld in Bitcoin', color: 'var(--accent)', values: pts.map((x) => x.btc) }],
+      marker: first > 0 ? { index: first, label: 'Beginn der Erfassung' } : null,
+    });
+
+    const last = all[all.length - 1];
+    const sinceStart = tr.performance(all), inRange = tr.performance(pts);
+    const b0 = btc(start), b1 = btc(today);
+    const began = new Date(track.states[0].t).toLocaleDateString('de-DE');
+    const cell = (label, value, sub) => `<div><div class="label">${label}</div><div class="value">${value}</div><div class="muted">${sub}</div></div>`;
+    $('#p-perf-stats').innerHTML =
+      cell(`Zeitraum ${perfRange}`, inRange === null ? '–' : pct(inRange), first > 0 ? 'teils zurückgerechnet' : 'ohne Ein- und Auszahlungen')
+      + cell('Seit Beginn', sinceStart === null ? '–' : pct(sinceStart), `erfasst seit ${began}`)
+      + cell('Gewinn seit Beginn', `<span class="${tone(Math.round(last.value - last.in))}">${money(last.value - last.in)}</span>`, `eingezahlt ${money(last.in)}`)
+      + cell('Bitcoin seit Beginn', b0 && b1 && all.length > 1 ? pct((b1 / b0 - 1) * 100) : '–', 'zum Vergleich');
+    $('#p-perf-note').textContent = (all.length < 2 ? 'Die Aufzeichnung beginnt heute – ab morgen wächst hier dein tatsächlicher Verlauf. ' : '')
+      + (first > 0 ? 'Links der Markierung ist zurückgerechnet, wie sich dein damaliger Bestand entwickelt hätte. ' : '')
+      + (flat.size ? `Ohne Kursgeschichte, mit heutigem Kurs gerechnet: ${[...flat].join(', ')}.` : '');
+  }
+
+  function logPanel() {
+    const log = depot.data.log;
+    const open = !!$('#p-log details')?.open;
+    $('#p-log').innerHTML = log.length ? `<details class="log"${open ? ' open' : ''}><summary>Verlauf – die letzten ${log.length} Änderungen</summary>
+        <ul class="plain">${[...log].reverse().map((entry) => `<li><span class="muted">${new Date(entry.t).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span> · ${esc(entry.text)}</li>`).join('')}</ul></details>` : '';
   }
 
   const self = { update };
@@ -1593,6 +1905,8 @@ function portfolioView() {
 
     const cash = depot.data.cash;
     const total = rows.reduce((s, r) => s + (r.value ?? 0), 0) + cash;
+    // Bestehende Portfolios: Die Aufzeichnung für die Wertentwicklung beginnt mit dem heutigen Bestand
+    if (!depot.data.track.states.length && total > 0 && state.pagesLoaded >= api.PAGES && !trackStarted) { trackStarted = true; return saveDepot(depot.data); }
     const stableValue = rows.filter((r) => r.c?.analysis.stable).reduce((s, r) => s + r.value, 0);
     const priced = rows.filter((r) => r.gain !== null);
     const paid = priced.reduce((s, r) => s + r.paid, 0);
@@ -1628,8 +1942,10 @@ function portfolioView() {
     }).join('') : '<tr><td colspan="11" class="empty">Noch keine Coins – nur Bargeld. Mit „+ Position“ fügst du Coins hinzu.</td></tr>';
 
     allocation(rows, cash, total);
+    performancePanel();
     reserve(cash + stableValue, total);
     manager(rows, total);
+    logPanel();
   }
 
   function reserve(actual, total) {
@@ -1651,15 +1967,14 @@ function portfolioView() {
     const option = (key) => `<button type="button" class="reserve-option ${chosen === null && mode === key ? 'active' : ''}" data-mode="${key}">
         <span class="label">${RESERVE_MODES[key].label}</span><strong>${advice[key]} %</strong>
         <span class="muted">${RESERVE_MODES[key].text}</span>
-        <span class="muted">Rückrechnung: rund +${RESERVE_BACKTEST[key].perYear} % pro Jahr (2022–2026: +${RESERVE_BACKTEST[key].recent} %), zwischenzeitlich bis zu −${RESERVE_BACKTEST[key].drawdown} %</span></button>`;
+        <span class="muted">Rückrechnung: +${RESERVE_BACKTEST[key].perYear} % pro Jahr, Rückgang bis −${RESERVE_BACKTEST[key].drawdown} %</span></button>`;
     $('#r-options').innerHTML = state.market ? Object.keys(RESERVE_MODES).map(option).join('') : '';
     const h = advice.history;
     $('#r-hint').innerHTML = !state.market ? 'Der Vorschlag wird berechnet …' : `
       ${chosen === null ? `Du folgst der Strategie „${RESERVE_MODES[mode].label}“ – der Wert passt sich der Marktlage an.`
         : `Du hast <strong>${chosen} %</strong> selbst eingestellt. Ein Klick auf eine Strategie folgt wieder der Marktlage.`}
       ${esc(advice.texts[mode] ?? advice.text)}
-      ${h ? `In vergleichbaren Marktphasen seit 2018 stand der Markt 30 Tage später in <strong>${h.up} %</strong> der Fälle höher; im schlechtesten Zehntel der Fälle lag er mindestens <strong>${-h.worst} %</strong> tiefer.` : ''}
-      Die Rückrechnungen enthalten nur Coins, die es heute noch gibt, und die Regeln wurden an denselben Jahren ausgewählt – sie fallen deshalb zu gut aus.`;
+      ${h ? `In vergleichbaren Marktphasen seit 2018 stand der Markt 30 Tage später in <strong>${h.up} %</strong> der Fälle höher; im schlechtesten Zehntel der Fälle lag er mindestens <strong>${-h.worst} %</strong> tiefer.` : ''}`;
     const cashInput = $('#p-cash-value');
     if (document.activeElement !== cashInput) cashInput.value = depot.data.cash ? String(Math.round(depot.data.cash * 100) / 100).replace('.', ',') : '';
   }
@@ -1715,7 +2030,6 @@ function portfolioView() {
     }
 
     const p = advice.plan;
-    const open = !!$('details', el)?.open;
     const stale = Date.now() - advice.time > ADVICE_STALE_MS;
     const amount = (m) => `${m.units.toLocaleString('de-DE', { maximumSignificantDigits: 4 })} ${esc(m.symbol.toUpperCase())}`;
     const cards = p.moves.map((m, i) => `<article class="move ${m.type}">
@@ -1734,7 +2048,7 @@ function portfolioView() {
 
     el.innerHTML = `<section class="panel manager">
       <div class="panel-top"><div><h2>Vorschläge</h2><div class="muted">Stand ${advice.time.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr${stale ? ' – älter als 30 Minuten' : ''}</div></div>
-        <button class="btn ghost small" data-recalc>Neu berechnen</button></div>
+        <div class="btn-row">${infoBtn('manager', 'So arbeitet der Manager')}<button class="btn ghost small" data-recalc>Neu berechnen</button></div></div>
       <p>${depot.data.reservePct === null
           ? `${esc(p.exposure.text)} Reserve-Ziel nach der Strategie „${RESERVE_MODES[depot.data.reserveMode].label}“: ${num((1 - p.exposure.share) * 100, 0)} %.`
           : esc(p.exposure.text)}
@@ -1747,20 +2061,6 @@ function portfolioView() {
         : 'Die Coins mit Kaufsignal sind bis zur Obergrenze je Coin gefüllt, weitere passende gibt es gerade nicht.'}</p>` : ''}
       ${cards || '<p><strong>Im Moment kein Handlungsbedarf.</strong> Dein Portfolio passt zur gewählten Reserve und zur Marktlage; jeder Handel würde nur Gebühren kosten.</p>'}
       ${holds}
-      <details${open ? ' open' : ''}><summary>So arbeitet der Manager – und was er nicht kann</summary>
-        <ul class="plain">
-          <li><strong>Feste Vorschläge:</strong> Sie werden einmal berechnet und bleiben stehen, bis du etwas am Portfolio änderst oder „Neu berechnen“ wählst.</li>
-          <li><strong>Tauschen:</strong> Passen ein Verkauf und ein Kauf zusammen, schlägt der Manager einen direkten Tausch vor. Gerechnet wird mit zweimal 0,25 % Gebühr; tauscht deine Börse direkt in einem Schritt, ist es weniger.</li>
-          <li><strong>Erst das Risiko:</strong> Die Reserve bestimmt, wie viel investiert sein soll. Der Vorschlag folgt der Marktphase: starker Trend – wenig Reserve, Bärenmarkt – höchstens 15 % investiert. Du kannst ihn überschreiben.</li>
-          <li><strong>Fear &amp; Greed:</strong> Stand der Index an mindestens 54 der letzten 60 Tage in der Angstzone und liegt Bitcoin mehr als 40 % unter seinem Hoch, sinkt das Reserve-Ziel deutlich; gekauft werden dann Bitcoin und Ethereum, auch ohne Kaufsignal und ohne Stop. Bei extremer Gier (7-Tage-Schnitt 75–85) gibt es keine Kaufsignale. Die Strategie „Antizyklisch“ erhöht zusätzlich die Reserve, wenn die Gier nahe am Allzeithoch auftritt.</li>
-          <li><strong>Verkaufen, wenn Kurse fallen:</strong> Verkaufssignale werden verkauft. Fällt ein Coin 25 % unter sein Hoch seit dem Kauf, greift die Schutzregel – unabhängig vom Score.</li>
-          <li><strong>Gewinner laufen lassen:</strong> Bei hohen Gewinnen wird ein Teil gesichert, wenn der Trend überdehnt ist.</li>
-          <li><strong>Kein Klumpen:</strong> höchstens 20 % je Coin (Bitcoin und Ethereum 40 %, riskante Coins weniger), höchstens 8 Positionen.</li>
-          <li><strong>Wenig handeln:</strong> Jeder Kauf und Verkauf kostet rund 0,25 %. Abweichungen unter 4 % des Portfolios bleiben liegen, getauscht wird nur bei mindestens 30 Punkten besserem Score.</li>
-          <li><strong>Rückrechnung 2018–2026 mit Gebühren</strong> (Mittel aus 7 Starttagen): ${Object.entries(RESERVE_MODES).map(([k, m]) => `„${m.label}“ rund +${RESERVE_BACKTEST[k].perYear} % pro Jahr bei einem größten zwischenzeitlichen Rückgang von ${RESERVE_BACKTEST[k].drawdown} %`).join(', ')}. Eine Reserve nur nach Fear &amp; Greed (bei Angst investiert, bei Gier in Reserve) brachte rund +29 % pro Jahr bei 56 % Rückgang – sie kauft zu früh in fallende Märkte und verkauft zu früh in steigende. Etwa 45 % der Monate endeten im Minus; Verluste lassen sich nicht ausschließen, und echte Ergebnisse werden schlechter sein.</li>
-          <li>Die Seite handelt nicht selbst. Du setzt die Schritte bei deiner Börse um und trägst sie hier als umgesetzt ein.</li>
-        </ul>
-      </details>
     </section>`;
   }
 
