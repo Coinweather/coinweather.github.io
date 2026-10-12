@@ -4,7 +4,7 @@ import * as pf from './portfolio.js';
 import * as auth from './auth.js';
 import * as tr from './track.js';
 import { plan, applyMove, adjusted, reserveAdvice, fngTilt, RESERVE_MODES, RESERVE_BACKTEST } from './manager.js';
-import { quickAnalyse, detailAnalyse, marketIndex, prepare, backtest, expectedMove, outlook, analyseNews, TRADE_SETUPS, TRADE_LIMITS, TRADE_LEVERAGE, SHORT_TESTS, outlookOf, greedZone } from './model.js';
+import { quickAnalyse, detailAnalyse, marketIndex, prepare, backtest, expectedMove, analyseNews, TRADE_SETUPS, TRADE_LIMITS, TRADE_LEVERAGE, SHORT_TESTS, outlookOf, greedZone, CYCLE_NAMES, WEIGHTS } from './model.js';
 
 const REFRESH_MS = 120_000;      // so alt dürfen gespeicherte Kurse sein, bevor sofort neu geladen wird
 const PAGE_INTERVAL_MS = 30_000;
@@ -420,17 +420,23 @@ const INFO = {
     <p>Die Marktphase fließt mit 45 % in jeden Coin-Score ein. Ist die Gier-Bremse aktiv, bleibt der Index höchstens bei „Halten“.</p>` },
 
   cycle: { title: 'Zyklus – die Sicht auf 12 Monate', body: () => `
-    <p>Gemessen wird, wie weit Bitcoin unter seinem Allzeithoch steht. Auf Jahressicht galt bisher: Je tiefer unter dem Hoch, desto besser waren die Einstiege –
-      nahe am Hoch waren sie am schlechtesten. Für den durchschnittlichen Altcoin fiel das Ergebnis in jeder Lage schlechter aus als für Bitcoin.</p>
-    <p>Das ist die langfristige Sicht. „Jetzt kaufen?“ bewertet dagegen die nächsten Wochen und folgt dem Trend. Der Reserve-Vorschlag im Portfolio folgt ebenfalls dem Trend
+    <p>Gemessen wird, wie weit Bitcoin unter seinem Allzeithoch steht. Die Daten enthalten zwei Marktzyklen (2018–22 und 2022–26).
+      Für jeden steht da, was ein Jahr nach vergleichbaren Ständen folgte.</p>
+    <ul><li><strong>Mehr als 40 % unter dem Hoch:</strong> In beiden Zyklen stand Bitcoin ein Jahr später meist höher – je tiefer, desto deutlicher.</li>
+      <li><strong>25–40 % unter dem Hoch:</strong> Die Zyklen widersprechen sich. Auf dem Weg nach unten (2021/22) folgten weitere Verluste,
+        auf dem Weg nach oben (2020, 2023/24) starke Gewinne. Dann steht „uneinheitlich“ da – ohne Richtungsaussage.</li>
+      <li><strong>10–25 % unter dem Hoch:</strong> Bitcoin uneinheitlich, der mittlere Coin stand in beiden Zyklen tiefer.</li>
+      <li><strong>Nahe am Hoch:</strong> In beiden Zyklen standen Bitcoin und der mittlere Coin ein Jahr später tiefer.</li></ul>
+    <p>„Jetzt kaufen?“ bewertet dagegen die nächsten Wochen und folgt dem Trend. Der Reserve-Vorschlag im Portfolio folgt ebenfalls dem Trend
       und stockt tief im Zyklus Bitcoin und Ethereum auf.</p>
-    <p class="muted">Grundlage sind nur zwei Marktzyklen, die sich teils widersprechen. Beide zählen je zur Hälfte – das ist eine Tendenz, keine Gewissheit.</p>` },
+    <p class="muted">Zwei Zyklen sind eine sehr schmale Grundlage – eine Tendenz, keine Gewissheit.</p>` },
 
   forecast: { title: 'Prognose für den Gesamtmarkt', body: () => `
-    <p>Die fette Zahl ist das mittlere Ergebnis nach vergleichbaren Marktlagen seit 2018. Darunter steht die Spanne, in der die Hälfte der Fälle lag –
-      jeder vierte Fall lag darüber, jeder vierte darunter – und wie oft der Kurs höher stand.</p>
+    <p>Die fette Zahl ist der typische Fall nach vergleichbaren Marktlagen seit 2018: Die Hälfte der Fälle lag darüber, die Hälfte darunter.
+      Darunter steht die Spanne, in der die Hälfte der Fälle lag, und wie oft der Kurs höher stand.</p>
     <ul><li><strong>7 und 30 Tage</strong> hängen an der Marktphase, in der Gier-Zone an den Ergebnissen dieser Zone.</li>
-      <li><strong>12 Monate</strong> hängen am Stand im Zyklus (Abstand von Bitcoin zum Allzeithoch).</li></ul>
+      <li><strong>12 Monate</strong> hängen am Stand im Zyklus (Abstand von Bitcoin zum Allzeithoch). Dafür gibt es nur zwei Marktzyklen.
+        Zeigen sie in verschiedene Richtungen, steht „uneinheitlich“ da, mit dem Ergebnis beider Zyklen.</li></ul>
     <p>Der mittlere Coin schnitt auf Jahressicht meist schlechter ab als Bitcoin. Kaufsignale bei einzelnen Coins beziehen sich auf die nächsten Wochen;
       ist die 12-Monats-Sicht negativ, steht das beim Coin dabei.</p>${LIMITS}` },
 
@@ -444,18 +450,32 @@ const INFO = {
     <p>Gerechnet wird mit dem Index von alternative.me, weil er seit 2018 vorliegt. Der Index von CoinMarketCap existiert erst seit Mitte 2023; er wird angezeigt, wenn ein Schlüssel hinterlegt ist.</p>${LIMITS}` },
 
   percent: { title: 'Kursprognose in Prozent', body: () => `
-    <p>Die große Zahl ist das mittlere Ergebnis, das Coins mit diesem Score und dieser Schwankung seit 2018 erreicht haben – gemessen vom jetzigen Kurs.
-      In der Spanne lag die Hälfte der Fälle; jeder vierte Fall lag darüber, jeder vierte darunter.</p>
+    <p>Grundlage ist, was Coins mit diesem Score seit 2018 erreicht haben (84 Coins, rund 174 000 Coin-Tage), umgerechnet auf die Schwankung dieses Coins.</p>
+    <ul><li><strong>Große Zahl – der typische Fall:</strong> Die Hälfte der Fälle lag darüber, die Hälfte darunter.</li>
+      <li><strong>Durchschnitt:</strong> das Mittel aller Fälle. Er liegt meist höher als der typische Fall, weil wenige starke Anstiege ihn heben;
+        einzelne Ausreißer sind gekappt.</li>
+      <li><strong>Höher in … % der Fälle:</strong> wie oft der Kurs nach dieser Zeit über dem Ausgangskurs stand.</li>
+      <li><strong>Spanne:</strong> In ihr lag die Hälfte der Fälle; jeder vierte lag darüber, jeder vierte darunter.</li></ul>
+    <h3>Was ein Kaufsignal bedeutet</h3>
+    <p>Bei einem Kaufsignal (Score ab 15) lag der typische Fall nach 30 Tagen nur knapp im Plus, und in fast jedem zweiten Fall stand der Kurs tiefer.
+      Der Durchschnitt lag dagegen in allen vier 2-Jahres-Abschnitten seit 2018 im Plus. Ein Kaufsignal ist deshalb kein Versprechen für den einzelnen Kauf,
+      sondern ein Vorteil über viele Käufe – verteilt auf mehrere Coins und mit einem Ausstieg, wenn das Signal dreht.</p>
+    <h3>Die drei Zeiträume</h3>
     <ul><li><strong>7 Tage:</strong> Score, dazu die kurzfristigen Merkmale (nach einem Ausverkauf folgte meist eine Erholung).</li>
       <li><strong>30 Tage:</strong> Score; in der Gier-Zone deutlich tiefer.</li>
-      <li><strong>12 Monate:</strong> vor allem der Stand im Zyklus. Hier ist die Unsicherheit am größten – nur zwei Marktzyklen als Grundlage.</li></ul>
-    <p><strong>Das spricht dafür / dagegen:</strong> die Merkmale mit dem größten Beitrag zum Score, in Punkten. Ein Kaufsignal entsteht nur, wenn die Gründe dafür klar überwiegen
-      und die Prognosen für 7 und 30 Tage im Plus liegen.</p>${LIMITS}` },
+      <li><strong>12 Monate:</strong> der Stand im Zyklus, verschoben um den langfristigen Trend des Coins. Dafür gibt es nur zwei Marktzyklen (2018–22 und 2022–26);
+        beide Ergebnisse stehen da. Zeigen sie in verschiedene Richtungen, heißt es „uneinheitlich“ – dann lässt sich keine Richtung belegen.</li></ul>
+    <p><strong>Das spricht dafür / dagegen:</strong> die Merkmale mit dem größten Beitrag zum Score, in Punkten.</p>${LIMITS}` },
 
-  horizons: { title: 'Prognose nach Zeithorizont', body: () => `
-    <p>Jede Karte zeigt die Merkmale eines Zeitraums. Die Punkte je Merkmal reichen von −100 (klar negativ) bis +100 (klar positiv).</p>
-    <p>Oben rechts steht die Prozent-Prognose für diesen Zeitraum mit ihrer Einordnung. In sie fließen neben den Merkmalen der Karte auch der Gesamt-Score und die Marktphase ein –
-      Wort und Zahl stammen aus derselben Rechnung.</p>
+  horizons: { title: 'So entsteht der Score', body: () => `
+    <p>Der Score ist die gewichtete Summe aus vier Bausteinen. Jeder bewertet einen Ausschnitt des bisherigen Kursverlaufs von −100 (klar negativ) bis +100 (klar positiv):</p>
+    <ul><li><strong>Kurzfristig (20 %):</strong> die letzten Tage – vor allem Erholung nach einem Ausverkauf.</li>
+      <li><strong>Mittelfristig (25 %):</strong> Schwung über 2–4 Wochen und Handelsvolumen.</li>
+      <li><strong>Langfristig (10 %):</strong> Trend über 200 Tage bis ein Jahr.</li>
+      <li><strong>Marktphase (45 %):</strong> Stärke von Bitcoin und Fear &amp; Greed – für alle Coins gleich.</li></ul>
+    <p>Die Bausteine sind die Zutaten des Scores, keine eigenen Prognosen: Ein starker mittelfristiger Baustein heißt nicht, dass der Kurs in 30 Tagen stark steigt.
+      Was auf den Score in der Vergangenheit folgte, steht unter „Kursprognose in Prozent“.</p>
+    <p>Bärenmarkt-Filter, Gier-Bremse, Nachrichten und der antizyklische Einstieg können den Score begrenzen oder verschieben. Dann weicht er von der Summe der Bausteine ab.</p>
     <p>„Verfeinert“ heißt: Für diesen Coin liegen Tageskurse aus bis zu 4 Jahren vor. Sonst gilt die Schnellbewertung aus den Marktdaten der letzten 7 Tage bis 12 Monate.</p>` },
 
   mood: { title: 'Stimmung des Coins', body: () => `
@@ -471,9 +491,16 @@ const INFO = {
       Ausreißer nach oben und unten sind jederzeit möglich. Die Spanne sagt nichts über die Richtung.</p>` },
 
   backtest: { title: 'Rückblick-Test', body: () => `
-    <p>Wie gut war das Modell bei genau diesem Coin? Der Score wurde für jeden Tag nur mit den damals bekannten Kursen berechnet und mit der tatsächlichen Entwicklung danach verglichen.
-      Nachrichten sind im Rückblick nicht enthalten.</p>
-    <p class="muted">Die Bewertungskurven wurden an den letzten Jahren großer Coins ausgerichtet. Die Trefferquoten im Rückblick fallen deshalb eher zu gut aus und sind keine Zusage für die Zukunft.</p>` },
+    <p>Wie liefen die Signale bei genau diesem Coin? Der Score wurde für jeden Tag nur mit den damals bekannten Kursen berechnet und mit der Entwicklung danach verglichen –
+      über dieselben Zeiträume und mit denselben Größen wie in der Prognose (typischer Fall, Durchschnitt, Anteil höher). Nachrichten sind im Rückblick nicht enthalten.</p>
+    <h3>Warum der Rückblick von der Prognose abweichen kann</h3>
+    <ul><li>Der Rückblick zeigt nur diesen einen Coin, die Prognose stützt sich auf alle 84 geprüften Coins.</li>
+      <li>Ist ein Coin in diesen Jahren stark gestiegen, sieht jedes seiner Kaufsignale im Rückblick gut aus – auch ein zufälliges.
+        Der Vergleich mit „alle Tage“ zeigt, wie viel davon am Signal lag.</li>
+      <li>Im Rückblick zählen alle Kaufsignale, auch die mit sehr hohem Score. Die Prognose gilt für den Score von heute.</li></ul>
+    <p><strong>Geprüft:</strong> Coins mit besonders gutem Rückblick liefen danach nicht besser als Coins mit schwachem – 2022–26 sogar etwas schlechter.
+      Der Rückblick eines einzelnen Coins ist deshalb kein Grund, mehr zu erwarten, als die Prognose angibt.</p>
+    <p class="muted">Die Bewertungskurven wurden an denselben Jahren ausgerichtet. Die Trefferquoten im Rückblick fallen deshalb eher zu gut aus und sind keine Zusage für die Zukunft.</p>` },
 
   news: { title: 'Nachrichten', body: () => `
     <p>Englischsprachige Meldungen der letzten 7 Tage, automatisch nach Stichwörtern als positiv oder negativ eingestuft. Die Einstufung ist grob und kann danebenliegen –
@@ -655,18 +682,25 @@ function marketView() {
     const cy = m?.cycle;
     $('#cycle').hidden = !cy;
     if (cy) {
+      // Widersprechen sich die beiden Zyklen, stehen beide Ergebnisse da statt eines Mittelwerts
+      const each = (cycles) => `${CYCLE_NAMES[0]}: ${signed(cycles[0], 0)} %, ${CYCLE_NAMES[1]}: ${signed(cycles[1], 0)} %`;
+      const after = (who, up, mid, cycles, mixed) => (mixed
+        ? `<strong>${who}: uneinheitlich</strong> – die beiden Zyklen widersprechen sich (${each(cycles)}). Eine Richtung lässt sich daraus nicht ableiten.`
+        : `<strong>${who}:</strong> in ${up} % der Fälle höher, mittleres Ergebnis ${signed(mid, 0)} %${cycles ? ` (${each(cycles)})` : ''}.`);
       $('#cycle').className = `panel cycle ${cy.zone}`;
       $('#cycle').innerHTML = `<div class="panel-top"><div><div class="label">Zyklus – Sicht auf 12 Monate</div><h2>${esc(cy.label)}</h2>${infoBtn('cycle')}</div>
           <strong class="cycle-dd">${num(-cy.dd, 0)} %<small> unter Allzeithoch</small></strong></div>
-        <p>Bitcoin liegt ${num(-cy.dd, 0)} % unter seinem Allzeithoch. Aus vergleichbaren Ständen seit 2018 stand Bitcoin ein Jahr später
-          in <strong>${cy.btcUp} %</strong> der Fälle höher (mittleres Ergebnis ${signed(cy.btcMedian, 0)} %), ein durchschnittlicher Coin in
-          <strong>${cy.altUp} %</strong> der Fälle (${signed(cy.altMedian, 0)} %).</p>`;
+        <p>Bitcoin liegt ${num(-cy.dd, 0)} % unter seinem Allzeithoch. Ein Jahr nach vergleichbaren Ständen seit 2018:</p>
+        <ul class="plain"><li>${after('Bitcoin', cy.btcUp, cy.btcMedian, cy.btcCycles, cy.btcMixed)}</li>
+          <li>${after('Mittlerer Coin', cy.altUp, cy.altMedian, cy.altCycles, cy.altMixed)}</li></ul>`;
     }
     const fc = m?.forecast;
     $('#market-forecast').hidden = !fc;
     if (fc) {
-      const cell = (s) => (s ? `<td class="num"><strong class="${tone(Math.round(s.mid))}">${signed(s.mid, Math.abs(s.mid) < 10 ? 1 : 0)} %</strong>
-        <div class="muted fc-range">${signed(s.low, 0)} … ${signed(s.high, 0)} %</div>${isNum(s.up) ? `<div class="muted fc-range">höher in ${s.up} %</div>` : ''}</td>` : '<td class="num muted">–</td>');
+      const cell = (s) => (!s ? '<td class="num muted">–</td>' : s.mixed ? `<td class="num"><strong>uneinheitlich</strong>
+        <div class="muted fc-range">${signed(s.low, 0)} … ${signed(s.high, 0)} %</div><div class="muted fc-range">je nach Zyklus</div></td>`
+        : `<td class="num"><strong class="${tone(Math.round(s.mid))}">${signed(s.mid, Math.abs(s.mid) < 10 ? 1 : 0)} %</strong>
+        <div class="muted fc-range">${signed(s.low, 0)} … ${signed(s.high, 0)} %</div>${isNum(s.up) ? `<div class="muted fc-range">höher in ${s.up} %</div>` : ''}</td>`);
       const row = (label, hint, f) => `<tr><td><strong>${label}</strong><div class="muted fc-range">${hint}</div></td>${cell(f.short)}${cell(f.medium)}${cell(f.long)}</tr>`;
       $('#market-forecast').innerHTML = `<div class="head-row"><div class="label">Prognose für den Gesamtmarkt</div>${infoBtn('forecast')}</div>
         <div class="table-wrap"><table class="fc-table"><thead><tr><th></th><th class="num">7 Tage</th><th class="num">30 Tage</th><th class="num">12 Monate</th></tr></thead>
@@ -963,44 +997,67 @@ function detailView(id) {
     </section>`;
   }
 
-  function testBox(bt) {
+  // fc: die Prognose von heute für denselben Zeitraum – sie steht zum Vergleich unter dem Rückblick
+  function testBox(bt, fc, basis) {
     if (!bt || bt.all.n < 30) return '';
+    const result = (b) => `typisch ${pct(b.median, 1)}, Durchschnitt ${pct(b.mean, 1)}`;
     const line = (b, label, fall) => (b.n < 5 ? `<li><span class="muted">${label}: zu selten aufgetreten (${b.n} Tage)</span></li>`
-      : `<li><strong>${label}</strong> an ${b.n} Tagen → ${fall
-        ? `in ${num(100 - b.upRate, 0)} % der Fälle tiefer` : `in ${num(b.upRate, 0)} % der Fälle höher`}, im Schnitt ${pct(b.mean, 1)}</li>`);
-    const edge = bt.buy.n >= 5 ? bt.buy.mean - bt.all.mean : null;
-    const verdict = edge === null ? '' : edge > 1
-      ? '<p class="up">Kaufsignale lagen über dem Durchschnitt aller Tage.</p>'
-      : edge < -1 ? '<p class="down">Achtung: Kaufsignale lagen unter dem Durchschnitt – hier ist das Modell wenig verlässlich.</p>'
-      : '<p class="muted">Kaufsignale brachten kaum einen Vorteil gegenüber dem Durchschnitt.</p>';
+      : `<li><strong>${label}</strong> an ${b.n} Tagen → in ${num(fall ? 100 - b.upRate : b.upRate, 0)} % der Fälle ${fall ? 'tiefer' : 'höher'}, ${result(b)}</li>`);
+    // Vorsprung der Kaufsignale vor allen Tagen – im Durchschnitt und im typischen Fall
+    const edge = bt.buy.n >= 5 ? [bt.buy.mean - bt.all.mean, bt.buy.median - bt.all.median] : null;
+    const verdict = edge === null ? '' : edge[0] > 1 && edge[1] > 0
+      ? '<p class="up">Kaufsignale lagen bei diesem Coin über dem Ergebnis aller Tage.</p>'
+      : edge[0] < -1 && edge[1] < 0 ? '<p class="down">Kaufsignale lagen bei diesem Coin unter dem Ergebnis aller Tage.</p>'
+      : '<p class="muted">Kaufsignale brachten bei diesem Coin kaum einen Vorteil gegenüber allen Tagen.</p>';
     return `<div class="panel"><h3>${bt.days} Tage später</h3><ul class="plain">
       ${line(bt.buy, 'Kaufsignal')}${line(bt.sell, 'Verkaufssignal', true)}
-      <li><span class="muted">Zum Vergleich alle ${bt.all.n} Tage: in ${num(bt.all.upRate, 0)} % der Fälle höher, im Schnitt ${signed(bt.all.mean, 1)} %</span></li>
+      <li><span class="muted">Zum Vergleich alle ${bt.all.n} Tage: in ${num(bt.all.upRate, 0)} % der Fälle höher, typisch ${signed(bt.all.median, 1)} %, Durchschnitt ${signed(bt.all.mean, 1)} %</span></li>
+      ${fc && isNum(fc.up) && isNum(fc.avg) ? `<li><span class="muted">Prognose von heute (${basis}): in ${fc.up} % der Fälle höher, typisch ${signed(fc.mid, 1)} %, Durchschnitt ${signed(fc.avg, 1)} %</span></li>` : ''}
     </ul>${verdict}</div>`;
   }
 
   function forecast(c, a) {
     if (a.signal === 'none') { $('#d-forecast').innerHTML = `<section class="panel"><h2>Prognose</h2><p>${esc(a.notes[0])}</p></section>`; return; }
-    // Die Einordnung je Zeitraum kommt aus der Prozent-Prognose – so können sich Wort und Zahl nicht widersprechen
-    const card = (title, span, h, f) => {
-      const [word, dir] = f === undefined ? [outlook(h.score), h.score === null || Math.abs(h.score) <= 0.12 ? 0 : h.score] : outlookOf(f);
+    // Bausteine des Scores: Bewertung des bisherigen Kursverlaufs und ihr Beitrag in Punkten. Eine Prognose sind sie
+    // nicht – die steht einmal, als Prozentwert mit Einordnung, in den drei Feldern darüber.
+    const weightSum = Object.keys(WEIGHTS).reduce((sum, k) => sum + (a[k].score === null ? 0 : WEIGHTS[k]), 0);
+    const share = (k) => (a[k].score === null || !weightSum ? null : a[k].score * 100 * WEIGHTS[k] / weightSum);
+    const blockSum = Math.round(Object.keys(WEIGHTS).reduce((sum, k) => sum + (share(k) ?? 0), 0));
+    const block = (key, title, hint) => {
+      const h = a[key], pts = share(key);
       return `<div class="panel h-card">
-      <div class="panel-top"><div><h3>${title}</h3><div class="muted">${span}</div></div>
-        <span class="outlook ${tone(dir)}">${word}${f ? ` · ${signed(f.mid, Math.abs(f.mid) < 10 ? 1 : 0)} %` : ''}</span></div>
+      <div class="panel-top"><div><h3>${title}</h3><div class="muted">${hint}${pts === null ? '' : ` · Bewertung ${signed(h.score * 100, 0)}, zählt ${num(WEIGHTS[key] * 100, 0)} %`}</div></div>
+        <span class="outlook ${tone(pts === null ? 0 : Math.round(pts))}">${pts === null ? '–' : `${signed(pts, 0)} ${Math.abs(Math.round(pts)) === 1 ? 'Punkt' : 'Punkte'}`}</span></div>
       ${factorList(h.factors)}</div>`;
     };
 
     const fcast = a.forecast;
-    const fbox = (title, s) => (s ? `<div><div class="label">${title}</div>
-        <div class="value ${tone(Math.round(s.mid))}">${signed(s.mid, Math.abs(s.mid) < 10 ? 1 : 0)} %</div>
-        <div class="muted">Spanne ${signed(s.low, 0)} … ${signed(s.high, 0)} %</div>
+    const pc = (x) => `${signed(x, Math.abs(x) < 10 ? 1 : 0)} %`;
+    const priceAt = (x) => money(c.current_price * (1 + x / 100));
+    const cyclesLine = (s) => (s.cycles ? `<div class="muted">Zyklus ${CYCLE_NAMES[0]}: ${signed(s.cycles[0], 0)} % · ${CYCLE_NAMES[1]}: ${signed(s.cycles[1], 0)} %</div>` : '');
+    // Wort und Zahl stammen aus derselben Rechnung. Auf 12 Monate gibt es nur zwei Zyklen: Widersprechen sie sich,
+    // steht statt eines Mittelwerts die Spanne zwischen beiden da.
+    const fbox = (title, s) => {
+      if (!s) return `<div><div class="label">${title}</div><div class="value muted">–</div></div>`;
+      const [word, dir] = outlookOf(s);
+      if (s.mixed) return `<div><div class="label">${title}</div>
+        <div class="value">${signed(s.low, 0)} bis ${signed(s.high, 0)} %</div>
+        <div><span class="outlook">${word}</span> <span class="muted">· die Zyklen widersprechen sich</span></div>
+        ${cyclesLine(s)}
+        <div class="muted">≈ ${priceAt(s.low)} – ${priceAt(s.high)}</div></div>`;
+      return `<div><div class="label">${title}</div>
+        <div class="value ${tone(Math.round(s.mid))}">${pc(s.mid)}</div>
+        <div><span class="outlook ${tone(dir)}">${word}</span> <span class="muted">· ${s.cycles ? 'Schnitt beider Zyklen' : 'typischer Fall'}</span></div>
+        ${isNum(s.avg) ? `<div class="muted">Durchschnitt ${pc(s.avg)}</div>` : ''}
         ${isNum(s.up) ? `<div class="muted">höher in ${s.up} % der Fälle</div>` : ''}
-        <div class="muted">≈ ${money(c.current_price * (1 + s.mid / 100))} (${money(c.current_price * (1 + s.low / 100))} – ${money(c.current_price * (1 + s.high / 100))})</div></div>`
-      : `<div><div class="label">${title}</div><div class="value muted">–</div></div>`);
+        ${cyclesLine(s) || `<div class="muted">Spanne ${signed(s.low, 0)} … ${signed(s.high, 0)} %</div>`}
+        <div class="muted">≈ ${priceAt(s.mid)} (${priceAt(s.low)} – ${priceAt(s.high)})</div></div>`;
+    };
     const why = a.reasons;
     const reasonList = (list) => list.map((f) => `<li><strong class="${tone(f.points)}">${signed(f.points, 0)}</strong> ${esc(f.name)} <span class="muted">(${f.horizon})</span>: ${esc(f.text)}</li>`).join('');
     const percent = !fcast ? '' : `<section class="panel"><div class="head-row"><h2>Kursprognose in Prozent</h2>${infoBtn('percent')}</div>
         <div class="stat-grid">${fbox('In 7 Tagen', fcast.short)}${fbox('In 30 Tagen', fcast.medium)}${fbox('In 12 Monaten', fcast.long)}</div>
+        ${isNum(fcast.short?.avg) ? `<p class="hint fc-hint">Typischer Fall: Die Hälfte der Fälle lag darüber, die Hälfte darunter. Der Durchschnitt liegt höher, weil wenige starke Anstiege ihn heben.</p>` : ''}
         ${why && (why.pro.length || why.contra.length) ? `<div class="h-cards reasons">
           <div><h3>Das spricht dafür</h3>${why.pro.length ? `<ul class="plain">${reasonList(why.pro)}</ul>` : '<p class="muted">Kein Merkmal spricht derzeit deutlich für den Coin.</p>'}</div>
           <div><h3>Das spricht dagegen</h3>${why.contra.length ? `<ul class="plain">${reasonList(why.contra)}</ul>` : '<p class="muted">Kein Merkmal spricht derzeit deutlich dagegen.</p>'}</div></div>` : ''}
@@ -1012,7 +1069,8 @@ function detailView(id) {
       // Rückblick-Test nur neu rechnen, wenn die Bitcoin-Daten für die Marktphase dazugekommen sind
       if (!d.tests || d.testsWithRegime !== !!state.btcInd) {
         d.testsWithRegime = !!state.btcInd;
-        d.tests = [14, 30, 90].map((days) => backtest(d.ind, state.btcInd, state.fng?.byDay, days));
+        // dieselben Zeiträume wie in der Prognose, damit sich beides vergleichen lässt
+        d.tests = [7, 30].map((days) => backtest(d.ind, state.btcInd, state.fng?.byDay, days));
       }
       const move = expectedMove(d.data.p);
       const span = (m) => `${money(c.current_price * Math.exp(-m))} bis ${money(c.current_price * Math.exp(m))}`;
@@ -1023,16 +1081,20 @@ function detailView(id) {
             <div><div class="label">In 30 Tagen</div><div class="value">± ${num(move.d30 * 100, 0)} %</div><div class="muted">${span(move.d30)}</div></div></div>` : ''}
         </section>
         <div class="head-row"><h2>Rückblick-Test über ${years >= 1.5 ? num(years, 1) + ' Jahre' : num(d.ind.n, 0) + ' Tage'}</h2>${infoBtn('backtest')}</div>
-        <p class="hint">Kursgeschichte von ${d.source}.</p>
-        <div class="h-cards">${d.tests.map(testBox).join('') || '<p class="muted">Zu wenig Kursgeschichte für einen Rückblick-Test.</p>'}</div>`;
+        <p class="hint">So liefen die Signale bei diesem Coin (Kursgeschichte von ${d.source}). Das beschreibt seine Vergangenheit und ist keine Prognose:
+          Coins mit besonders gutem Rückblick liefen danach nicht besser als andere.</p>
+        <div class="h-cards">${d.tests.map((bt) => testBox(bt, bt.days === 7 ? fcast?.short : fcast?.medium, c.id === 'bitcoin' ? 'Bitcoin in vergleichbarer Marktphase seit 2018' : 'alle geprüften Coins bei diesem Score')).join('') || '<p class="muted">Zu wenig Kursgeschichte für einen Rückblick-Test.</p>'}</div>`;
     } else if (d.error) extra = `<section class="panel"><p class="muted">${esc(d.error)}</p></section>`;
 
     $('#d-forecast').innerHTML = `${percent}
-      <div class="head-row"><h2>Prognose nach Zeithorizont</h2>${infoBtn('horizons')}</div>
-      <p class="hint">${d.ind ? `Verfeinert mit ${num(d.ind.n, 0)} Tageskursen.` : 'Schnellbewertung – die verfeinerte Prognose wird geladen …'}</p>
       ${a.notes.map((n) => `<p class="notice">${esc(n)}</p>`).join('')}
-      <div class="h-cards">${card('Kurzfristig', 'Prognose für 7 Tage', a.short, a.forecast?.short ?? null)}${card('Mittelfristig', 'Prognose für 30 Tage', a.medium, a.forecast?.medium ?? null)}
-        ${card('Langfristig', 'Prognose für 12 Monate – vor allem vom Zyklus bestimmt, die Trendmerkmale unten verschieben sie', a.long, a.forecast?.long ?? null)}${card('Marktphase', 'gilt für alle Coins · Schnitt aus 14 Tagen, Einzelwerte von heute', a.regime)}</div>
+      <div class="head-row"><h2>So entsteht der Score</h2>${infoBtn('horizons')}</div>
+      <p class="hint">Vier Bausteine bewerten den bisherigen Kursverlauf und die Marktlage – die Zutaten des Scores, keine eigenen Prognosen.
+        ${d.ind ? `Verfeinert mit ${num(d.ind.n, 0)} Tageskursen.` : 'Schnellbewertung – die verfeinerte Bewertung wird geladen …'}</p>
+      <div class="h-cards">${block('short', 'Kurzfristig', 'die letzten Tage')}${block('medium', 'Mittelfristig', '2–4 Wochen')}
+        ${block('long', 'Langfristig', '200 Tage bis 1 Jahr')}${block('regime', 'Marktphase', 'gilt für alle Coins, Schnitt aus 14 Tagen')}</div>
+      <p class="hint block-sum">Summe der Bausteine: <strong>${signed(blockSum, 0)}</strong>${a.score === null || blockSum === a.score ? ' – das ist der Prognose-Score.'
+        : `. Der Prognose-Score steht bei <strong>${signed(a.score, 0)}</strong>, weil ein Filter, Nachrichten oder der antizyklische Einstieg ihn verschieben.`}</p>
       ${extra}`;
   }
 

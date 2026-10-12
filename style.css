@@ -466,3 +466,15 @@ h2 + .info-btn, .label + .info-btn { margin-top: 8px; }
 .log li { font-size: 13.5px; }
 #record { margin-top: 18px; }
 #record .stat-grid { margin-top: 12px; }
+
+/* Prognose-Felder und Bausteine des Scores */
+.stat-grid .outlook { font-size: 14px; }
+.fc-hint { margin: 14px 0 0; }
+.block-sum { margin: 12px 0 0; }
+.cycle .plain { margin-top: 6px; }
+/* Sehr schmale Bildschirme: Das Menü rollt in sich, statt die Seite breiter zu machen */
+@media (max-width: 400px) {
+  nav { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  nav::-webkit-scrollbar { display: none; }
+  nav a { flex: 0 0 auto; padding: 6px 9px; font-size: 13.5px; }
+}

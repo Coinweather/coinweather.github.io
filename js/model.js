@@ -16,6 +16,7 @@ import { clamp, avg, isNum, num, signed } from './util.js';
 // Gewichte nach Gegenprüfung an 2018–2022 und an 48 weiteren Coins: Die Marktphase trägt auch außerhalb des
 // Anpassungszeitraums am besten, der langfristige Baustein am schlechtesten.
 const W_SHORT = 0.2, W_MEDIUM = 0.25, W_LONG = 0.1, W_REGIME = 0.45;
+export const WEIGHTS = { short: W_SHORT, medium: W_MEDIUM, long: W_LONG, regime: W_REGIME };
 const BEAR_CAP = 0.11;          // im Bärenmarkt gibt es kein Kaufsignal
 // Gier-Bremse: Liegt der Fear-&-Greed-Index im 7-Tage-Schnitt zwischen 75 und 85, gibt es keine Kaufsignale.
 // Auswertung 2018–2026: In dieser Zone stand der mittlere Coin 30 Tage später nur in 20–33 % der Fälle höher
@@ -300,20 +301,26 @@ export function regimeSmooth(btc, j, fngAt = () => undefined, days = 7) {
 export const REGIME_DAYS = 14;
 const BEAR_DAYS = 5;   // geprüft mit 1 bis 14 Tagen: bis 5 Tage ohne Einbuße, darüber reagiert die Bremse zu spät
 
-// Was nach vergleichbaren Zyklus-Ständen in 12 Monaten geschah. Die beiden Prüfzeiträume (2018–2022 und 2022–2026)
-// zählen je zur Hälfte, weil sie sich teils stark widersprechen – ein einzelner Zyklus soll das Bild nicht bestimmen.
-// [Abstand zum Allzeithoch bis %, Bitcoin höher in % der Fälle, Bitcoin Median %, mittlerer Coin höher in %, mittlerer Coin Median %,
-//  Bitcoin unteres/oberes Viertel %, mittlerer Coin unteres/oberes Viertel %]
-const CYCLE_HISTORY = [[-70, 100, 104, 54, -5, 65, 143, -26, 34], [-55, 93, 82, 70, 27, 45, 113, -14, 74], [-40, 78, 62, 72, 26, -10, 200, -24, 150],
-  [-25, 58, 41, 50, -24, -30, 125, -40, 20], [-10, 45, 17, 16, -46, -38, 47, -66, 10], [Infinity, 38, -18, 23, -42, -35, 40, -67, 0]];
+// Was nach vergleichbaren Zyklus-Ständen in 12 Monaten geschah – getrennt für die beiden Zyklen in den Daten
+// (2018–2022 und 2022–2026). Sie widersprechen sich teils völlig: 25–40 % unter dem Hoch stand Bitcoin ein Jahr später
+// einmal 42 % tiefer (2021/22, auf dem Weg nach unten) und einmal 124 % höher (2023/24, auf dem Weg nach oben).
+// Ein Mittelwert aus beiden wäre eine Zahl, die es so nie gab. Zeigt ein Zyklus klar ins Minus und der andere klar
+// ins Plus, gilt die Jahressicht deshalb als uneinheitlich – ohne Richtungsaussage.
+// [Abstand zum Allzeithoch bis %, Bitcoin: höher in % der Fälle, mittleres Ergebnis 2018–22, 2022–26,
+//  mittlerer Coin: höher in % der Fälle, mittleres Ergebnis 2018–22, 2022–26]. Trefferquoten: Schnitt beider Zyklen.
+const CYCLE_HISTORY = [[-70, 100, 78, 130, 55, -20, 13], [-55, 96, 43, 126, 70, 28, 26], [-40, 81, 21, 110, 72, 36, 16],
+  [-25, 58, -42, 124, 50, -63, 16], [-10, 45, -28, 61, 16, -53, -39], [Infinity, 38, -20, -16, 23, -20, -64]];
+export const CYCLE_NAMES = ['2018–22', '2022–26'];
+const mixedCycles = ([a, b]) => Math.min(a, b) <= -5 && Math.max(a, b) >= 5;
 
 // Einordnung des Zyklus – die langfristige, antizyklische Sicht neben der kurzfristigen Marktphase
 export function cycleInfo(dd) {
   const row = CYCLE_HISTORY.find(([limit]) => dd < limit) ?? CYCLE_HISTORY[CYCLE_HISTORY.length - 1];
   const zone = dd <= -55 ? 'deep' : dd <= -40 ? 'low' : dd <= -10 ? 'mid' : 'high';
   const label = { deep: 'Tief im Zyklus – antizyklische Kaufzone', low: 'Unteres Drittel des Zyklus', mid: 'Mitte des Zyklus', high: 'Nahe am Allzeithoch – Gewinne sichern' }[zone];
-  return { dd, zone, label, btcUp: row[1], btcMedian: row[2], altUp: row[3], altMedian: row[4],
-    btcLow: row[5], btcHigh: row[6], altLow: row[7], altHigh: row[8] };
+  const btc = [row[2], row[3]], alt = [row[5], row[6]];
+  return { dd, zone, label, btcUp: row[1], btcMedian: Math.round((btc[0] + btc[1]) / 2), altUp: row[4], altMedian: Math.round((alt[0] + alt[1]) / 2),
+    btcCycles: btc, altCycles: alt, btcMixed: mixedCycles(btc), altMixed: mixedCycles(alt) };
 }
 
 // Ersatz, falls keine Bitcoin-Tageskurse geladen werden konnten
@@ -326,40 +333,54 @@ function regimeFromMarket(btc) {
 // ---------- Prozent-Prognose ----------
 // Was folgte in der Vergangenheit auf welchen Score? Ausgewertet an 174 000 Coin-Tagen (84 Coins, 2018–2026),
 // gemessen in Einheiten der üblichen Schwankung des Coins, damit ruhige und nervöse Coins vergleichbar sind.
-// [Score, mittleres Ergebnis]; die Spanne reicht vom unteren bis zum oberen Viertel der Fälle. Die beiden
-// Prüfzeiträume (2018–2022, 2022–2026) zählen je zur Hälfte. UP: Anteil der Fälle mit höherem Kurs in %.
-const Z7 = [[-35, -0.16], [-20, -0.09], [-6, -0.06], [6, -0.06], [16, 0.01], [24, 0.07], [34, 0.15], [46, 0.34]];
-const Z30 = [[-35, -0.25], [-20, -0.22], [-6, -0.1], [6, -0.1], [16, 0.03], [34, 0.06], [46, 0.2]];
-const UP7 = [[-35, 39], [-20, 45], [-6, 47], [6, 47], [16, 50], [24, 53], [34, 56], [46, 62]];
-const UP30 = [[-35, 32], [-20, 37], [-6, 45], [6, 45], [16, 50], [34, 50], [46, 58]];
+// Die beiden Prüfzeiträume (2018–2022, 2022–2026) zählen je zur Hälfte. Je Score-Stufe [Score, Wert]:
+//   Z:   typisches Ergebnis (Median) – die Hälfte der Fälle lag darüber, die Hälfte darunter
+//   UP:  Anteil der Fälle mit höherem Kurs in %
+//   AVG: Durchschnitt aller Fälle; einzelne Ausreißer zählen höchstens mit dem Dreifachen der üblichen Schwankung
+// Typischer Wert und Durchschnitt liegen weit auseinander. Bei Kaufsignalen (Score ab 15) lag der typische Fall auf
+// 30 Tage nahe null (2018–22 leicht im Plus, 2022–26 leicht im Minus), der Durchschnitt aber in allen vier
+// 2-Jahres-Abschnitten im Plus: Wenige starke Anstiege heben ihn. Ein Kaufsignal ist deshalb kein Versprechen für den
+// einzelnen Kauf, sondern ein Vorteil über viele Käufe – und der Rückblick eines einzelnen Coins (app.js) zeigt
+// Durchschnitte, die mit dem typischen Wert hier nicht vergleichbar sind. Deshalb stehen beide Größen in der Prognose.
+const Z7 = [[-35, -0.18], [-20, -0.1], [-6, -0.05], [11, -0.04], [15, 0.03], [17.5, 0.07], [22.5, 0.11], [28.5, 0.14], [36, 0.14], [46, 0.25]];
+const Z30 = [[-35, -0.24], [-20, -0.24], [-6, -0.08], [4, -0.08], [11, -0.15], [15, 0.02], [17.5, 0.07], [28.5, 0.08], [36, 0.25], [46, 0.35]];
+const UP7 = [[-35, 36], [-20, 44], [-6, 47], [11, 48], [15, 53], [17.5, 54], [22.5, 55], [28.5, 56], [46, 58]];
+const UP30 = [[-35, 32], [-20, 36], [-6, 46], [4, 46], [11, 44], [15, 53], [28.5, 54], [36, 57], [46, 60]];
+const AVG7 = [[-35, -0.13], [-20, -0.08], [-6, 0], [4, 0.02], [11, 0.07], [15, 0.17], [17.5, 0.24], [22.5, 0.29], [28.5, 0.31], [36, 0.33], [46, 0.4]];
+const AVG30 = [[-35, -0.12], [-20, -0.12], [-6, 0.06], [4, 0.13], [11, 0.12], [15, 0.28], [17.5, 0.36], [28.5, 0.38], [36, 0.44], [46, 0.45]];
+// Spanne: unteres bis oberes Viertel der Fälle, als Abstand zum typischen Wert
 const Z7_RANGE = [-0.5, 0.6], Z30_RANGE = [-0.55, 0.7];
 // Auf 7 Tage zählt zusätzlich der kurzfristige Baustein: Lag er hoch (Ausverkauf, überverkaufter RSI), folgte in beiden
 // Prüfzeiträumen eine Erholung – auch bei schwachem Gesamt-Score. Gilt ab Baustein +20; darunter entscheidet der Score.
 const Z7_SHORT = [[20, 0.05], [30, 0.07], [50, 0.21], [65, 0.26]];
 const UP7_SHORT = [[20, 51], [30, 53], [50, 63], [65, 67]];
+const AVG7_SHORT = [[20, 0.14], [40, 0.14], [57, 0.29], [70, 0.29]];
 // Auf 12 Monate zählt vor allem der Stand im Zyklus; der langfristige Baustein des Coins verschiebt das Ergebnis
 const LONG_ADJ = [[0, -0.1], [10, 0], [30, 0.2], [45, 0.35]];
 // Abschlag auf die 30-Tage-Prognose in der Gier-Zone, in Schwankungs-Einheiten (Mittel beider Prüfzeiträume)
-const GREED_Z30 = -0.4;
+const GREED_Z30 = -0.4, GREED_AVG30 = -0.2;
 // Gesamtmarkt nach Marktphase: [Marktphase, mittleres Ergebnis in %]
 const M = {
   alt7: [[-30, -1], [30, -1], [40, 0], [55, 3]], btc7: [[-30, 0], [40, 0.5], [55, 2]],
   alt30: [[-40, -7], [-20, -3], [40, -2], [55, 6]], btc30: [[-40, 1], [0, 0], [20, 2], [40, 4], [55, 5]],
   altUp7: [[-30, 44], [30, 45], [40, 49], [55, 60]], btcUp7: [[-30, 52], [30, 52], [40, 55], [55, 61]],
   altUp30: [[-40, 30], [-20, 42], [40, 45], [55, 54]], btcUp30: [[-40, 55], [0, 50], [20, 53], [40, 58], [55, 61]],
+  // Durchschnitt bei Bitcoin: liegt nur wenig über dem typischen Wert, weil extreme Ausreißer fehlen
+  btcAvg7: [[-30, 0.3], [-10, 0.3], [10, 1.3], [30, 1.4], [50, 2.5]], btcAvg30: [[-30, 2], [-10, 1.5], [10, 5], [30, 8], [50, 7.5]],
 };
 
 const r1 = (x) => Math.round(x * 10) / 10;
-const span = (days, mid, low, high, up) => ({ days, mid: r1(mid), low: r1(low), high: r1(high), up: isNum(up) ? Math.round(up) : null });
+const span = (days, mid, low, high, up, avg) => ({ days, mid: r1(mid), low: r1(low), high: r1(high), up: isNum(up) ? Math.round(up) : null, avg: isNum(avg) ? r1(avg) : null });
 const fromLog = (x) => (Math.exp(x) - 1) * 100;
 const toLog = (p) => Math.log(1 + Math.max(p, -95) / 100);
 
 function longSpan(cycle, btc, longScore) {
   if (!cycle) return null;
-  const [mid, low, high] = btc ? [cycle.btcMedian, cycle.btcLow, cycle.btcHigh] : [cycle.altMedian, cycle.altLow, cycle.altHigh];
   const adj = btc || !isNum(longScore) ? 0 : curve(longScore * 100, LONG_ADJ);
-  // Auf Jahressicht widersprechen sich die beiden Zyklen zu stark für eine belastbare Trefferquote
-  return span(365, fromLog(toLog(mid) + adj), fromLog(toLog(low) + adj), fromLog(toLog(high) + adj));
+  const cycles = (btc ? cycle.btcCycles : cycle.altCycles).map((p) => fromLog(toLog(p) + adj));
+  // Auf Jahressicht gibt es nur die beiden Zyklen: Die Spanne reicht vom schwächeren zum stärkeren, die Mitte ist ihr Schnitt.
+  // Eine Trefferquote ließe sich daraus nicht belastbar ableiten.
+  return { ...span(365, (cycles[0] + cycles[1]) / 2, Math.min(...cycles), Math.max(...cycles)), cycles: cycles.map(Math.round), mixed: mixedCycles(cycles) };
 }
 
 // Erwartete Kursveränderung eines Coins: mittleres Ergebnis und übliche Spanne je Zeitraum
@@ -367,18 +388,21 @@ function forecastOf(score, volDaily, shortScore, longScore, regime, btc) {
   const sd = clamp(isNum(volDaily) ? volDaily / 100 : 0.05, 0.015, 0.12);
   const rebound = isNum(shortScore) && shortScore * 100 >= 20;
   const greed = greedZone(regime);
-  const one = (days, pts, [lo, hi], upPts) => {
-    let z = curve(score, pts), up = curve(score, upPts);
-    if (days === 7 && rebound) { z = Math.max(z, curve(shortScore * 100, Z7_SHORT)); up = Math.max(up, curve(shortScore * 100, UP7_SHORT)); }
+  const one = (days, pts, [lo, hi], upPts, avgPts) => {
+    let z = curve(score, pts), up = curve(score, upPts), mean = curve(score, avgPts);
+    if (days === 7 && rebound) {
+      const x = shortScore * 100;
+      z = Math.max(z, curve(x, Z7_SHORT)); up = Math.max(up, curve(x, UP7_SHORT)); mean = Math.max(mean, curve(x, AVG7_SHORT));
+    }
     // Gier-Zone: Auf 30 Tage lagen die Ergebnisse unabhängig vom Score deutlich tiefer (siehe GREED_FROM)
-    if (days === 30 && greed) { z = Math.min(z + GREED_Z30, -0.15); up = Math.min(up - 12, 42); }
+    if (days === 30 && greed) { z = Math.min(z + GREED_Z30, -0.15); up = Math.min(up - 12, 42); mean = Math.min(mean + GREED_AVG30, -0.1); }
     const unit = sd * Math.sqrt(days);
-    return span(days, fromLog(z * unit), fromLog((z + lo) * unit), fromLog((z + hi) * unit), up);
+    return span(days, fromLog(z * unit), fromLog((z + lo) * unit), fromLog((z + hi) * unit), up, mean * unit * 100);
   };
   const cycle = isNum(regime?.cycle?.dd) ? cycleInfo(regime.cycle.dd) : null;
   // Bitcoin bestimmt die Marktphase selbst – dafür gilt die Auswertung der Bitcoin-Geschichte aus der Marktprognose
   if (btc && regime?.score != null) return marketForecast(regime, cycle).btc;
-  return { short: one(7, Z7, Z7_RANGE, UP7), medium: one(30, Z30, Z30_RANGE, UP30), long: longSpan(cycle, btc, longScore) };
+  return { short: one(7, Z7, Z7_RANGE, UP7, AVG7), medium: one(30, Z30, Z30_RANGE, UP30, AVG30), long: longSpan(cycle, btc, longScore) };
 }
 
 // Erwartete Veränderung des Gesamtmarkts: Bitcoin und ein mittlerer Coin
@@ -389,8 +413,8 @@ function marketForecast(regime, cycle) {
   // Bitcoin stand in 33–36 % der Fälle höher (Median −3 bis −7 %), der mittlere Coin in 20–33 % (−19 bis −21 %).
   const greed = greedZone(regime);
   return {
-    btc: { short: span(7, curve(x, M.btc7), curve(x, M.btc7) - 4, curve(x, M.btc7) + 5, curve(x, M.btcUp7)),
-      medium: greed ? span(30, -5, -10, 5, 34) : span(30, curve(x, M.btc30), curve(x, M.btc30) - 10, curve(x, M.btc30) + 13, curve(x, M.btcUp30)), long: longSpan(cycle, true) },
+    btc: { short: span(7, curve(x, M.btc7), curve(x, M.btc7) - 4, curve(x, M.btc7) + 5, curve(x, M.btcUp7), curve(x, M.btcAvg7)),
+      medium: greed ? span(30, -5, -10, 5, 34) : span(30, curve(x, M.btc30), curve(x, M.btc30) - 10, curve(x, M.btc30) + 13, curve(x, M.btcUp30), curve(x, M.btcAvg30)), long: longSpan(cycle, true) },
     alt: { short: span(7, curve(x, M.alt7), curve(x, M.alt7) - 6, curve(x, M.alt7) + 6, curve(x, M.altUp7)),
       medium: greed ? span(30, -20, -26, 2, 27) : span(30, curve(x, M.alt30), curve(x, M.alt30) - 14, curve(x, M.alt30) + 17, curve(x, M.altUp30)), long: longSpan(cycle, false, null) },
   };
@@ -474,12 +498,13 @@ export const signalOf = (score) => (score >= STRONG_BUY ? ['buy', 'Kaufen'] : sc
 // Wie viele der drei Prozent-Prognosen zeigen in die Richtung des Signals?
 function agreementOf(forecast, dir) {
   const all = [forecast.short, forecast.medium, forecast.long].filter(Boolean);
-  return { agreeing: all.filter((s) => dir !== 0 && Math.sign(s.mid) === dir).length, of: all.length };
+  return { agreeing: all.filter((s) => dir !== 0 && !s.mixed && Math.sign(s.mid) === dir).length, of: all.length };
 }
 
 // Einordnung einer Prozent-Prognose in Worte – dieselbe Zahl, die auch als Prozentwert dasteht
 export function outlookOf(s) {
   if (!s) return ['Keine Daten', 0];
+  if (s.mixed) return ['Uneinheitlich', 0];
   if (s.days >= 365) return s.mid >= 50 ? ['Sehr positiv', 1] : s.mid >= 10 ? ['Positiv', 1] : s.mid <= -40 ? ['Sehr negativ', -1] : s.mid <= -10 ? ['Negativ', -1] : ['Neutral', 0];
   const up = s.up ?? 50;
   return s.mid > 0 && up >= 60 ? ['Sehr positiv', 1] : s.mid > 0 && up >= 53 ? ['Positiv', 1]
@@ -541,10 +566,11 @@ function assemble(c, short, medium, long, regime, volDaily, news) {
     [signal, label, hold] = ['hold', 'Halten', 'Abwarten'];
     notes.push('Der Score reicht für ein Kaufsignal, aber die Prognose für 7 oder 30 Tage liegt nicht im Plus – deshalb nur „Halten“.');
   }
-  const yearDown = forecast.long && forecast.long.mid <= -5;
+  const yearDown = forecast.long && !forecast.long.mixed && forecast.long.mid <= -5;
   if (signal === 'buy' && yearDown && !anticyclical) {
     if (hold === '1–3 Monate') hold = '2–4 Wochen';
-    notes.unshift(`Das Kaufsignal gilt für die nächsten Wochen, nicht zum langen Halten: Auf 12 Monate lag das mittlere Ergebnis vergleichbarer Coins bei ${signed(forecast.long.mid, 0)} %. Wer kauft, sollte nach der Haltedauer neu prüfen und bei einem Verkaufssignal aussteigen.`);
+    const [first, second] = forecast.long.cycles;
+    notes.unshift(`Das Kaufsignal gilt für die nächsten Wochen, nicht zum langen Halten: Ein Jahr nach vergleichbaren Zyklus-Ständen lag das mittlere Ergebnis solcher Coins bei ${signed(first, 0)} % (${CYCLE_NAMES[0]}) und ${signed(second, 0)} % (${CYCLE_NAMES[1]}). Wer kauft, sollte nach der Haltedauer neu prüfen und bei einem Verkaufssignal aussteigen.`);
   }
   return { signal, label, score, stable: false, short, medium, long, regime, news: news ?? null, horizon: hold,
     anticyclical, scope: signal !== 'buy' ? null : anticyclical ? 'year' : yearDown ? 'weeks' : 'open',
@@ -796,7 +822,7 @@ export function analyseNews(articles, now = Date.now()) {
 // gibt es für die Vergangenheit nicht.
 export function backtest(ind, btcInd, fngByDay, days) {
   const btcIndex = btcInd ? new Map(btcInd.days.map((d, j) => [d, j])) : null;
-  const bucket = () => ({ n: 0, up: 0, sum: 0 });
+  const bucket = () => ({ n: 0, up: 0, sum: 0, list: [] });
   const res = { buy: bucket(), sell: bucket(), all: bucket() };
   // Die ersten 200 Tage dienen als Vorlauf für den 200-Tage-Schnitt, bei kurzer Historie weniger
   for (let i = Math.min(200, Math.floor(ind.n / 3)); i + days < ind.n; i++) {
@@ -816,9 +842,10 @@ export function backtest(ind, btcInd, fngByDay, days) {
     const targets = [res.all];
     if (signal === 'buy') targets.push(res.buy);
     if (signal === 'sell') targets.push(res.sell);
-    for (const b of targets) { b.n++; b.sum += fwd; if (fwd > 0) b.up++; }
+    for (const b of targets) { b.n++; b.sum += fwd; b.list.push(fwd); if (fwd > 0) b.up++; }
   }
-  const done = (b) => ({ n: b.n, upRate: b.n ? b.up / b.n * 100 : null, mean: b.n ? b.sum / b.n : null });
+  const middle = (list) => (list.length ? list.sort((x, y) => x - y)[list.length >> 1] : null);
+  const done = (b) => ({ n: b.n, upRate: b.n ? b.up / b.n * 100 : null, mean: b.n ? b.sum / b.n : null, median: middle(b.list) });
   return { days, buy: done(res.buy), sell: done(res.sell), all: done(res.all) };
 }
 
