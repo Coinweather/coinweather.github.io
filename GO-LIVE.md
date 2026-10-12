@@ -10,8 +10,13 @@ Stand: 12. Oktober 2026. Diese Liste ersetzt keine Rechtsberatung. Die Rechtstex
   bei geändertem `legalVersion` wird neu gefragt
 - Eigener Risikohinweis vor dem Bereich Daytrading
 - Konto: Abo-Stand, Konto und Daten löschen, Portfolio als Tabelle exportieren
-- Abo-Logik: Testzeit, kostenloser Umfang (Signale für die 20 größten Coins), Sperren mit Hinweis aufs Abo,
-  Freischaltung über `subscriptions/{Konto-Kennung}` – alles in `js/config.js` einstellbar, derzeit ausgeschaltet
+- Abo-Logik: zwei Pakete mit monatlicher Abrechnung, kein kostenloser Umfang und keine Testzeit. Ohne Abo erscheint überall die Seite
+  „Pakete und Preise“. Standard (3,99 €): Markt-Index, Signale für die 100 größten Coins, Portfolio mit Wertentwicklung.
+  Komplett (7,99 €): alle 1000 Coins, stärkste Kaufsignale, Reserve-Ziel mit Modell-Schritten, Daytrading.
+  Freischaltung über `subscriptions/{Konto-Kennung}`; alles in `js/config.js` einstellbar. Die Bezahlschranke ist eingeschaltet,
+  kaufen lässt sich noch nichts („Der Verkauf startet in Kürze“).
+- Betreiber-Zugang ohne Abo: über eine bestätigte E-Mail-Adresse (Google-Anmeldung) oder die Konto-Kennung in `owners`.
+  Die Konto-Kennung steht unter „Konto“.
 - Quellenangaben: „Data provided by CoinGecko“, alternative.me direkt beim Fear-&-Greed-Index
 
 ## Vor dem ersten Verkauf zwingend
@@ -62,29 +67,44 @@ Alle Daten müssen über den Schnappschuss laufen. Dieser Umbau steht noch aus u
 - Stripe schließt Dienste aus, die Informationen oder Werkzeuge zum Geldverdienen mit Krypto-Handel anbieten (Ausnahmen nur mit Genehmigung).
 - Naheliegend für den deutschsprachigen Raum: ein Wiederverkäufer wie Digistore24 (ca. 7,9 % + 1 € je Zahlung). Er wird Vertragspartner
   für die Zahlung, stellt Rechnungen aus und führt die Mehrwertsteuer ab. Vorab schriftlich anfragen, ob das Angebot angenommen wird.
-- Einbau: Bezahl-Links in `js/config.js` → `plans.monthly.checkout` und `plans.yearly.checkout`, `manageUrl`, `paymentProvider`.
+- Einbau: je Paket ein Bezahl-Link in `js/config.js` → `plans.standard.checkout` und `plans.full.checkout`, dazu `manageUrl` und `paymentProvider`.
   Die Seite hängt die Konto-Kennung als `custom` an den Link.
 - Freischaltung: Nach einer Zahlung muss in Firestore das Dokument `subscriptions/{Konto-Kennung}` entstehen:
-  `status` (`active`), `until` (Ende der bezahlten Zeit in Millisekunden), `cancel` (true, wenn gekündigt).
+  `status` (`active`), `plan` (`standard` oder `full`), `until` (Ende des bezahlten Monats in Millisekunden), `cancel` (true, wenn gekündigt).
   Wege dorthin: eine Automatisierung (Zahlungs-Benachrichtigung → Firestore), eine kleine Cloud Function oder am Anfang von Hand in der Firebase-Konsole.
 - `firestore.rules` in Firebase veröffentlichen (enthält die Regel für `subscriptions`).
-- Zum Start: `paywall: true` in `js/config.js`.
+- Sind Betreiberangaben und beide Bezahl-Links eingetragen, erscheinen die Kauf-Knöpfe von selbst.
 
-### 6. Unternehmen und Steuern
+### 6. Ohne Firma verkaufen
 
-- Selbständige Tätigkeit anmelden (Ausgleichskasse), Rechtsform wählen.
-- Mehrwertsteuer: in der Schweiz ab 100 000 CHF Umsatz; digitale Leistungen an Privatkunden in der EU sind ab dem ersten Euro
-  im Land des Kunden steuerpflichtig – ein Wiederverkäufer nimmt einem das ab.
+Eine Firma muss man in der Schweiz nicht gründen: Wer unter eigenem Namen selbständig etwas verkauft, ist automatisch Einzelunternehmer.
+Das heißt aber auch:
+
+- Im Impressum stehen der eigene Name und die Wohnadresse – öffentlich.
+- Gehaftet wird mit dem gesamten Privatvermögen. Eine GmbH begrenzt das, kostet aber Gründung und 20 000 CHF Stammkapital.
+- Die selbständige Tätigkeit bei der Ausgleichskasse (AHV) melden; die Einnahmen gehören in die Steuererklärung.
+  Der Eintrag ins Handelsregister und die Mehrwertsteuer in der Schweiz werden erst ab 100 000 CHF Umsatz Pflicht.
+- Digitale Leistungen an Privatkunden in der EU sind ab dem ersten Euro im Land des Kunden mehrwertsteuerpflichtig –
+  ein Wiederverkäufer nimmt einem das ab. Vorab klären, ob er Anbieter ohne Firma und ohne EU-Steuernummer annimmt.
 - Name: coinwetter.com, .ch, .de und .io waren am 12.10.2026 nicht registriert. Vor der Nutzung Marken prüfen (Swissreg, DPMA, EUIPO).
+
+Die Einzelheiten bitte bei der Ausgleichskasse oder einer Treuhänderin bestätigen lassen.
 
 ## Preis
 
-Empfehlung: **14,90 € im Monat oder 119 € im Jahr**, 14 Tage kostenlos testen. Zum Start ein Gründerpreis von 9,90 € im Monat für die ersten Kunden.
+Festgelegt: **Standard 3,99 € und Komplett 7,99 € im Monat**, nur monatliche Abrechnung, nichts kostenlos.
 
-- Vergleich: Portfolio-Apps kosten 5–22 € im Monat, Analyse-Dienste 19–99 $, deutschsprachige Signal-Dienste 45–80 €.
-- Die Erfolgskontrolle der Seite läuft erst seit dem 12.10.2026. Ohne nachgewiesene Ergebnisse trägt der Markt keinen höheren Preis.
-  Nach sechs Monaten mit Messwerten lässt sich der Preis anheben.
-- Feste Kosten: Daten ab rund 30 € im Monat, Domain rund 15 € im Jahr, Zahlungsgebühr rund 15 % beim Monats-Abo, 9 % beim Jahres-Abo.
+Was davon übrig bleibt, am Beispiel eines Wiederverkäufers mit 7,9 % + 1 € je Zahlung und 19 % Mehrwertsteuer:
+
+| Paket | Preis | Mehrwertsteuer | Gebühr | bleibt |
+|---|---|---|---|---|
+| Standard | 3,99 € | 0,64 € | 1,32 € | rund 2,00 € |
+| Komplett | 7,99 € | 1,28 € | 1,63 € | rund 5,10 € |
+
+- Der feste Euro je Zahlung fällt bei kleinen Preisen stark ins Gewicht: Beim Standard-Paket geht ein Drittel des Preises an den Zahlungsweg.
+  Ein Anbieter mit kleinerem Festbetrag lohnt sich hier besonders.
+- Die Daten kosten rund 30 € im Monat. Das ist ab etwa 15 Standard- oder 6 Komplett-Kunden gedeckt.
+- Die Erfolgskontrolle läuft erst seit dem 12.10.2026. Ein niedriger Einstiegspreis passt dazu; mit nachgewiesenen Ergebnissen lässt er sich später anheben.
 
 ## Werbung
 
@@ -92,7 +112,7 @@ Empfehlung: **14,90 € im Monat oder 119 € im Jahr**, 14 Tage kostenlos teste
   Bezahlte Anzeigen für Krypto-Angebote sind bei Google und Meta nur eingeschränkt oder mit Freigabe möglich.
 - **Die Erfolgskontrolle ist das Verkaufsargument:** jede Woche veröffentlichen, was aus den Signalen wurde – auch die schlechten Wochen.
 - Wöchentlicher „Wetterbericht“ als Newsletter und Kurzvideo (Marktphase, Fear & Greed, was das Modell tut und warum).
-- Kostenloser Umfang als Einstieg, 14 Tage Testzeit, Jahres-Abo als Standard.
+- Ohne kostenlosen Umfang muss die Verkaufsseite überzeugen: Beispiele zeigen (Bildschirmfotos, ein Muster-Coin), Erfolgskontrolle offen ausweisen, monatliche Kündbarkeit betonen.
 - Dort sein, wo die Zielgruppe fragt: deutschsprachige Krypto-Foren, YouTube, X, Reddit – mit Erklärungen statt Kaufaufrufen.
 - Empfehlungsprogramm (ein Monat gratis je geworbenem Kunden), sobald zahlende Kunden da sind.
 

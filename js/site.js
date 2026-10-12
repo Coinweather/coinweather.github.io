@@ -2,121 +2,136 @@
 // Die Texte zu Recht und Risiko sind Vorlagen – vor dem Verkauf von einer Fachperson prüfen lassen (siehe GO-LIVE.md).
 
 import { SITE, operatorReady, selling } from './config.js';
-import { esc, num } from './util.js';
+import { esc, num, signed } from './util.js';
 
-const eur = (x) => `${num(x, Number.isInteger(x) ? 0 : 2)} €`;
+const price = (x) => `${num(x, 2)} ${SITE.currency}`;
 const dateText = (iso) => new Date(iso).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' });
 const op = SITE.operator;
 const or = (value, placeholder) => (value ? esc(value) : `<span class="todo">[${placeholder}]</span>`);
 
-// ---------- Einstieg auf der Marktübersicht (nur ohne Anmeldung) ----------
+// ---------- Betreiber-Zugang ----------
 
-export function landing() {
-  const free = !SITE.paywall;
+// Gehört das Konto dem Betreiber? Über die Konto-Kennung oder über eine bestätigte E-Mail-Adresse (als Prüfsumme hinterlegt).
+export async function isOwner(user) {
+  if (!user) return false;
+  if (SITE.owners.includes(user.uid)) return true;
+  if (!user.verified || !user.email || !SITE.ownerMails.length || !globalThis.crypto?.subtle) return false;
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(user.email.trim().toLowerCase()));
+  return SITE.ownerMails.includes([...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join(''));
+}
+
+// ---------- Einstieg (oben auf der Seite „Preise“, solange kein Abo läuft) ----------
+
+function landing() {
   return `<section class="intro">
     <div class="intro-text">
-      <span class="intro-tag">${free ? 'Einführungsphase – derzeit kostenlos' : `${SITE.trialDays} Tage kostenlos testen`}</span>
+      <span class="intro-tag">Ab ${price(SITE.plans.standard.price)} im Monat · monatlich kündbar</span>
       <h1>${esc(SITE.claim)}.</h1>
       <p class="lead">${esc(SITE.name)} zeigt für 1000 Coins, wie die Aussichten stehen – als Wahrscheinlichkeit, nicht als Versprechen.
         Jede Regel ist an Kursen seit 2018 geprüft, und was aus den Signalen wird, messen wir offen nach.</p>
-      <div class="btn-row">
-        <a class="btn" href="#/konto">${free ? 'Kostenlos starten' : 'Kostenlos testen'}</a>
-        <a class="btn ghost" href="#/preise">Preise und Leistungen</a>
-      </div>
+      <div class="btn-row"><button class="btn" type="button" data-to-plans>Paket wählen</button></div>
       <p class="intro-note">Keine Anlageberatung. Kryptowerte können stark fallen – bis zum Totalverlust.</p>
     </div>
     <ul class="intro-points">
       <li><strong>Signale mit Trefferquote</strong><span>Zu jedem Signal steht, wie oft vergleichbare Fälle im Plus endeten.</span></li>
       <li><strong>Großwetterlage</strong><span>Markt-Index, Fear &amp; Greed und Zyklus – wann das Modell kauft und wann es abwartet.</span></li>
-      <li><strong>Portfolio mit Reserve-Ziel</strong><span>Wertentwicklung, Vergleich mit Bitcoin und Modell-Schritte nach festen Regeln.</span></li>
+      <li><strong>Portfolio mit Wertentwicklung</strong><span>Dein Bestand im Vergleich zu Bitcoin, im Paket ${esc(SITE.plans.full.name)} mit Reserve-Ziel und Modell-Schritten.</span></li>
       <li><strong>Offene Erfolgskontrolle</strong><span>Jedes Kaufsignal wird nach 7 und 30 Tagen nachgemessen – auch die schlechten.</span></li>
     </ul>
   </section>`;
 }
 
-// ---------- Hinweis auf das Abo an gesperrten Stellen ----------
+// ---------- Hinweis auf das größere Paket an gesperrten Stellen ----------
 
+const FULL = SITE.plans.full.name, STD = SITE.plans.standard.name;
 const UPSELL = {
-  coin: ['Signal und Aussicht für diesen Coin', `Ohne Abo zeigt ${SITE.name} Signale für die ${SITE.freeCoins} größten Coins. Mit dem Abo siehst du Signal, Aussicht und Rückblick für alle 1000.`],
-  picks: ['Die stärksten Kaufsignale', 'Welche Coins im Modell gerade am besten abschneiden, gehört zum Abo.'],
-  trading: ['Daytrading-Muster', 'Geprüfte Muster mit Einstieg, Ziel und Stopp gehören zum Abo.'],
-  manager: ['Reserve-Ziel und Modell-Schritte', 'Was das Modell nach seinen Regeln für deinen Bestand vorsieht, gehört zum Abo. Dein Portfolio und seine Wertentwicklung bleiben sichtbar.'],
+  coin: ['Signal und Aussicht für diesen Coin', `Im Paket ${STD} sind die ${SITE.standardCoins} größten Coins enthalten. ${FULL} zeigt Signal, Aussicht und Rückblick für alle 1000.`],
+  picks: ['Die stärksten Kaufsignale', `Welche Coins im Modell gerade am besten abschneiden, gehört zum Paket ${FULL}.`],
+  trading: ['Daytrading-Muster', `Geprüfte Muster mit Einstieg, Ziel und Stopp gehören zum Paket ${FULL}.`],
+  manager: ['Reserve-Ziel und Modell-Schritte', `Was das Modell nach seinen Regeln für deinen Bestand vorsieht, gehört zum Paket ${FULL}. Dein Portfolio und seine Wertentwicklung bleiben sichtbar.`],
 };
 
-export function upsell(kind, access) {
+export function upsell(kind) {
   const [title, text] = UPSELL[kind];
-  const guest = access.reason === 'guest';
   return `<section class="panel upsell">
-    <div><div class="label">Im Abo enthalten</div><h3>${title}</h3><p class="muted">${text}</p></div>
-    <div class="btn-row"><a class="btn" href="${guest ? '#/konto' : '#/preise'}">${guest ? `${SITE.trialDays} Tage kostenlos testen` : 'Abo ansehen'}</a></div>
+    <div><div class="label">Im Paket ${esc(FULL)} enthalten</div><h3>${title}</h3><p class="muted">${esc(text)}</p></div>
+    <div class="btn-row"><a class="btn" href="#/preise">Pakete ansehen</a></div>
   </section>`;
 }
 
-// ---------- Preise ----------
+// ---------- Preise: zugleich die Seite, die ohne Abo überall erscheint ----------
 
 const FAQ = [
+  [`Was ist der Unterschied zwischen ${STD} und ${FULL}?`, `${STD} enthält Markt-Index, Signale und Aussicht für die ${SITE.standardCoins} größten Coins und dein Portfolio mit Wertentwicklung. ${FULL} zeigt alle 1000 Coins und dazu die stärksten Kaufsignale, das Reserve-Ziel mit Modell-Schritten für dein Portfolio und die Daytrading-Muster.`],
+  ['Gibt es eine kostenlose Version oder eine Testzeit?', 'Nein. Dafür ist das Abo monatlich kündbar, und du kannst den Kauf 14 Tage lang widerrufen.'],
   ['Ist das eine Anlageberatung?', `Nein. ${SITE.name} ist ein Informationsdienst. Alle sehen dieselben Signale; sie berücksichtigen weder dein Vermögen noch deine Ziele oder deine Erfahrung. Was du kaufst oder verkaufst, entscheidest du allein.`],
-  ['Wie gut sind die Signale?', 'Ehrlich: Ein „Eher kaufen“ ist ein schwaches Signal – in der Prüfung lief etwas mehr als jeder zweite Fall ins Plus. Der Vorteil entsteht über viele Käufe, nicht beim einzelnen. Unter „Erfolgskontrolle“ auf der Startseite steht, was aus den Signalen der Seite tatsächlich geworden ist.'],
+  ['Wie gut sind die Signale?', 'Ehrlich: Ein „Eher kaufen“ ist ein schwaches Signal – in der Prüfung lief etwas mehr als jeder zweite Fall ins Plus. Der Vorteil entsteht über viele Käufe, nicht beim einzelnen. Die Erfolgskontrolle zeigt, was aus den Signalen der Seite tatsächlich geworden ist.'],
   ['Versprecht ihr Gewinne?', 'Nein. Kurse lassen sich nicht sicher vorhersagen. Die Rückrechnungen beruhen auf vergangenen Kursen und fallen besser aus als die Wirklichkeit, weil sie nur Coins enthalten, die es heute noch gibt.'],
   ['Habt ihr Zugriff auf mein Geld oder mein Börsenkonto?', 'Nein. Du trägst deine Bestände selbst ein oder importierst eine Tabelle. Es gibt keine Verbindung zu einer Börse, und die Seite führt keine Käufe oder Verkäufe aus.'],
-  ['Kann ich jederzeit kündigen?', 'Ja, zum Ende der bezahlten Laufzeit – ohne Frist. Dein Portfolio bleibt danach gespeichert, bis du dein Konto löschst.'],
+  ['Wie kündige ich?', 'Jederzeit zum Ende des bezahlten Monats, ohne Frist. Dein Portfolio bleibt danach gespeichert, bis du dein Konto löschst.'],
   ['Welche Daten speichert ihr?', 'Deine E-Mail-Adresse für die Anmeldung und das Portfolio, das du einträgst. Kein Tracking, keine Werbe-Cookies. Im Konto kannst du alles exportieren und löschen.'],
 ];
 
-export function pricingView(el, { access, user }) {
+export function pricingView(el, { access, user, record }) {
+  let shown = null;
   function render() {
     const a = access();
-    const m = SITE.plans.monthly, y = SITE.plans.yearly;
-    const perMonth = y.price / 12;
-    const link = (plan) => {
-      if (a.reason === 'paid') return SITE.manageUrl ? `<a class="btn ghost" href="${esc(SITE.manageUrl)}" target="_blank" rel="noopener">Abo verwalten</a>` : '<span class="muted">Dein Abo ist aktiv.</span>';
-      if (!SITE.paywall) return `<a class="btn" href="${user() ? '#/' : '#/konto'}">${user() ? 'Zur Marktübersicht' : 'Kostenlos starten'}</a>`;
-      if (!selling()) return '<span class="muted">Das Abo ist noch nicht buchbar.</span>';
-      if (!user()) return `<a class="btn" href="#/konto">${SITE.trialDays} Tage kostenlos testen</a>`;
+    const manage = (label) => (SITE.manageUrl ? `<a class="btn ghost" href="${esc(SITE.manageUrl)}" target="_blank" rel="noopener">${label}</a>` : '<span class="muted">Über die Abo-Verwaltung deines Zahlungsanbieters.</span>');
+    const button = (key) => {
+      const plan = SITE.plans[key];
+      if (a.reason === 'open' || a.reason === 'owner') return '<span class="muted">Für dich freigeschaltet.</span>';
+      if (a.reason === 'paid') return a.plan === key ? `<span class="badge buy">Dein Paket</span> ${manage('Abo verwalten')}` : manage('Paket wechseln');
+      if (!selling()) return '<span class="muted">Der Verkauf startet in Kürze.</span>';
+      if (!user()) return '<a class="btn" href="#/konto">Konto erstellen und abonnieren</a>';
       // Die Konto-Kennung geht mit, damit die Zahlung dem Konto zugeordnet werden kann
       const url = `${plan.checkout}${plan.checkout.includes('?') ? '&' : '?'}custom=${encodeURIComponent(user().uid)}`;
-      return `<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Jetzt abonnieren</a>`;
+      return `<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">${esc(plan.name)} abonnieren</a>`;
     };
-    const status = a.reason === 'paid' ? `<p class="notice ok">Dein Abo ist aktiv${a.until ? ` bis ${new Date(a.until).toLocaleDateString('de-DE')}` : ''}${a.cancel ? ' und verlängert sich nicht mehr' : ''}.</p>`
-      : a.reason === 'trial' ? `<p class="notice ok">Deine Testzeit läuft bis ${new Date(a.until).toLocaleDateString('de-DE')}. Bis dahin sind alle Funktionen frei.</p>`
-      : a.reason === 'expired' ? '<p class="notice">Deine Testzeit ist abgelaufen. Mit einem Abo sind wieder alle Funktionen frei.</p>'
-      : !SITE.paywall ? '<p class="notice ok"><strong>Einführungsphase:</strong> Zurzeit sind alle Funktionen kostenlos. Die Preise unten gelten, sobald das Abo startet – wir kündigen das rechtzeitig an.</p>' : '';
+    const until = a.until ? ` bis ${new Date(a.until).toLocaleDateString('de-DE')}` : '';
+    const status = a.reason === 'paid' ? `<p class="notice ok">Dein Paket ${esc(SITE.plans[a.plan].name)} ist aktiv${until}${a.cancel ? ' und verlängert sich nicht mehr' : ''}.</p>`
+      : a.reason === 'owner' ? '<p class="notice ok">Betreiber-Zugang: Alle Funktionen sind für dich freigeschaltet.</p>'
+      : a.reason === 'open' ? '<p class="notice">Die Bezahlschranke ist ausgeschaltet – alle Funktionen sind offen.</p>'
+      : a.reason === 'none' ? '<p class="notice">Für dein Konto läuft kein Abo. Wähle ein Paket, um die Inhalte zu sehen.</p>' : '';
+    const rec = record?.();
+    const measured = !rec ? '' : `<section class="panel"><div class="label">Erfolgskontrolle – offen nachgemessen</div>
+      <p>${rec.d7 ? `Kaufsignale der Seite seit ${new Date(rec.since * 86_400_000).toLocaleDateString('de-DE')}: nach 7 Tagen im Schnitt <strong>${signed(rec.d7.avg, 1)} %</strong>,
+        ${rec.d7.up} von ${rec.d7.n} im Plus (Bitcoin im selben Zeitraum ${signed(rec.d7.btc, 1)} %).`
+        : `Jedes Kaufsignal der Seite wird seit ${new Date(rec.since * 86_400_000).toLocaleDateString('de-DE')} nach 7 und 30 Tagen nachgemessen. Erste Ergebnisse erscheinen 7 Tage nach den ersten Signalen.`}</p></section>`;
     const yes = (t) => `<li class="yes">${t}</li>`;
-    el.innerHTML = `<div class="page-head"><div><h1 class="page-title">Preise und Leistungen</h1>
-        <p class="hint">Ein Abo, alle Funktionen. ${SITE.trialDays} Tage kostenlos testen, jederzeit kündbar.</p></div></div>
+    const card = (key, featured, hint, list) => `<section class="panel plan${featured ? ' featured' : ''}">
+        <div class="label">${esc(SITE.plans[key].name)}</div>
+        <div class="plan-price">${price(SITE.plans[key].price)}<small> pro Monat</small></div>
+        <p class="muted">${hint}</p>
+        <ul class="plan-list">${list.map(yes).join('')}</ul>
+        <div class="plan-cta">${button(key)}</div>
+      </section>`;
+    el.innerHTML = `${a.plan ? '' : landing()}
+      <div class="page-head" id="plans"><div><h1 class="page-title">Pakete und Preise</h1>
+        <p class="hint">Zwei Pakete, monatliche Abrechnung, jederzeit zum Monatsende kündbar.</p></div></div>
       ${status}
       <div class="plans">
-        <section class="panel plan">
-          <div class="label">Kostenlos</div>
-          <div class="plan-price">0 €</div>
-          <p class="muted">Zum Kennenlernen, ohne Zeitlimit.</p>
-          <ul class="plan-list">${yes('Live-Kurse für 1000 Coins')}${yes('Markt-Index, Fear &amp; Greed und Zyklus')}
-            ${yes(`Signale und Aussicht für die ${SITE.freeCoins} größten Coins`)}${yes('Erfolgskontrolle der Signale')}</ul>
-          <div class="plan-cta"><a class="btn ghost" href="#/">Zur Marktübersicht</a></div>
-        </section>
-        <section class="panel plan featured">
-          <div class="label">Abo · jährlich</div>
-          <div class="plan-price">${eur(y.price)}<small> pro Jahr</small></div>
-          <p class="muted">Entspricht ${eur(Math.round(perMonth * 100) / 100)} im Monat – ${num((1 - y.price / (m.price * 12)) * 100, 0)} % günstiger als monatlich.</p>
-          <ul class="plan-list">${yes('Signale und Aussicht für alle 1000 Coins')}${yes('Detailansicht mit Score-Bausteinen und Rückblick')}
-            ${yes('Portfolio mit Wertentwicklung und Vergleich zu Bitcoin')}${yes('Reserve-Ziel und Modell-Schritte nach festen Regeln')}
-            ${yes('Daytrading-Muster mit Einstieg, Ziel und Stopp')}${yes('Import und Export als Tabelle')}</ul>
-          <div class="plan-cta">${link(y)}</div>
-        </section>
-        <section class="panel plan">
-          <div class="label">Abo · monatlich</div>
-          <div class="plan-price">${eur(m.price)}<small> pro Monat</small></div>
-          <p class="muted">Alle Funktionen, monatlich kündbar.</p>
-          <ul class="plan-list">${yes('Alles aus dem Jahres-Abo')}${yes('Kündigung zum Monatsende')}</ul>
-          <div class="plan-cta">${link(m)}</div>
-        </section>
+        ${card('standard', false, 'Der Überblick über den Markt und dein Portfolio.', ['Markt-Index „Jetzt kaufen?“, Fear &amp; Greed und Zyklus',
+          `Signale und Aussicht für die ${SITE.standardCoins} größten Coins`, 'Detailansicht mit Score-Bausteinen und Rückblick',
+          'Portfolio mit Wertentwicklung und Vergleich zu Bitcoin', 'Import und Export als Tabelle'])}
+        ${card('full', true, 'Alle Funktionen, alle Coins.', [`Alles aus ${esc(STD)}`, 'Signale und Aussicht für alle 1000 Coins', 'Die stärksten Kaufsignale auf einen Blick',
+          'Reserve-Ziel und Modell-Schritte für dein Portfolio', 'Daytrading-Muster mit Einstieg, Ziel und Stopp'])}
       </div>
-      <p class="hint">Preise inklusive Mehrwertsteuer. Das Abo verlängert sich um die gewählte Laufzeit, bis du kündigst. 14 Tage Widerrufsrecht.
-        Es gelten die <a href="#/agb">AGB</a> und der <a href="#/risiko">Risikohinweis</a>.</p>
+      <p class="hint">Preise pro Monat inklusive Mehrwertsteuer. Das Abo verlängert sich jeweils um einen Monat, bis du kündigst. 14 Tage Widerrufsrecht.
+        Es gelten die <a href="#/agb">AGB</a> und der <a href="#/risiko">Risikohinweis</a>. ${esc(SITE.name)} ist keine Anlageberatung.</p>
+      ${measured}
       <h2>Häufige Fragen</h2>
-      <div class="faq">${FAQ.map(([q, t]) => `<details class="panel"><summary>${q}</summary><p>${t}</p></details>`).join('')}</div>`;
+      <div class="faq">${FAQ.map(([q, t]) => `<details class="panel"><summary>${esc(q)}</summary><p>${esc(t)}</p></details>`).join('')}</div>`;
+    el.querySelector('[data-to-plans]')?.addEventListener('click', () => el.querySelector('#plans').scrollIntoView({ behavior: 'smooth' }));
   }
-  return { update: render };
+  // Nur neu aufbauen, wenn sich am Zugang etwas ändert – sonst klappten geöffnete Fragen bei jeder Kursaktualisierung zu
+  function update() {
+    const a = access(), rec = record?.();
+    const key = JSON.stringify([a.plan, a.reason, a.until, a.cancel, user()?.uid, selling(), rec?.since, rec?.d7?.n]);
+    if (key === shown) return;
+    shown = key;
+    render();
+  }
+  return { update };
 }
 
 // ---------- Rechtstexte ----------
@@ -164,14 +179,14 @@ const LEGAL = {
       Der Anbieter erbringt <strong>keine Anlageberatung, keine Vermögensverwaltung und keine Vermittlung</strong>, nimmt keine Gelder entgegen, hat keinen Zugriff auf Börsenkonten und führt keine Aufträge aus.
       Alle Inhalte sind allgemeine Informationen für alle Nutzer und keine persönliche Empfehlung. Es gilt der <a href="#/risiko">Risikohinweis</a>.</p>
     <h3>3. Konto</h3>
-    <p>Für Portfolio und Abo brauchst du ein Konto. Du musst volljährig sein, richtige Angaben machen und deine Zugangsdaten geheim halten. Ein Konto ist für eine Person bestimmt.</p>
-    <h3>4. Kostenloser Zugang und Abo</h3>
-    <p>Ein Teil der Inhalte ist kostenlos. Der volle Umfang steht im Abo zur Verfügung; Umfang und Preise stehen unter <a href="#/preise">Preise</a>. Die Preise enthalten die gesetzliche Mehrwertsteuer.
-      Neue Konten können den vollen Umfang ${SITE.trialDays} Tage kostenlos testen; die Testzeit endet von selbst.</p>
-    <p>Das Abo läuft je nach Wahl einen Monat oder ein Jahr und verlängert sich jeweils um dieselbe Laufzeit, bis es gekündigt wird. Die Zahlung wird im Voraus fällig und über
+    <p>Für das Abo brauchst du ein Konto. Du musst volljährig sein, richtige Angaben machen und deine Zugangsdaten geheim halten. Ein Konto ist für eine Person bestimmt.</p>
+    <h3>4. Abo und Preise</h3>
+    <p>Die Inhalte stehen nur im Abo zur Verfügung. Es gibt die Pakete ${esc(STD)} und ${esc(FULL)}; Umfang und Preise stehen unter <a href="#/preise">Preise</a>.
+      Die Preise gelten pro Monat und enthalten die gesetzliche Mehrwertsteuer.</p>
+    <p>Das Abo läuft einen Monat und verlängert sich jeweils um einen weiteren Monat, bis es gekündigt wird. Die Zahlung wird monatlich im Voraus fällig und über
       ${SITE.paymentProvider ? esc(SITE.paymentProvider) : 'einen Zahlungsanbieter oder Wiederverkäufer'} abgewickelt, der beim Kauf genannt wird.</p>
     <h3>5. Kündigung</h3>
-    <p>Du kannst das Abo jederzeit zum Ende der bezahlten Laufzeit kündigen – über die Verwaltung deines Abos oder per E-Mail an die oben genannte Adresse. Dein Konto kannst du jederzeit unter „Konto“ löschen.
+    <p>Du kannst das Abo jederzeit zum Ende des bezahlten Monats kündigen – über die Verwaltung deines Abos oder per E-Mail an die oben genannte Adresse. Dein Konto kannst du jederzeit unter „Konto“ löschen.
       Der Anbieter kann den Zugang sperren oder kündigen, wenn gegen diese Bedingungen verstoßen wird; bereits bezahlte Entgelte für die Zeit danach werden dann anteilig erstattet, sofern die Sperre nicht auf einem schuldhaften Verstoß beruht.</p>
     <h3>6. Widerrufsrecht</h3>
     <p>Als Verbraucher kannst du den Abschluss des Abos innerhalb von 14 Tagen ohne Angabe von Gründen widerrufen. Dafür genügt eine eindeutige Erklärung per E-Mail an die oben genannte Adresse
@@ -192,7 +207,7 @@ const LEGAL = {
     <h3>11. Datenschutz</h3>
     <p>Wie mit deinen Daten umgegangen wird, steht in der <a href="#/datenschutz">Datenschutzerklärung</a>.</p>
     <h3>12. Änderungen dieser Bedingungen</h3>
-    <p>Ändern sich diese Bedingungen wesentlich, wirst du beim nächsten Anmelden um Zustimmung gebeten. Stimmst du nicht zu, kannst du das Abo zum Ende der bezahlten Laufzeit kündigen.</p>
+    <p>Ändern sich diese Bedingungen wesentlich, wirst du beim nächsten Anmelden um Zustimmung gebeten. Stimmst du nicht zu, kannst du das Abo zum Ende des bezahlten Monats kündigen.</p>
     <h3>13. Recht und Gerichtsstand</h3>
     <p>Es gilt das Recht des Staates, in dem der Anbieter seinen Sitz hat (${esc(op.country)}), unter Ausschluss des UN-Kaufrechts. Zwingende Schutzvorschriften des Staates, in dem du als Verbraucher wohnst, bleiben unberührt.
       Gerichtsstand ist der Sitz des Anbieters, soweit das Gesetz nichts anderes vorschreibt.</p>

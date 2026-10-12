@@ -20,16 +20,21 @@ export const SITE = {
   legalVersion: '2026-10-12',
   hosting: 'GitHub Pages (GitHub Inc., USA)',
 
-  // Abo. Preise in Euro inklusive Mehrwertsteuer.
-  paywall: false,      // false: Einführungsphase – alle Funktionen sind frei
-  trialDays: 14,       // kostenlose Testzeit ab Erstellen des Kontos
-  freeCoins: 20,       // ohne Abo: Signale für die größten Coins
+  // Abo: zwei Pakete, monatliche Abrechnung, kein kostenloser Umfang. Preise inklusive Mehrwertsteuer.
+  paywall: true,       // true: Inhalte nur mit Abo. false: alles offen – nur zum Entwickeln
+  currency: '€',
   plans: {
-    monthly: { price: 14.9, checkout: '' },    // Bezahl-Link des Zahlungsanbieters
-    yearly: { price: 119, checkout: '' },
+    standard: { name: 'Standard', price: 3.99, checkout: '' },   // checkout: Bezahl-Link des Zahlungsanbieters
+    full: { name: 'Komplett', price: 7.99, checkout: '' },
   },
+  standardCoins: 100,  // Standard: Signale für die größten Coins; Komplett: alle
   manageUrl: '',       // Seite des Zahlungsanbieters, auf der Kunden kündigen und Rechnungen abrufen
   paymentProvider: '', // Name des Zahlungsanbieters, erscheint in AGB und Datenschutz
+
+  // Betreiber-Zugang ohne Abo: Konto-Kennungen (stehen unter „Konto“) …
+  owners: [],
+  // … oder bestätigte E-Mail-Adressen, hinterlegt als SHA-256-Prüfsumme, damit die Adresse nicht im Quelltext steht
+  ownerMails: ['f8a5c29ce669607b870a6bc7a3bebfabae03515d0efbb5d48c9a7ad69be1f268', '941589d9f0ffe173319979b71000b2c6c8563d1e3dcc1d995fa22724dff304e5'],
 };
 
 // Lokaler Testbetrieb: Bezahlschranke und Betreiberangaben lassen sich auf localhost zum Prüfen einschalten
@@ -43,5 +48,5 @@ try {
 // Sind die Pflichtangaben des Betreibers vollständig?
 export const operatorReady = () => !!(SITE.operator.name && SITE.operator.street && SITE.operator.city && SITE.operator.email);
 
-// Wird das Abo tatsächlich verkauft? Nur mit Bezahlschranke, vollständigen Angaben und Bezahl-Link.
-export const selling = () => SITE.paywall && operatorReady() && !!SITE.plans.monthly.checkout;
+// Wird das Abo tatsächlich verkauft? Nur mit Bezahlschranke, vollständigen Angaben und beiden Bezahl-Links.
+export const selling = () => SITE.paywall && operatorReady() && !!SITE.plans.standard.checkout && !!SITE.plans.full.checkout;

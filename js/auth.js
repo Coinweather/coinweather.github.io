@@ -61,12 +61,12 @@ async function run(fn) {
   catch (err) { throw new Error(MESSAGES[err.code] ?? `Das hat nicht geklappt (${err.code ?? err.message}).`); }
 }
 
-// Ruft cb bei jeder An- und Abmeldung auf: { uid, email, name, created } oder null
+// Ruft cb bei jeder An- und Abmeldung auf: { uid, email, name, verified } oder null
 export async function onUser(cb) {
   if (!available) return cb(null);
   const { au, auth } = await init();
   au.onAuthStateChanged(auth, (u) => cb(u ? { uid: u.uid, email: u.email, name: u.displayName,
-    created: Date.parse(u.metadata?.creationTime ?? '') || null } : null));
+    verified: !!u.emailVerified } : null));
 }
 
 export const register = (email, password) => run(({ au, auth }) => au.createUserWithEmailAndPassword(auth, email, password));
@@ -94,12 +94,12 @@ export function savePortfolio(uid, data) {
 }
 
 // Abo: Der Stand liegt in subscriptions/{uid} und wird nur vom Zahlungsweg geschrieben (siehe GO-LIVE.md).
-// cb erhält { status, until, cancel } oder null. Ohne Leserecht oder bei einem Fehler gilt: kein Abo.
+// cb erhält { status, plan, until, cancel } oder null. Ohne Leserecht oder bei einem Fehler gilt: kein Abo.
 export async function watchSubscription(uid, cb) {
   const { fs, db } = await init();
   return fs.onSnapshot(fs.doc(db, 'subscriptions', uid), (snap) => {
     const d = snap.exists() ? snap.data() : null;
-    cb(d ? { status: String(d.status ?? ''), until: Number.isFinite(d.until) ? d.until : d.until?.toMillis?.() ?? null, cancel: !!d.cancel } : null);
+    cb(d ? { status: String(d.status ?? ''), plan: d.plan === 'full' ? 'full' : 'standard', until: Number.isFinite(d.until) ? d.until : d.until?.toMillis?.() ?? null, cancel: !!d.cancel } : null);
   }, () => cb(null));
 }
 

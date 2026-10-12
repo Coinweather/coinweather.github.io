@@ -635,7 +635,6 @@ const SORTS = {
 function marketView() {
   const th = (key, label, cls = '') => `<th class="${cls} sortable" data-sort="${key}">${label}</th>`;
   view.innerHTML = `
-    <div id="intro"></div>
     <section class="hero">
       <div class="panel gauge-panel" id="g-market"></div>
       <div class="panel gauge-panel" id="g-fng"></div>
@@ -754,7 +753,7 @@ function marketView() {
   }
 
   function picks() {
-    if (!access().premium) { $('#picks').innerHTML = site.upsell('picks', access()); return; }
+    if (!fullAccess()) { $('#picks').innerHTML = site.upsell('picks'); return; }
     // Riskantere Coins brauchen einen höheren Score, um vorne zu landen
     const list = state.coins.filter((c) => c.analysis.signal === 'buy' && (c.market_cap_rank ?? 9999) <= 500 &&
       c.total_volume >= 1e6 && !DERIVATIVE.test(c.name))
@@ -804,7 +803,7 @@ function marketView() {
         <td class="col-score">${lock ? '<span class="muted">–</span>' : scoreCell(a.score)}</td>
         <td class="col-hold">${lock ? '<span class="muted">–</span>' : a.horizon}</td>
         <td class="col-risk">${riskTag(a.risk)}</td>
-        <td>${lock ? '<a class="badge none" href="#/preise">Im Abo</a>' : badge(a)}</td>
+        <td>${lock ? `<a class="badge none" href="#/preise">${esc(SITE.plans.full.name)}</a>` : badge(a)}</td>
       </tr>`;
     }).join('') : `<tr><td colspan="12" class="empty">${state.coins.length ? 'Keine Coins gefunden.' : 'Lade Kurse …'}</td></tr>`;
 
@@ -814,16 +813,7 @@ function marketView() {
       : '';
   }
 
-  // Einstieg für Besucher ohne Konto – erst, wenn die Anmeldung geprüft ist, damit er nicht kurz aufblitzt
-  let introShown = null;
-  function intro() {
-    const show = depot.ready && !depot.user;
-    if (show === introShown) return;
-    introShown = show;
-    $('#intro').innerHTML = show ? site.landing() : '';
-  }
-
-  return { update() { intro(); hero(); picks(); table(); } };
+  return { update() { hero(); picks(); table(); } };
 }
 
 // ---------- Detailansicht ----------
@@ -1013,7 +1003,7 @@ function detailView(id) {
   }
 
   function head(c, a) {
-    if (lockedCoin(c)) a = { ...a, signal: 'none', label: 'Im Abo', score: null, horizon: '–', scope: null, mood: null, agreement: null };
+    if (lockedCoin(c)) a = { ...a, signal: 'none', label: `Paket ${SITE.plans.full.name}`, score: null, horizon: '–', scope: null, mood: null, agreement: null };
     const strength = { Kaufen: 'deutlich', 'Eher kaufen': 'schwach – leichter Vorteil', Verkaufen: 'deutlich', 'Eher verkaufen': 'schwach' }[a.label];
     $('#d-head').innerHTML = `<section class="panel d-head">
       <div class="d-coin"><img src="${esc(c.image)}" alt="">
@@ -1053,7 +1043,7 @@ function detailView(id) {
 
   function forecast(c, a) {
     if (a.signal === 'none') { $('#d-forecast').innerHTML = `<section class="panel"><h2>Prognose</h2><p>${esc(a.notes[0])}</p></section>`; return; }
-    if (lockedCoin(c)) { $('#d-forecast').innerHTML = site.upsell('coin', access()); return; }
+    if (lockedCoin(c)) { $('#d-forecast').innerHTML = site.upsell('coin'); return; }
     // Bausteine des Scores: Bewertung des bisherigen Kursverlaufs und ihr Beitrag in Punkten. Eine Prognose sind sie
     // nicht – die steht einmal, als Prozentwert mit Einordnung, in den drei Feldern darüber.
     const weightSum = Object.keys(WEIGHTS).reduce((sum, k) => sum + (a[k].score === null ? 0 : WEIGHTS[k]), 0);
@@ -1215,20 +1205,21 @@ function saveDepot(data, { internal = false, note = null } = {}) {
 
 // ---------- Abo und Zustimmung ----------
 
-// Wer darf den vollen Umfang sehen? Ohne Bezahlschranke alle; sonst zahlende Konten und neue Konten in der Testzeit.
-const abo = { sub: null, stop: null };
+// Welches Paket gilt? Ohne Bezahlschranke alles; sonst nach dem Abo des Kontos. Ohne Abo gibt es keine Inhalte.
+const abo = { sub: null, stop: null, loaded: false };
 function access() {
-  if (!SITE.paywall) return { premium: true, reason: 'open' };
-  if (!depot.user) return { premium: false, reason: 'guest' };
+  if (!SITE.paywall) return { plan: 'full', reason: 'open' };
+  if (!depot.user) return { plan: null, reason: 'guest' };
+  if (depot.owner) return { plan: 'full', reason: 'owner' };
   const s = abo.sub;
-  if (s && ['active', 'trialing'].includes(s.status) && (!s.until || s.until > Date.now())) return { premium: true, reason: 'paid', until: s.until, cancel: s.cancel };
-  const trialEnd = (depot.user.created ?? 0) + SITE.trialDays * 86_400_000;
-  if (SITE.trialDays > 0 && Date.now() < trialEnd) return { premium: true, reason: 'trial', until: trialEnd };
-  return { premium: false, reason: 'expired' };
+  if (s && ['active', 'trialing'].includes(s.status) && (!s.until || s.until > Date.now())) return { plan: s.plan, reason: 'paid', until: s.until, cancel: s.cancel };
+  return { plan: null, reason: 'none' };
 }
-// Ohne Abo gibt es Signale nur für die größten Coins (Stablecoins und Ähnliches haben ohnehin keins)
-const lockedCoin = (c) => !access().premium && c.analysis?.signal !== 'none' && (c.market_cap_rank ?? 9999) > SITE.freeCoins;
-const lockedView = (kind) => { view.innerHTML = site.upsell(kind, access()); return { update() {} }; };
+const fullAccess = () => access().plan === 'full';
+// Das kleinere Paket zeigt Signale nur für die größten Coins (Stablecoins und Ähnliches haben ohnehin keins)
+const lockedCoin = (c) => !fullAccess() && c.analysis?.signal !== 'none' && (c.market_cap_rank ?? 9999) > SITE.standardCoins;
+const lockedView = (kind) => { view.innerHTML = site.upsell(kind); return { update() {} }; };
+const waitView = () => { view.innerHTML = '<section class="panel"><p class="muted">Anmeldung wird geprüft …</p></section>'; return { update() {} }; };
 
 // Nach dem ersten Anmelden und nach geänderten Rechtstexten: Zustimmung zu AGB und Risikohinweis einholen und festhalten
 let consentOpen = false;
@@ -1267,16 +1258,18 @@ auth.onUser(async (user) => {
   depot.stop?.();
   depot.stop = null;
   const before = depot.user;
+  const owner = await site.isOwner(user).catch(() => false);
   depot.user = user;
+  depot.owner = owner;
   depot.ready = true;
   abo.stop?.();
-  abo.stop = null; abo.sub = null;
+  abo.stop = null; abo.sub = null; abo.loaded = false;
   if (user && SITE.paywall) {
     auth.watchSubscription(user.uid, (sub) => {
       if (depot.user?.uid !== user.uid) return;
-      const before = access().premium;
-      abo.sub = sub;
-      if (access().premium !== before) route(); else current?.update();
+      const before = access().plan, first = !abo.loaded;
+      abo.sub = sub; abo.loaded = true;
+      if (first || access().plan !== before) route(); else current?.update();
     }).then((stop) => { if (depot.user?.uid === user.uid) abo.stop = stop; else stop(); }, () => {});
   }
   if (user) {
@@ -1459,9 +1452,10 @@ function accountView(gate = false) {
     }
     if (depot.user) {
       const a = access(), until = a.until ? new Date(a.until).toLocaleDateString('de-DE') : null;
-      const planText = a.reason === 'open' ? 'Einführungsphase – zurzeit sind alle Funktionen kostenlos.'
-        : a.reason === 'paid' ? `Dein Abo ist aktiv${until ? ` bis ${until}` : ''}${a.cancel ? ' und verlängert sich nicht mehr' : ''}.`
-        : a.reason === 'trial' ? `Testzeit bis ${until} – alle Funktionen sind frei.` : 'Kein Abo – es gilt der kostenlose Umfang.';
+      const planText = a.reason === 'open' ? 'Die Bezahlschranke ist ausgeschaltet – alle Funktionen sind offen.'
+        : a.reason === 'owner' ? 'Betreiber-Zugang – alle Funktionen sind freigeschaltet.'
+        : a.reason === 'paid' ? `Paket ${SITE.plans[a.plan].name} ist aktiv${until ? ` bis ${until}` : ''}${a.cancel ? ' und verlängert sich nicht mehr' : ''}.`
+        : 'Für dein Konto läuft kein Abo.';
       view.innerHTML = `<h2>Konto</h2><section class="panel">
         <p>Angemeldet als <strong>${esc(depot.user.email ?? depot.user.name ?? '')}</strong></p>
         <p class="hint" id="a-sync"></p>
@@ -1469,9 +1463,10 @@ function accountView(gate = false) {
         <p id="a-msg" class="notice" hidden></p>
       </section>
       <section class="panel"><div class="label">Abo</div><p>${planText}</p>
-        <p><a class="btn ghost" href="#/preise">Preise und Leistungen</a>${a.reason === 'paid' && SITE.manageUrl ? ` <a class="btn ghost" href="${esc(SITE.manageUrl)}" target="_blank" rel="noopener">Abo verwalten</a>` : ''}</p></section>
+        <p><a class="btn ghost" href="#/preise">Pakete und Preise</a>${a.reason === 'paid' && SITE.manageUrl ? ` <a class="btn ghost" href="${esc(SITE.manageUrl)}" target="_blank" rel="noopener">Abo verwalten</a>` : ''}</p></section>
       <section class="panel"><div class="label">Deine Daten</div>
         <p class="hint">Dein Portfolio kannst du auf der Portfolio-Seite als Tabelle exportieren. Löschst du dein Konto, werden Portfolio und Anmeldung endgültig entfernt.${a.reason === 'paid' ? ' Ein laufendes Abo kündigst du bitte vorher.' : ''}</p>
+        <p class="hint">Konto-Kennung: <code>${esc(depot.user.uid)}</code></p>
         <p><button class="link danger" id="a-delete" type="button">Konto und Daten löschen</button></p></section>`;
       $('#a-logout').addEventListener('click', () => act(() => auth.logout()));
       $('#a-delete').addEventListener('click', () => {
@@ -1500,7 +1495,7 @@ function accountView(gate = false) {
     view.innerHTML = `<div class="gate">
         <div>
           <h1>${gate ? 'Melde dich an, um dein Portfolio zu sehen' : `Dein Konto bei ${esc(SITE.name)}`}</h1>
-          <p class="lead">Das Portfolio und der Portfolio-Manager sind an ein Konto gebunden. Kurse und Markt-Index bleiben ohne Anmeldung frei.${SITE.paywall ? ` Neue Konten testen ${SITE.trialDays} Tage lang den vollen Umfang.` : ''}</p>
+          <p class="lead">Für ein Abo brauchst du ein Konto. Darin liegen auch dein Portfolio und deine Einstellungen. <a href="#/preise">Pakete und Preise</a></p>
           ${BENEFITS}
         </div>
         ${form}
@@ -2031,7 +2026,7 @@ function portfolioView() {
   let optionCount = -1;
 
   function update() {
-    $('#p-open-reserve').hidden = !access().premium;   // das Reserve-Ziel gehört zum Abo
+    $('#p-open-reserve').hidden = !fullAccess();   // das Reserve-Ziel gehört zum größeren Paket
     const list = depot.data.positions;
     $('#p-where').textContent = depot.sync === 'error' ? `Speichern im Konto fehlgeschlagen: ${depot.error}` : SYNC_TEXT[depot.sync];
     $('#p-msg').hidden = !message; $('#p-msg').textContent = message;
@@ -2160,7 +2155,7 @@ function portfolioView() {
   function manager(rows, total) {
     const el = $('#p-manager');
     if (!(total > 0)) { advice = null; el.innerHTML = ''; return; }
-    if (!access().premium) { advice = null; el.innerHTML = site.upsell('manager', access()); return; }
+    if (!fullAccess()) { advice = null; el.innerHTML = site.upsell('manager'); return; }
     // Vorschläge erst zeigen, wenn alle Kurse und Bewertungen geladen sind – vorher würden sie sich ständig ändern
     const ready = state.pagesLoaded >= api.PAGES && state.refineDone && !!state.market;
     const key = JSON.stringify([depot.data.positions.map((p) => [pf.keyOf(p), p.amount, p.cost]), depot.data.cash, depot.data.reservePct, depot.data.reserveMode]);
@@ -2236,11 +2231,16 @@ function route() {
   for (const a of document.querySelectorAll('nav a')) a.classList.toggle('active', a.dataset.nav === section);
   let id = arg;
   try { id = decodeURIComponent(arg ?? ''); } catch { /* fehlerhafte Adresse – unverändert verwenden */ }
-  if (name === 'coin' && id) current = detailView(id);
+  const open = name === 'konto' || pages.includes(name);
+  const sales = () => site.pricingView(view, { access, user: () => depot.user, record: () => state.record });
+  // Mit Bezahlschranke erst abwarten, wer angemeldet ist und ob ein Abo läuft – sonst blitzt die Verkaufsseite kurz auf
+  if (SITE.paywall && !open && (!depot.ready || (depot.user && !depot.owner && !abo.loaded))) current = waitView();
+  else if (!open && !access().plan) current = sales();   // ohne Abo gibt es keine Inhalte
+  else if (name === 'coin' && id) current = detailView(id);
   else if (name === 'portfolio') current = depot.user ? portfolioView() : accountView(true);
   else if (name === 'konto') current = accountView();
-  else if (name === 'daytrading') { current = access().premium ? tradingView() : lockedView('trading'); if (access().premium) tradingAck(); }
-  else if (name === 'preise') current = site.pricingView(view, { access, user: () => depot.user });
+  else if (name === 'daytrading') { current = fullAccess() ? tradingView() : lockedView('trading'); if (fullAccess()) tradingAck(); }
+  else if (name === 'preise') current = sales();
   else if (site.LEGAL_KINDS.includes(name)) current = site.legalView(view, name);
   else current = marketView();
   current.update();
