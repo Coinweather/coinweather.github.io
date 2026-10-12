@@ -468,8 +468,6 @@ h2 + .info-btn, .label + .info-btn { margin-top: 8px; }
 #record .stat-grid { margin-top: 12px; }
 
 /* Prognose-Felder und Bausteine des Scores */
-.stat-grid .outlook { font-size: 14px; }
-.fc-hint { margin: 14px 0 0; }
 .block-sum { margin: 12px 0 0; }
 .cycle .plain { margin-top: 6px; }
 /* Sehr schmale Bildschirme: Das Menü rollt in sich, statt die Seite breiter zu machen */
