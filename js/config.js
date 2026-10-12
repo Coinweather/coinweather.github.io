@@ -32,7 +32,7 @@ export const SITE = {
   paymentProvider: '', // Name des Zahlungsanbieters, erscheint in AGB und Datenschutz
 
   // Betreiber-Zugang ohne Abo: Konto-Kennungen (stehen unter „Konto“) …
-  owners: [],
+  owners: ['nxsRHSRqofXDVi6cmYhZXTr3csq1'],
   // … oder bestätigte E-Mail-Adressen, hinterlegt als SHA-256-Prüfsumme, damit die Adresse nicht im Quelltext steht
   ownerMails: ['f8a5c29ce669607b870a6bc7a3bebfabae03515d0efbb5d48c9a7ad69be1f268', '941589d9f0ffe173319979b71000b2c6c8563d1e3dcc1d995fa22724dff304e5'],
 };
