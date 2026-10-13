@@ -38,7 +38,7 @@ Das Portfolio ist nur angemeldet nutzbar. Ohne diese Schritte bleiben Kurse und 
 
 1. Auf <https://console.firebase.google.com> ein Projekt anlegen (kostenloser Spark-Tarif reicht).
 2. **Build → Authentication → Sign-in method:** „E-Mail/Passwort“ und „Google“ einschalten.
-3. **Authentication → Settings → Authorized domains:** die Adresse der Website hinzufügen, z. B. `aporti1705-cmd.github.io`.
+3. **Authentication → Settings → Authorized domains:** die Adresse der Website hinzufügen, z. B. `coinweather.github.io`.
 4. **Build → Firestore Database:** Datenbank im Produktionsmodus anlegen und unter „Regeln“ den Inhalt von `firestore.rules` einfügen und veröffentlichen.
 5. **Projekteinstellungen → Meine Apps → Web-App hinzufügen:** die angezeigte Konfiguration in `js/firebase-config.js` eintragen (statt `null`).
 6. Committen und pushen.

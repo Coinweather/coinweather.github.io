@@ -19,7 +19,7 @@ const PAGE_SIZE = 100;
 // Zentral berechnete Daten (scripts/snapshot.mjs, alle 15 Minuten über GitHub Actions)
 // Beim lokalen Entwickeln wird die Datei gelesen, die `node scripts/snapshot.mjs` nach out/ schreibt
 const SNAPSHOT_URL = ['localhost', '127.0.0.1'].includes(location.hostname) ? 'out/snapshot.json'
-  : 'https://raw.githubusercontent.com/aporti1705-cmd/crypto-market/data/snapshot.json';
+  : 'https://raw.githubusercontent.com/Coinweather/coinweather.github.io/data/snapshot.json';
 const SNAPSHOT_MAX_AGE_MS = 2 * 3_600_000;    // ältere Daten gelten als ausgefallen – dann rechnet der Browser selbst
 const SNAPSHOT_REFRESH_MS = 5 * 60_000;
 const LIVE_PRICE_MS = 60_000;
