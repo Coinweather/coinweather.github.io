@@ -8,10 +8,15 @@
 
 import { settings } from './util.js';
 
-// Sprache: [Name in der Sprache selbst, Schreibweise von Zahlen und Daten, Titel der Seite]
+// Sprache: [Name in der Sprache selbst, Schreibweise von Zahlen und Daten, Titel der Seite, Kürzel für Tag und Jahr]
 export const LANGS = {
-  en: ['English', 'en-US', 'Coinwetter – the weather report for the crypto market'],
-  de: ['Deutsch', 'de-DE', 'Coinwetter – die Wetterlage am Kryptomarkt'],
+  en: ['English', 'en-US', 'Coinwetter – the weather report for the crypto market', 'D', 'Y'],
+  de: ['Deutsch', 'de-DE', 'Coinwetter – die Wetterlage am Kryptomarkt', 'T', 'J'],
+  es: ['Español', 'es-ES', 'Coinwetter – el parte meteorológico del mercado cripto', 'D', 'A'],
+  fr: ['Français', 'fr-FR', 'Coinwetter – la météo du marché crypto', 'J', 'A'],
+  it: ['Italiano', 'it-IT', 'Coinwetter – il meteo del mercato crypto', 'G', 'A'],
+  pt: ['Português', 'pt-BR', 'Coinwetter – a previsão do tempo do mercado cripto', 'D', 'A'],
+  tr: ['Türkçe', 'tr-TR', 'Coinwetter – kripto piyasasının hava durumu', 'G', 'Y'],
 };
 export const CURRENCIES = ['usd', 'eur', 'chf', 'gbp', 'cad', 'aud', 'jpy'];
 const KEY = 'coinwetter-einstellungen', RATES_KEY = 'coinwetter-wechselkurse';
@@ -59,8 +64,8 @@ export function prefsControls() {
     <label><span>Währung</span> <select data-pref="currency" translate="no">${CURRENCIES.map((c) => option(c, `${c.toUpperCase()}${names ? ` – ${names.of(c.toUpperCase())}` : ''}`, c === prefs.currency)).join('')}</select></label>`;
 }
 
-// Kurzform eines Zeitraums auf den Schaltflächen: „30T“ und „1J“ heißen in anderen Sprachen „30D“ und „1Y“
-export const span = (label) => (prefs.lang === 'de' ? label : label.replace(/T$/, 'D').replace(/J$/, 'Y'));
+// Kurzform eines Zeitraums auf den Schaltflächen: „30T“ und „1J“ heißen auf Englisch „30D“ und „1Y“, auf Französisch „30J“ und „1A“
+export const span = (label) => label.replace(/[TJ]$/, (unit) => LANGS[prefs.lang][unit === 'T' ? 3 : 4]);
 
 // ---------- Übersetzung ----------
 
@@ -71,10 +76,11 @@ const harvest = (() => { try { return ['localhost', '127.0.0.1'].includes(locati
 const missing = new Set(); // im Erntebetrieb: Grundformen ohne Eintrag
 
 // Uhrzeit, Datum oder Zahl – in dieser Reihenfolge, damit „12.10.2026“ und „21:07“ je ein Platzhalter werden.
-// Ein Währungszeichen direkt an der Zahl gehört dazu: So ist die Grundform in jeder Währung dieselbe.
-export const NUMBER = /\d{1,2}:\d{2}(?::\d{2})?(?:\s?[AP]M)?|\d{1,2}[./]\d{1,2}[./]\d{2,4}|[+\-−]?(?:(?:(?:CA|AU|A|US|JP)?[$€£¥]|CHF)\s?)?\d(?:[\d.,]*\d)?(?:\s?(?:(?:CA|AU|A|US|JP)?[$€£¥]|CHF)(?!\p{L}))?/gu;
+// Ein Währungszeichen direkt an der Zahl gehört dazu, ebenso Tausendergruppen mit Leerzeichen („83 246,50 $US“):
+// So ist die Grundform in jeder Währung und in jeder Schreibweise dieselbe.
+export const NUMBER = /\d{1,2}:\d{2}(?::\d{2})?(?:\s?[AP]M)?|\d{1,2}[./]\d{1,2}[./]\d{2,4}|[+\-−]?(?:(?<![\p{L}\d])(?:[A-Z]{0,2}[$€£¥][A-Z]{0,2}|USD|EUR|CHF|GBP|CAD|AUD|JPY)\s?)?\d(?:[\d.,]*\d)?(?: \d{3}(?!\d))*(?:[.,]\d+)?(?:\s?(?:[A-Z]{0,2}[$€£¥][A-Z]{0,2}|USD|EUR|CHF|GBP|CAD|AUD|JPY)(?!\p{L}))?/gu;
 const LETTER = /\p{L}{2}/u;
-export const tidy = (text) => text.replace(/[  ]/g, ' ').replace(/\s+/g, ' ').trim();
+export const tidy = (text) => text.replace(/[ \u202f]/g, ' ').replace(/\s+/g, ' ').trim();
 
 // Satzzeichen und Klammern am Rand gehören nicht zur Grundform: „(alle Zeiträume)“, „alle Zeiträume.“ und „alle Zeiträume“
 // sind ein Eintrag. Auch ein Klammerzusatz ohne Buchstaben am Ende („… (+12)“) bleibt außen vor.
@@ -106,12 +112,15 @@ function compile(key) {
 // „Wert – Einordnung“, „Titel: Text“, mehrere Sätze hintereinander.
 const SEPARATORS = [' – ', ' · ', ' → ', ': ', '; ', '. '];
 
+// Französisch setzt vor Doppelpunkt und Strichpunkt ein schmales, nicht umbrechendes Leerzeichen
+const spaced = (mark) => (prefs.lang === 'fr' ? mark.replace(/^[:;]/, '\u202f$&') : mark);
+
 // Übersetzt einen Text ohne umgebende Leerzeichen; null, wenn es keinen Eintrag gibt
 function lookup(text, depth = 0) {
   const [lead, body, trail] = shape(text);
   if (!LETTER.test(body)) return null;
   const found = find(body, depth);
-  return found === null ? null : lead + found + trail;
+  return found === null ? null : lead + found + spaced(trail);
 }
 
 function find(text, depth) {
@@ -132,7 +141,7 @@ function find(text, depth) {
       if (at <= 0) continue;
       const parts = sep === ': ' ? [text.slice(0, at), text.slice(at + sep.length)] : text.split(sep);
       const done = parts.map((part) => lookup(part.trim(), depth + 1));
-      if (done.some((x) => x !== null)) return parts.map((part, i) => done[i] ?? part.trim()).join(sep);
+      if (done.some((x) => x !== null)) return parts.map((part, i) => done[i] ?? part.trim()).join(spaced(sep));
       if (harvest) return null;   // die einzelnen Teile sind schon als fehlend vermerkt
     }
   }

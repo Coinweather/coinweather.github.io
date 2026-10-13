@@ -418,7 +418,7 @@ const INFO = {
     <p>Dieselben drei Regeln steuern das Reserve-Ziel im Portfolio. Eigene Regeln je Altcoin (kein Kauf im eigenen Abwärtstrend, kein Kauf nach eigener Gier, Kauf nach eigener Angst)
       halfen in der Prüfung jeweils nur in einem von zwei Zeiträumen und sind deshalb nicht eingebaut.</p>
     <h3>Grundlage</h3>
-    <p>Tageskurse von 84 Coins seit 2018 (rund 174 000 Coin-Tage), geprüft in zwei getrennten Zeiträumen. Tageskurse gibt es nur für Coins, die bei Binance gehandelt werden;
+    <p>Tageskurse von 84 Coins seit 2018 (rund ${num(174000, 0)} Coin-Tage), geprüft in zwei getrennten Zeiträumen. Tageskurse gibt es nur für Coins, die bei Binance gehandelt werden;
       die übrigen bekommen eine einfachere Schnellbewertung. Token auf Aktien, Fonds, Edelmetalle und Währungen erhalten keine Prognose.</p>${LIMITS}` },
 
   index: { title: 'Jetzt kaufen? – der Markt-Index', body: () => `
@@ -665,7 +665,7 @@ function marketView() {
     <div class="table-wrap"><table>
       <thead><tr>
         ${th('rank', '#', 'num col-rank')}${th('name', 'Coin', 'col-coin')}${th('price', 'Kurs', 'num')}${th('h24', '24 h', 'num')}
-        ${th('d7', '7 T', 'num col-7d')}${th('d30', '30 T', 'num col-30d')}${th('mcap', 'Marktkap.', 'num col-cap')}
+        ${th('d7', `7 ${i18n.span('T')}`, 'num col-7d')}${th('d30', `30 ${i18n.span('T')}`, 'num col-30d')}${th('mcap', 'Marktkap.', 'num col-cap')}
         <th class="col-chart">7 Tage</th>${th('score', 'Prognose', 'col-score')}
         <th class="col-hold">Haltedauer</th><th class="col-risk">Risiko</th><th>Signal</th>
       </tr></thead>

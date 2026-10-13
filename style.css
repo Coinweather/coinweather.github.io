@@ -471,11 +471,16 @@ h2 + .info-btn, .label + .info-btn { margin-top: 8px; }
 /* Prognose-Felder und Bausteine des Scores */
 .block-sum { margin: 12px 0 0; }
 .cycle .plain { margin-top: 6px; }
-/* Sehr schmale Bildschirme: Das Menü rollt in sich, statt die Seite breiter zu machen */
+/* Schmale Bildschirme: Logo und Stand in der ersten Zeile, das Menü in einer eigenen. In Sprachen mit langen
+   Wörtern bricht es um, statt abgeschnitten zu werden oder die Seite breiter zu machen */
+@media (max-width: 560px) {
+  .top-inner { gap: 8px 12px; padding-top: 10px; padding-bottom: 10px; }
+  .status { width: auto; order: 0; flex: 1 1 0; min-width: 0; justify-content: flex-end; }
+  #updated { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  nav { order: 3; flex: 1 0 100%; min-width: 0; flex-wrap: wrap; row-gap: 4px; }
+}
 @media (max-width: 400px) {
-  nav { min-width: 0; overflow-x: auto; scrollbar-width: none; }
-  nav::-webkit-scrollbar { display: none; }
-  nav a { flex: 0 0 auto; padding: 6px 9px; font-size: 13.5px; }
+  nav a { padding: 6px 8px; font-size: 13.5px; }
 }
 
 /* Einstieg, Preise, Abo-Hinweise und Rechtstexte */

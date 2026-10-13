@@ -22,7 +22,8 @@ Danach `http://localhost:8123` öffnen.
 | `js/config.js` | Name, Betreiber, Preise, Bezahlschranke |
 | `js/site.js` | Einstieg, Preise, Rechtstexte, Hinweise aufs Abo |
 | `js/i18n.js` | Sprache und Währung der Anzeige; übersetzt die fertige Seite mit einem Wörterbuch |
-| `js/lang/en.js` | Englisches Wörterbuch (deutsche Grundform → Englisch) |
+| `js/lang/*.js` | Wörterbücher je Sprache (deutsche Grundform → Übersetzung): Englisch, Spanisch, Französisch, Italienisch, Portugiesisch, Türkisch |
+| `scripts/lang-check.mjs` | Prüft, ob jedes Wörterbuch alle Einträge hat |
 | `js/model.js` | Prognosemodell: Indikatoren, Bewertungskurven, Markt-Index, Rückblick-Test |
 | `js/manager.js` | Portfolio-Manager: Regeln für Kaufen, Verkaufen, Tauschen, Gewinnmitnahme |
 | `js/api.js` | Datenquellen: CoinGecko (Kurse), Binance (Kursgeschichte), alternative.me (Fear & Greed), cryptocurrency.cv (Nachrichten) |
@@ -111,9 +112,13 @@ Die Seite ist technisch ein öffentliches, kostenloses Werkzeug. Für ein bezahl
   Jeder Text wird auf eine Grundform gebracht (Zahlen, Beträge, Daten als `#`, Satzzeichen am Rand entfernt) und nachgeschlagen.
   Gibt es für einen ganzen Text keinen Eintrag, werden seine Teile einzeln übersetzt (getrennt an ` – `, `: `, Satzgrenzen).
   `{*}` in einem Schlüssel steht für einen beliebigen Namen.
-- Hauptsprache der Seite ist Englisch; Deutsch lässt sich im Fuß der Seite und unter „Konto“ wählen. Eine weitere Sprache ist eine weitere Datei in `js/lang/`
-  und ein Eintrag in `LANGS`.
-- Neue oder geänderte deutsche Texte brauchen einen Eintrag im Wörterbuch, sonst bleiben sie in anderen Sprachen deutsch. Zum Finden: auf `localhost`
+- Hauptsprache der Seite ist Englisch. Im Fuß der Seite und unter „Konto“ lassen sich außerdem Deutsch, Spanisch, Französisch, Italienisch,
+  Portugiesisch (Brasilien) und Türkisch wählen. Eine weitere Sprache ist eine weitere Datei in `js/lang/` und ein Eintrag in `LANGS`.
+- In einer Übersetzung setzt `#` die Zahlen der Reihe nach ein; `{1}`, `{2}` … setzen eine bestimmte Zahl ein, wenn die Sprache eine andere
+  Reihenfolge braucht (im Türkischen häufig). Satzzeichen am Rand kommen vom deutschen Text und gehören nicht in den Eintrag.
+- Neue oder geänderte deutsche Texte brauchen einen Eintrag in jedem Wörterbuch, sonst bleiben sie in anderen Sprachen deutsch. Zum Finden: auf `localhost`
   in der Konsole `localStorage.setItem('coinwetter-ernte', '1')` setzen, die Seite durchklicken und `__ernte()` aufrufen – das listet die Grundformen aller Texte.
+  `node scripts/lang-check.mjs` prüft, ob jede Sprache alle Einträge hat.
+- Die Übersetzungen sind maschinell erstellt und nicht von Muttersprachlern gegengelesen; das gilt auch für die Rechtstexte. Maßgeblich ist die deutsche Fassung.
 - Alle Werte im Programm sind US-Dollar. Die Anzeige rechnet mit den Wechselkursen aus dem Schnappschuss um (`fx`); Eingaben erfolgen in der gewählten Währung.
 - Die zentrale Berechnung legt Zahlen in Texten sprachneutral ab; `localise` in `js/util.js` schreibt sie beim Laden in der gewählten Schreibweise.
