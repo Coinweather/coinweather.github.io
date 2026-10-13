@@ -1,16 +1,18 @@
 <!doctype html>
-<html lang="de">
+<html lang="en" class="i18n-wait">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Coinwetter – die Wetterlage am Kryptomarkt</title>
-  <meta name="description" content="Coinwetter zeigt für 1000 Kryptowährungen Signale mit Trefferquote, Markt-Index und Portfolio mit Wertentwicklung – als Wahrscheinlichkeit, nicht als Versprechen. Keine Anlageberatung.">
+  <title>Coinwetter – the outlook for the crypto market</title>
+  <meta name="description" content="Coinwetter shows signals with hit rates for 1000 cryptocurrencies, a market index and a portfolio with performance tracking – as probabilities, not promises. Not investment advice.">
   <meta name="theme-color" content="#0b0f17">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Coinwetter – die Wetterlage am Kryptomarkt">
-  <meta property="og:description" content="Signale mit Trefferquote für 1000 Coins, Markt-Index, Portfolio mit Wertentwicklung. Jede Regel an Kursen seit 2018 geprüft, jedes Signal offen nachgemessen. Keine Anlageberatung.">
+  <meta property="og:title" content="Coinwetter – the outlook for the crypto market">
+  <meta property="og:description" content="Signals with hit rates for 1000 coins, market index, portfolio with performance tracking. Every rule tested on prices since 2018, every signal measured in the open. Not investment advice.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%23f7931a%27/%3E%3Cg transform=%27translate(8 8) scale(2)%27%3E%3Ccircle cx=%2715.5%27 cy=%278.5%27 r=%274.2%27 fill=%27%23fff%27 opacity=%27.55%27/%3E%3Cpath d=%27M7 19a4 4 0 0 1 .5-7.97A5.5 5.5 0 0 1 18 12.5 3.3 3.3 0 0 1 17.5 19z%27 fill=%27%23fff%27/%3E%3C/g%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
+  <!-- Die Seite erscheint erst, wenn sie in der gewählten Sprache steht – spätestens nach zwei Sekunden -->
+  <script>setTimeout(function () { document.documentElement.classList.remove("i18n-wait"); }, 2000);</script>
 </head>
 <body>
   <header class="top">
@@ -38,10 +40,11 @@
         <a href="#/preise">Pakete und Preise</a><a href="#/risiko">Risikohinweis</a><a href="#/agb">AGB</a>
         <a href="#/datenschutz">Datenschutz</a><a href="#/impressum">Impressum</a>
       </div>
+      <div class="prefs" id="foot-prefs"></div>
       <h2>So entstehen die Signale</h2>
       <p>
         Jeder Coin bekommt einen Score von −100 bis +100 aus Marktphase, Kursverlauf und Schwankung, geprüft an Tageskursen
-        von 84 Coins seit 2018. Im Bärenmarkt und bei extremer Gier gibt es keine Kaufsignale. Alle Preise in US-Dollar.
+        von 84 Coins seit 2018. Im Bärenmarkt und bei extremer Gier gibt es keine Kaufsignale.
         <button type="button" class="info-btn" data-info="model"><span aria-hidden="true">i</span>So wird gerechnet</button>
       </p>
       <p class="disclaimer">
@@ -51,7 +54,7 @@
       </p>
       <p class="source">Data provided by <a href="https://www.coingecko.com/en/api" target="_blank" rel="noopener">CoinGecko</a> ·
         Kursgeschichte: Binance · Fear &amp; Greed Index: <a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener">alternative.me</a> ·
-        Nachrichten: cryptocurrency.cv · Bewertungen werden alle 20 Minuten zentral berechnet, Kurse minütlich aktualisiert</p>
+        Nachrichten: cryptocurrency.cv · Bewertungen werden alle 15 Minuten zentral berechnet, Kurse minütlich aktualisiert</p>
     </footer>
   </main>
 

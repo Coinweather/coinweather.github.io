@@ -1,4 +1,5 @@
-import { $, esc, settings, sleep, isNum, money, compact, num, signed, tone, pct } from './util.js';
+import { $, esc, settings, sleep, isNum, money, compact, num, signed, tone, pct, fromDisplay, toDisplay, currencyCode, localise } from './util.js';
+import * as i18n from './i18n.js';
 import { SITE } from './config.js';
 import * as site from './site.js';
 import * as api from './api.js';
@@ -15,7 +16,7 @@ const FNG_REFRESH_MS = 30 * 60_000;
 const BTC_REFRESH_MS = 10 * 60_000;
 const NO_REGIME = { score: null, factors: [] };
 const PAGE_SIZE = 100;
-// Zentral berechnete Daten (scripts/snapshot.mjs, alle 20 Minuten über GitHub Actions)
+// Zentral berechnete Daten (scripts/snapshot.mjs, alle 15 Minuten über GitHub Actions)
 // Beim lokalen Entwickeln wird die Datei gelesen, die `node scripts/snapshot.mjs` nach out/ schreibt
 const SNAPSHOT_URL = ['localhost', '127.0.0.1'].includes(location.hostname) ? 'out/snapshot.json'
   : 'https://raw.githubusercontent.com/aporti1705-cmd/crypto-market/data/snapshot.json';
@@ -42,6 +43,11 @@ const state = {
   sort: { key: 'rank', dir: 1 }, page: 1, query: '', filter: 'all',
   gen: 0, nextPage: 1, pagesLoaded: 0, updated: null,
 };
+
+// Wörterbuch der gewählten Sprache laden; ab hier wird alles übersetzt, was auf der Seite erscheint
+await i18n.ready;
+i18n.start();
+$('#foot-prefs').innerHTML = i18n.prefsControls();
 
 const view = $('#view');
 let current = null;
@@ -101,7 +107,7 @@ function setStatus(error) {
   $('#dot').className = 'dot ' + (error ? 'fail' : state.updated ? 'live' : '');
   const total = api.PAGES * 250;
   const loaded = state.server ? ' · zentral berechnet' : state.coins.length < total && state.pagesLoaded < api.PAGES ? ` · ${state.coins.length} von ${total} Coins geladen` : ` · ${state.coins.length} Coins`;
-  $('#updated').textContent = state.updated ? `Stand: ${state.updated.toLocaleTimeString('de-DE')}${loaded}` : 'Lade Kurse …';
+  $('#updated').textContent = state.updated ? `Stand: ${state.updated.toLocaleTimeString(settings.locale)}${loaded}` : 'Lade Kurse …';
   $('#error').hidden = !error;
   if (error) $('#error').textContent = error + (state.coins.length ? ' Es werden die zuletzt geladenen Kurse angezeigt.' : '');
 }
@@ -134,7 +140,7 @@ function restoreCache() {
 async function loadPage(gen) {
   const page = state.nextPage;
   try {
-    const list = await api.markets(settings.currency, page);
+    const list = await api.markets('usd', page);
     if (gen !== state.gen) return false;
     const now = Date.now();
     for (const c of list) { c.fetched = now; state.raw.set(c.id, c); }
@@ -217,7 +223,8 @@ async function loadSnapshot() {
     // Die Zeitangabe in der Adresse umgeht zu lange Zwischenspeicherung
     const res = await fetch(`${SNAPSHOT_URL}?t=${Math.floor(Date.now() / SNAPSHOT_REFRESH_MS)}`);
     if (!res.ok) return false;
-    const snap = await res.json();
+    const snap = localise(await res.json());   // Zahlen in den Texten in der gewählten Schreibweise
+    i18n.setRates(snap.fx);                    // Wechselkurse für die gewählte Währung
     if (!Array.isArray(snap.coins) || snap.coins.length < 100 || Date.now() - snap.time > SNAPSHOT_MAX_AGE_MS) return false;
     if (state.server && state.updated && snap.time <= state.updated.getTime()) return true;   // nichts Neues
 
@@ -696,7 +703,7 @@ function marketView() {
     const m = state.market;
     $('#g-market').innerHTML = m ? `<div class="label">Jetzt kaufen?</div>${gauge(m.value, SELL_TO_BUY)}
         <div class="gauge-value">${m.value}<small> / 100</small></div>${badge(m, 'big')}
-        <div class="hint">${NOW_ANSWER[m.label]}<br>Sicht: nächste Wochen · über 14 Tage geglättet<br>Berechnet um ${m.time.toLocaleTimeString('de-DE')} aus den aktuellen Kursen</div>`
+        <div class="hint">${NOW_ANSWER[m.label]}<br>Sicht: nächste Wochen · über 14 Tage geglättet<br>Berechnet um ${m.time.toLocaleTimeString(settings.locale)} aus den aktuellen Kursen</div>`
       : '<div class="label">Jetzt kaufen?</div><p class="muted">Wird berechnet …</p>';
     const cy = m?.cycle;
     $('#cycle').hidden = !cy;
@@ -736,7 +743,7 @@ function marketView() {
           <div class="muted">${num(o.up / o.n * 100, 0)} % im Plus (${o.up} von ${o.n}) · Bitcoin ${signed(o.btc, 1)} %</div></div>`
         : `<div><div class="label">${label}</div><div class="value muted">–</div><div class="muted">noch keine Ergebnisse</div></div>`);
       $('#record').innerHTML = `<div class="head-row"><div><div class="label">Erfolgskontrolle</div>
-          <div class="muted">Kaufsignale der Seite, gemessen seit ${new Date(rec.since * 86_400_000).toLocaleDateString('de-DE')}</div></div>${infoBtn('record', 'So wird gemessen')}</div>
+          <div class="muted">Kaufsignale der Seite, gemessen seit ${new Date(rec.since * 86_400_000).toLocaleDateString(settings.locale)}</div></div>${infoBtn('record', 'So wird gemessen')}</div>
         <div class="stat-grid">${line('Nach 7 Tagen', rec.d7)}${line('Nach 30 Tagen', rec.d30)}</div>
         ${rec.d7 ? '' : '<p class="hint">Die Messung hat gerade begonnen. Erste Ergebnisse gibt es 7 Tage nach den ersten Signalen.</p>'}`;
     }
@@ -841,7 +848,7 @@ function drawChart(el, { t, p, overlays = [], hourly, intraday, note, marker }) 
     });
     return d;
   };
-  const date = (ms) => new Date(ms).toLocaleString('de-DE', hourly
+  const date = (ms) => new Date(ms).toLocaleString(settings.locale, hourly
     ? { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }
     : { day: '2-digit', month: '2-digit', year: 'numeric' });
   const color = p[p.length - 1] >= p[0] ? 'var(--up)' : 'var(--down)';
@@ -854,7 +861,7 @@ function drawChart(el, { t, p, overlays = [], hourly, intraday, note, marker }) 
     const i = Math.round(k / tickCount * (p.length - 1));
     const anchor = k === 0 ? 'start' : k === tickCount ? 'end' : 'middle';
     // Tagesansicht: Uhrzeit, sonst das Datum
-    const label = intraday ? new Date(t[i]).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : date(t[i]).slice(0, hourly ? 6 : 10);
+    const label = intraday ? new Date(t[i]).toLocaleTimeString(settings.locale, { hour: '2-digit', minute: '2-digit' }) : date(t[i]).slice(0, hourly ? 6 : 10);
     return `<text x="${x(i)}" y="${H - 6}" text-anchor="${anchor}" class="axis">${label}</text>`;
   }).join('');
 
@@ -894,7 +901,7 @@ function detailView(id) {
     <div id="d-head"></div>
     <section class="panel">
       <div class="panel-top"><h2>Kursverlauf</h2>
-        <div class="chips" id="ranges">${Object.keys(RANGES).map((r) => `<button class="chip ${r === d.range ? 'active' : ''}" data-range="${r}">${r}</button>`).join('')}</div></div>
+        <div class="chips" id="ranges">${Object.keys(RANGES).map((r) => `<button class="chip ${r === d.range ? 'active' : ''}" data-range="${r}">${i18n.span(r)}</button>`).join('')}</div></div>
       <div id="chart" class="chart"><p class="muted">Lade Kursverlauf …</p></div>
     </section>
     <div id="d-forecast"></div>
@@ -922,7 +929,7 @@ function detailView(id) {
         // Gleiches Kürzel, aber ein anderer Coin? Dann weicht der Kurs deutlich ab
         if (data && Math.abs(data.p[data.p.length - 1] / c.current_price - 1) > 0.1) data = null;
         const source = data ? 'Binance' : 'CoinGecko';
-        if (!data) data = await api.chart(id, settings.currency);
+        if (!data) data = await api.chart(id, 'usd');
         state.daily.set(id, { ...data, source });
         rebuild();
       }
@@ -1119,14 +1126,14 @@ function detailView(id) {
       <p>${esc(n.text)}${n.score !== null && !state.server ? ` → Einfluss auf den Score: <strong class="${tone(Math.round(n.score * 10))}">${signed(n.score * 10, 0)} Punkte</strong>` : ''}</p>
       <ul class="news">${n.items.slice(0, 8).map((it) => `<li>${tag(it.tone)}
         <span>${/^https?:\/\//.test(it.link) ? `<a href="${esc(it.link)}" target="_blank" rel="noopener">${esc(it.title)}</a>` : esc(it.title)}
-        <br><span class="muted">${esc(it.source ?? '')} · ${new Date(it.time).toLocaleDateString('de-DE')}</span></span></li>`).join('')}</ul>`;
+        <br><span class="muted">${esc(it.source ?? '')} · ${new Date(it.time).toLocaleDateString(settings.locale)}</span></span></li>`).join('')}</ul>`;
     el.innerHTML = `<section class="panel"><div class="head-row"><h2>Nachrichten</h2>${infoBtn('news')}</div>
       ${body}</section>`;
   }
 
   function stats(c) {
     const cell = (label, value) => `<div><div class="label">${label}</div><div class="value">${value}</div></div>`;
-    const coins = (v) => (isNum(v) ? `${v.toLocaleString('de-DE', { maximumFractionDigits: 0 })} ${esc(c.symbol.toUpperCase())}` : '–');
+    const coins = (v) => (isNum(v) ? `${v.toLocaleString(settings.locale, { maximumFractionDigits: 0 })} ${esc(c.symbol.toUpperCase())}` : '–');
     $('#d-stats').innerHTML = `<section class="panel"><h2>Kennzahlen</h2><div class="stat-grid">
       ${cell('Marktkapitalisierung', compact(c.market_cap))}${cell('Handelsvolumen 24 h', compact(c.total_volume))}
       ${cell('24-h-Hoch', money(c.high_24h))}${cell('24-h-Tief', money(c.low_24h))}
@@ -1244,6 +1251,22 @@ function tradingAck() {
   });
 }
 
+// Sprache oder Währung geändert: speichern – angemeldet auch im Konto – und die Seite neu aufbauen
+document.addEventListener('change', async (e) => {
+  const key = e.target.dataset?.pref;
+  if (!key) return;
+  i18n.savePrefs({ [key]: e.target.value });
+  if (depot.user) {
+    depot.data = { ...depot.data, prefs: { ...i18n.prefs } };
+    pf.save(depot.data);
+    try { await auth.savePortfolio(depot.user.uid, depot.data); } catch { /* dann gilt die Wahl nur auf diesem Gerät */ }
+  }
+  location.reload();
+});
+const prefsPanel = () => `<section class="panel"><div class="label">Einstellungen</div>
+    <div class="prefs">${i18n.prefsControls()}</div>
+    <p class="hint">Beträge werden aus US-Dollar zum aktuellen Wechselkurs umgerechnet. Eingaben machst du in der gewählten Währung.</p></section>`;
+
 function renderAccountLink() {
   const link = $('#nav-account');
   link.textContent = depot.user ? (depot.user.name || depot.user.email || 'Konto') : 'Anmelden';
@@ -1275,7 +1298,12 @@ auth.onUser(async (user) => {
       depot.stop = await auth.watchPortfolio(user.uid, (cloud, pending) => {
         if (cloud) {
           // Eigene, noch nicht bestätigte Änderungen sind lokal schon da
-          if (!pending) { depot.data = pf.normalise(cloud); pf.save(depot.data); }
+          if (!pending) {
+            depot.data = pf.normalise(cloud); pf.save(depot.data);
+            // Sprache und Währung aus dem Konto gelten auf jedem Gerät
+            const p = depot.data.prefs;
+            if (p && (p.lang !== i18n.prefs.lang || p.currency !== i18n.prefs.currency)) { i18n.savePrefs(p); location.reload(); return; }
+          }
           depot.sync = 'synced';
           askConsent();   // auch bei noch unbestätigtem Speichern: Der Stand der Zustimmung liegt dann schon lokal vor
         } else if (first) saveDepot(depot.data);   // erstes Anmelden: Portfolio aus dem Browser ins Konto übernehmen
@@ -1303,6 +1331,8 @@ const SYNC_TEXT = {
 // ---------- Daytrading ----------
 
 const TRADING_KEY = 'krypto-markt-handel';
+// Zahl für ein Eingabefeld: in der gewählten Schreibweise, ohne Tausendertrennung
+const inputText = (v) => v.toLocaleString(settings.locale, { useGrouping: false, maximumFractionDigits: 2 });
 // Größter sinnvoller Hebel: Die Zwangsauflösung (rund 90 % / Hebel unter dem Einstieg) soll mindestens doppelt so weit
 // entfernt liegen wie der Stopp. Mehr als 3-fach wird nie vorgeschlagen – ab 5-fach häuften sich in der Rückrechnung
 // die Liquidationen.
@@ -1322,8 +1352,8 @@ function tradingView() {
     <section class="panel">
       <div class="head-row"><div class="label">Einsatz berechnen</div>${infoBtn('sizing', 'Einsatz und Hebel')}</div>
       <form id="t-sizing" class="sizing">
-        <label>Kontogröße (USD)<input id="t-account" inputmode="decimal" placeholder="z. B. 5.000" value="${sizing.account ? String(sizing.account).replace('.', ',') : ''}"></label>
-        <label>Risiko je Handel (% des Kontos)<input id="t-risk" inputmode="decimal" value="${String(sizing.risk).replace('.', ',')}"></label>
+        <label>Kontogröße (${currencyCode()})<input id="t-account" inputmode="decimal" placeholder="z. B. 5000" value="${sizing.account ? inputText(toDisplay(sizing.account)) : ''}"></label>
+        <label>Risiko je Handel (% des Kontos)<input id="t-risk" inputmode="decimal" value="${inputText(sizing.risk)}"></label>
       </form>
       <p class="notice" id="t-risk-note" hidden>Gerechnet wird mit höchstens 5 % Risiko je Handel.</p>
     </section>
@@ -1335,7 +1365,7 @@ function tradingView() {
   $('#t-sizing').addEventListener('input', () => {
     const account = pf.parseInput($('#t-account').value), risk = pf.parseInput($('#t-risk').value);
     // Mehr als 5 % Risiko je Handel rechnet die Seite nicht – das wäre nach wenigen Verlusten in Folge das halbe Konto
-    sizing = { account: account > 0 ? account : null, risk: risk > 0 ? Math.min(risk, 5) : 1 };
+    sizing = { account: account > 0 ? fromDisplay(account) : null, risk: risk > 0 ? Math.min(risk, 5) : 1 };
     $('#t-risk-note').hidden = !(risk > 5);
     try { localStorage.setItem(TRADING_KEY, JSON.stringify(sizing)); } catch { /* ohne Speicher gilt die Eingabe bis zum Neuladen */ }
     update();
@@ -1379,7 +1409,7 @@ function tradingView() {
           : 'Kein Coin erfüllt im Moment eines der beiden geprüften Muster. Lieber kein Handel als ein unbegründeter.';
     $('#t-long').innerHTML = '<h2>Long – auf steigende Kurse</h2>' + (list.length ? `<div class="trades">${list.map((c) => {
       const t = c.analysis.trade, s = TRADE_SETUPS[t.kind], [cls, text] = status(c, t), lev = maxLeverage(t.stopPct);
-      const until = new Date(t.time + t.days * 86_400_000).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' });
+      const until = new Date(t.time + t.days * 86_400_000).toLocaleDateString(settings.locale, { weekday: 'short', day: 'numeric', month: 'short' });
       return `<div class="panel trade">
         <div class="panel-top">${coinCell(c)}<span class="badge buy">Long</span></div>
         <div class="trade-why">${esc(s.label)}${t.kind === 'selloff' ? ` · ${signed(t.r7, 0)} % in 7 Tagen, zusammen mit dem Markt` : ` · Score ${signed(c.analysis.score, 0)}`}</div>
@@ -1447,7 +1477,7 @@ function accountView(gate = false) {
       return;
     }
     if (depot.user) {
-      const a = access(), until = a.until ? new Date(a.until).toLocaleDateString('de-DE') : null;
+      const a = access(), until = a.until ? new Date(a.until).toLocaleDateString(settings.locale) : null;
       const planText = a.reason === 'open' ? 'Die Bezahlschranke ist ausgeschaltet – alle Funktionen sind offen.'
         : a.reason === 'owner' ? 'Betreiber-Zugang – alle Funktionen sind freigeschaltet.'
         : a.reason === 'paid' ? `Paket ${SITE.plans[a.plan].name} ist aktiv${until ? ` bis ${until}` : ''}${a.cancel ? ' und verlängert sich nicht mehr' : ''}.`
@@ -1460,6 +1490,7 @@ function accountView(gate = false) {
       </section>
       <section class="panel"><div class="label">Abo</div><p>${planText}</p>
         <p><a class="btn ghost" href="#/preise">Pakete und Preise</a>${a.reason === 'paid' && SITE.manageUrl ? ` <a class="btn ghost" href="${esc(SITE.manageUrl)}" target="_blank" rel="noopener">Abo verwalten</a>` : ''}</p></section>
+      ${prefsPanel()}
       <section class="panel"><div class="label">Deine Daten</div>
         <p class="hint">Dein Portfolio kannst du auf der Portfolio-Seite als Tabelle exportieren. Löschst du dein Konto, werden Portfolio und Anmeldung endgültig entfernt.${a.reason === 'paid' ? ' Ein laufendes Abo kündigst du bitte vorher.' : ''}</p>
         <p class="hint">Konto-Kennung: <code>${esc(depot.user.uid)}</code></p>
@@ -1484,8 +1515,8 @@ function accountView(gate = false) {
           </div>
           <button class="link" type="button" id="a-reset">Passwort vergessen?</button>
         </form>
-        <p class="hint">Mit dem Erstellen eines Kontos akzeptierst du die <a href="#/agb">AGB</a> und bestätigst, den <a href="#/risiko">Risikohinweis</a>
-          und die <a href="#/datenschutz">Datenschutzerklärung</a> gelesen zu haben. ${esc(SITE.name)} ist keine Anlageberatung.</p>
+        <p class="hint">Mit dem Erstellen eines Kontos akzeptierst du die <a href="#/agb">AGB</a>. Bitte lies vorher den <a href="#/risiko">Risikohinweis</a>
+          und die <a href="#/datenschutz">Datenschutzerklärung</a>. ${esc(SITE.name)} ist keine Anlageberatung.</p>
         <p id="a-msg" class="notice" hidden></p>
       </section>`;
     view.innerHTML = `<div class="gate">
@@ -1495,7 +1526,8 @@ function accountView(gate = false) {
           ${BENEFITS}
         </div>
         ${form}
-      </div>`;
+      </div>
+      ${prefsPanel()}`;
     $('#a-google').addEventListener('click', () => act(() => auth.loginGoogle(), true));
     $('#a-form').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -1540,7 +1572,7 @@ function accountView(gate = false) {
 
 const ALLOC_COLORS = ['var(--accent)', 'var(--violet)', 'var(--up)', '#38bdf8', 'var(--hold)', '#f472b6'];
 const MOVE_LABEL = { sell: 'Verkaufen', profit: 'Gewinn mitnehmen', reduce: 'Reduzieren', swap: 'Tauschen', buy: 'Kaufen', add: 'Nachkaufen' };
-const dateText = (d) => d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const dateText = (d) => d.toLocaleDateString(settings.locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
 
 // Zuletzt berechnete Vorschläge. Sie bleiben stehen, bis sich das Portfolio ändert oder neu berechnet wird –
 // laufende Kursänderungen verschieben sie nicht.
@@ -1571,7 +1603,7 @@ function portfolioView() {
       <div id="p-alloc"></div>
       <section class="panel" id="p-perf" hidden>
         <div class="panel-top"><div><h2>Wertentwicklung</h2>${infoBtn('performance')}</div>
-          <div class="chips" id="p-perf-ranges">${Object.keys(PERF_RANGES).map((r) => `<button class="chip" data-perf="${r}">${r}</button>`).join('')}</div></div>
+          <div class="chips" id="p-perf-ranges">${Object.keys(PERF_RANGES).map((r) => `<button class="chip" data-perf="${r}">${i18n.span(r)}</button>`).join('')}</div></div>
         <div id="p-perf-chart" class="chart"></div>
         <div class="stat-grid" id="p-perf-stats"></div>
         <p class="hint" id="p-perf-note"></p>
@@ -1593,7 +1625,7 @@ function portfolioView() {
         <label>Coin <input id="p-coin" list="coinlist" placeholder="z. B. Bitcoin oder BTC" required autocomplete="off"></label>
         <datalist id="coinlist"></datalist>
         <label>Menge <input id="p-amount" inputmode="decimal" placeholder="0,5" required></label>
-        <label>Kaufpreis je Coin in USD (optional) <input id="p-cost" inputmode="decimal" placeholder="leer = aktueller Kurs"></label>
+        <label>Kaufpreis je Coin in ${currencyCode()} (optional) <input id="p-cost" inputmode="decimal" placeholder="leer = aktueller Kurs"></label>
         <p id="p-add-msg" class="notice" hidden></p>
         <div class="btn-row"><button class="btn" type="submit">Hinzufügen</button><button class="btn ghost" type="button" data-close>Abbrechen</button></div>
       </form>
@@ -1631,7 +1663,7 @@ function portfolioView() {
         <p class="hint" id="r-hint"></p>
         <div class="reserve-row">
           <form id="p-cash" class="inline-form">
-            <label for="p-cash-value">Bargeld außerhalb der Coins (USD)</label>
+            <label for="p-cash-value">Bargeld außerhalb der Coins (${currencyCode()})</label>
             <input id="p-cash-value" inputmode="decimal" placeholder="0">
             <button class="btn ghost small" type="submit">Speichern</button>
           </form>
@@ -1646,7 +1678,7 @@ function portfolioView() {
     </dialog>`;
 
   const say = (text) => { message = text; update(); };
-  const amountText = (v) => v.toLocaleString('de-DE', { maximumFractionDigits: 12, useGrouping: false });
+  const amountText = (v) => v.toLocaleString(settings.locale, { maximumFractionDigits: 12, useGrouping: false });
   const copy = () => depot.data.positions.map((p) => ({ ...p }));
   const store = (positions, extra = {}, opts = {}) => saveDepot({ ...depot.data, positions, ...extra }, opts);
   const find = coinOf;
@@ -1671,7 +1703,7 @@ function portfolioView() {
     const c = (m && state.coins.find((x) => x.name === m[1].trim() && x.symbol.toUpperCase() === m[2].trim().toUpperCase()))
       || find({ symbol: text, name: text });
     const amount = pf.parseInput($('#p-amount').value);
-    const cost = pf.parseInput($('#p-cost').value);
+    const cost = fromDisplay(pf.parseInput($('#p-cost').value));
     if (!c) return fail(`„${text}“ wurde unter den geladenen Coins nicht gefunden.`);
     if (!(amount > 0)) return fail('Bitte eine Menge größer als 0 eingeben.');
     message = `${c.name} hinzugefügt.`;
@@ -1719,7 +1751,7 @@ function portfolioView() {
       ${ok ? `<ul class="import-list">${result.positions.slice(0, 8).map((p) => {
           const c = find(p);
           return `<li><span class="tag ${c ? 'up' : 'down'}">${c ? 'gefunden' : 'unbekannt'}</span>
-            <span><strong>${esc(c?.name ?? p.name ?? p.symbol)}</strong> · ${p.amount.toLocaleString('de-DE', { maximumFractionDigits: 8 })} ${esc((c?.symbol ?? p.symbol ?? '').toUpperCase())}${p.cost ? ` · Ø ${money(p.cost)}` : ''}</span></li>`;
+            <span><strong>${esc(c?.name ?? p.name ?? p.symbol)}</strong> · ${p.amount.toLocaleString(settings.locale, { maximumFractionDigits: 8 })} ${esc((c?.symbol ?? p.symbol ?? '').toUpperCase())}${p.cost ? ` · Ø ${money(p.cost)}` : ''}</span></li>`;
         }).join('')}</ul>
         <p class="hint">${result.positions.length} Positionen, davon ${found} unter den Top 1000 gefunden${result.positions.length > 8 ? ` (gezeigt: die ersten 8)` : ''}${result.skipped ? ` · ${result.skipped} Zeilen ohne Coin oder Menge übersprungen` : ''}.</p>`
         : `<p class="notice">${!hasCoin || imp.columns.amount === undefined ? 'Bitte oben die Spalten für Coin und Menge auswählen.' : 'Mit dieser Zuordnung ergeben sich keine Bestände. Stimmt die Spalte für die Menge?'}</p>`}
@@ -1757,7 +1789,7 @@ function portfolioView() {
   $('#p-cash').addEventListener('submit', (e) => {
     e.preventDefault();
     const raw = $('#p-cash-value').value.trim();
-    const cash = raw ? pf.parseInput(raw) : 0;
+    const cash = raw ? fromDisplay(pf.parseInput(raw)) : 0;
     if (!(cash >= 0)) return say('Bitte einen Betrag von 0 oder mehr eingeben.');
     message = 'Bargeld gespeichert.';
     $('#p-cash-value').blur();
@@ -1785,7 +1817,7 @@ function portfolioView() {
     const c = find(pos);
     const units = pf.parseInput($('#e-amount').value);
     if (!(units > 0)) return { pos, c, error: 'Bitte eine Menge größer als 0 eingeben.' };
-    if (units > pos.amount * 1.0000001) return { pos, c, error: `Du hast nur ${pos.amount.toLocaleString('de-DE', { maximumFractionDigits: 8 })}.` };
+    if (units > pos.amount * 1.0000001) return { pos, c, error: `Du hast nur ${pos.amount.toLocaleString(settings.locale, { maximumFractionDigits: 8 })}.` };
     const amount = Math.min(units, pos.amount);
     if (edit.action === 'remove') return { pos, c, amount };
     if (!c || !isNum(c.current_price)) return { pos, c, error: 'Für diesen Coin gibt es keinen Kurs – er lässt sich nur entfernen.' };
@@ -1807,11 +1839,11 @@ function portfolioView() {
     for (const b of $('#e-actions').children) b.classList.toggle('active', b.dataset.action === edit.action);
     $('#e-title').textContent = `${p.c?.name ?? p.pos?.name ?? p.pos?.symbol ?? 'Position'} ändern`;
     $('#e-help').textContent = EDIT[edit.action].help;
-    $('#e-have').textContent = p.pos ? `(vorhanden: ${p.pos.amount.toLocaleString('de-DE', { maximumFractionDigits: 8 })} ${sym})` : '';
+    $('#e-have').textContent = p.pos ? `(vorhanden: ${p.pos.amount.toLocaleString(settings.locale, { maximumFractionDigits: 8 })} ${sym})` : '';
     $('#e-target-row').hidden = edit.action !== 'swap';
     $('#e-fee-row').hidden = edit.action === 'remove';
     $('#e-submit').textContent = EDIT[edit.action].button;
-    const units = (v) => v.toLocaleString('de-DE', { maximumSignificantDigits: 6 });
+    const units = (v) => v.toLocaleString(settings.locale, { maximumSignificantDigits: 6 });
     $('#e-preview').innerHTML = p.error ? ''
       : edit.action === 'swap' ? `${units(p.amount)} ${esc(sym)} (${money(p.usd)}) → rund <strong>${units(p.toUnits)} ${esc(p.to.symbol.toUpperCase())}</strong>${p.fee ? ` · Gebühr rund ${money(p.usd * p.fee * 2)}` : ''}`
         : edit.action === 'sell' ? `${units(p.amount)} ${esc(sym)} → <strong>${money(p.proceeds)}</strong> ins Bargeld${p.fee ? ` · Gebühr rund ${money(p.usd * p.fee)}` : ''}`
@@ -1848,7 +1880,7 @@ function portfolioView() {
     const p = renderEdit(true);
     if (p.error) return;
     const sym = (p.c?.symbol ?? p.pos.symbol ?? '').toUpperCase();
-    const units = p.amount.toLocaleString('de-DE', { maximumSignificantDigits: 6 });
+    const units = p.amount.toLocaleString(settings.locale, { maximumSignificantDigits: 6 });
     if (edit.action === 'remove') {
       message = `${units} ${sym} entfernt.`;
       $('#dlg-edit').close();
@@ -1871,11 +1903,12 @@ function portfolioView() {
 
   $('#p-clear').addEventListener('click', () => {
     if (!confirm('Portfolio wirklich leeren? Bestand, Wertentwicklung und Verlauf werden gelöscht.')) return;
-    message = 'Portfolio geleert.'; saveDepot({ ...pf.empty(), consent: depot.data.consent });
+    message = 'Portfolio geleert.'; saveDepot({ ...pf.empty(), consent: depot.data.consent, prefs: depot.data.prefs });
   });
-  // Bestand als Tabelle herunterladen – mit Semikolon und Komma, so öffnet Excel die Datei richtig
+  // Bestand als Tabelle herunterladen – Trennzeichen und Dezimalzeichen so, wie Excel sie in der gewählten Sprache erwartet
   $('#p-export').addEventListener('click', () => {
-    const de = (v) => (isNum(v) ? String(v).replace('.', ',') : '');
+    const comma = i18n.prefs.lang === 'de';
+    const de = (v) => (!isNum(v) ? '' : comma ? String(v).replace('.', ',') : String(v));
     const lines = [['Coin', 'Kürzel', 'Menge', 'Kaufpreis USD', 'Kurs USD', 'Wert USD']];
     for (const pos of depot.data.positions) {
       const c = find(pos);
@@ -1883,7 +1916,7 @@ function portfolioView() {
     }
     if (depot.data.cash) lines.push(['Bargeld', 'USD', de(depot.data.cash), '', '1', de(depot.data.cash)]);
     // Vorangestelltes Zeichen U+FEFF: damit erkennt Excel die Umlaute
-    const csv = String.fromCharCode(0xFEFF) + lines.map((row) => row.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(';')).join(String.fromCharCode(13, 10));
+    const csv = String.fromCharCode(0xFEFF) + lines.map((row) => row.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(comma ? ';' : ',')).join(String.fromCharCode(13, 10));
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     a.download = `portfolio-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -1945,7 +1978,7 @@ function portfolioView() {
       if (data && Math.abs(data.p[data.p.length - 1] / c.current_price - 1) > 0.1) data = null;   // gleiches Kürzel, anderer Coin
       if (!data && fallbacks < 3) {
         fallbacks++; source = 'CoinGecko';
-        try { data = await api.chart(id, settings.currency); } catch { /* Limit erreicht – es bleibt beim heutigen Kurs */ }
+        try { data = await api.chart(id, 'usd'); } catch { /* Limit erreicht – es bleibt beim heutigen Kurs */ }
       }
       if (data) state.daily.set(id, { ...data, source });
     }
@@ -1999,10 +2032,10 @@ function portfolioView() {
     const last = all[all.length - 1];
     const sinceStart = tr.performance(all), inRange = tr.performance(pts);
     const b0 = btc(start), b1 = btc(today);
-    const began = new Date(track.states[0].t).toLocaleDateString('de-DE');
+    const began = new Date(track.states[0].t).toLocaleDateString(settings.locale);
     const cell = (label, value, sub) => `<div><div class="label">${label}</div><div class="value">${value}</div><div class="muted">${sub}</div></div>`;
     $('#p-perf-stats').innerHTML =
-      cell(`Zeitraum ${perfRange}`, inRange === null ? '–' : pct(inRange), first > 0 ? 'teils zurückgerechnet' : 'ohne Ein- und Auszahlungen')
+      cell(`Zeitraum ${i18n.span(perfRange)}`, inRange === null ? '–' : pct(inRange), first > 0 ? 'teils zurückgerechnet' : 'ohne Ein- und Auszahlungen')
       + cell('Seit Beginn', sinceStart === null ? '–' : pct(sinceStart), `erfasst seit ${began}`)
       + cell('Gewinn seit Beginn', `<span class="${tone(Math.round(last.value - last.in))}">${money(last.value - last.in)}</span>`, `eingezahlt ${money(last.in)}`)
       + cell('Bitcoin seit Beginn', b0 && b1 && all.length > 1 ? pct((b1 / b0 - 1) * 100) : '–', 'zum Vergleich');
@@ -2015,7 +2048,7 @@ function portfolioView() {
     const log = depot.data.log;
     const open = !!$('#p-log details')?.open;
     $('#p-log').innerHTML = log.length ? `<details class="log"${open ? ' open' : ''}><summary>Verlauf – die letzten ${log.length} Änderungen</summary>
-        <ul class="plain">${[...log].reverse().map((entry) => `<li><span class="muted">${new Date(entry.t).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span> · ${esc(entry.text)}</li>`).join('')}</ul></details>` : '';
+        <ul class="plain">${[...log].reverse().map((entry) => `<li><span class="muted">${new Date(entry.t).toLocaleString(settings.locale, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span> · ${esc(entry.text)}</li>`).join('')}</ul></details>` : '';
   }
 
   const self = { update };
@@ -2077,7 +2110,7 @@ function portfolioView() {
         : `<div><div class="coin-name">${esc(pos.name || pos.symbol)}</div><div class="coin-sym">${state.pagesLoaded < api.PAGES ? 'wird geladen …' : 'nicht in den Top 1000'}</div></div>`;
       return `<tr>
         <td class="col-coin">${name}</td>
-        <td class="num">${pos.amount.toLocaleString('de-DE', { maximumFractionDigits: 8 })}</td>
+        <td class="num">${pos.amount.toLocaleString(settings.locale, { maximumFractionDigits: 8 })}</td>
         <td class="num col-7d">${c ? money(c.current_price) : '–'}</td>
         <td class="num">${pct(c?.price_change_percentage_24h_in_currency)}</td>
         <td class="num">${money(value)}</td>
@@ -2180,11 +2213,11 @@ function portfolioView() {
 
     const p = advice.plan;
     const stale = Date.now() - advice.time > ADVICE_STALE_MS;
-    const amount = (m) => `${m.units.toLocaleString('de-DE', { maximumSignificantDigits: 4 })} ${esc(m.symbol.toUpperCase())}`;
+    const amount = (m) => `${m.units.toLocaleString(settings.locale, { maximumSignificantDigits: 4 })} ${esc(m.symbol.toUpperCase())}`;
     const cards = p.moves.map((m, i) => `<article class="move ${m.type}">
         <div class="move-top"><span class="move-type">${MOVE_LABEL[m.type]}</span><h3>${esc(m.title)}</h3><strong>${money(m.usd)}</strong></div>
         <p class="muted">${m.type === 'swap'
-          ? `${amount(m)} abgeben → rund ${m.toUnits.toLocaleString('de-DE', { maximumSignificantDigits: 4 })} ${esc(m.toCoin.symbol.toUpperCase())} erhalten · Gebühr rund ${money(m.fee)} (Verkauf und Kauf)`
+          ? `${amount(m)} abgeben → rund ${m.toUnits.toLocaleString(settings.locale, { maximumSignificantDigits: 4 })} ${esc(m.toCoin.symbol.toUpperCase())} erhalten · Gebühr rund ${money(m.fee)} (Verkauf und Kauf)`
           : `${m.type === 'buy' || m.type === 'add' ? 'Für' : 'Etwa'} ${amount(m)} zum Kurs von ${money(m.price)} · Gebühr rund ${money(m.fee)}`}</p>
         <dl>
           <div><dt>Ziel</dt><dd>${esc(m.goal)}</dd></div>
@@ -2196,7 +2229,7 @@ function portfolioView() {
     const holds = p.holds.length ? `<p><strong>Halten:</strong> ${p.holds.map((h) => `${esc(h.name)} (${signed(h.score, 0)})`).join(', ')} – hier lohnt im Moment kein Handel.</p>` : '';
 
     el.innerHTML = `<section class="panel manager">
-      <div class="panel-top"><div><h2>Vorschläge</h2><div class="muted">Stand ${advice.time.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr${stale ? ' – älter als 30 Minuten' : ''}</div></div>
+      <div class="panel-top"><div><h2>Vorschläge</h2><div class="muted">Stand ${advice.time.toLocaleTimeString(settings.locale, { hour: '2-digit', minute: '2-digit' })} Uhr${stale ? ' – älter als 30 Minuten' : ''}</div></div>
         <div class="btn-row">${infoBtn('manager', 'So arbeitet der Manager')}<button class="btn ghost small" data-recalc>Neu berechnen</button></div></div>
       <p>${depot.data.reservePct === null
           ? `${esc(p.exposure.text)} Reserve-Ziel nach der Strategie „${RESERVE_MODES[depot.data.reserveMode].label}“: ${num((1 - p.exposure.share) * 100, 0)} %.`

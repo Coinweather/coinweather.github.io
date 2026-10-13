@@ -519,3 +519,10 @@ h2 + .info-btn, .label + .info-btn { margin-top: 8px; }
 .link.danger { color: var(--down); }
 .dialog-actions { margin-top: 18px; }
 .label a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
+/* Sprache und Währung */
+html.i18n-wait body { visibility: hidden; }
+.prefs { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin: 8px 0; }
+.prefs label { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+.prefs select { background: var(--panel-2); color: var(--text); border: 1px solid var(--line-strong); border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 14px; max-width: 100%; }
+#foot-prefs { margin-bottom: 16px; }

@@ -1,10 +1,10 @@
-# Berechnet alle 20 Minuten Kurse, Bewertungen und Markt-Index und legt das Ergebnis
+# Berechnet alle 15 Minuten Kurse, Bewertungen und Markt-Index und legt das Ergebnis
 # als snapshot.json im Zweig "data" ab. Die Website lädt nur noch diese Datei.
 name: Daten berechnen
 
 on:
   schedule:
-    - cron: '7,27,47 * * * *'
+    - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
 
 permissions:

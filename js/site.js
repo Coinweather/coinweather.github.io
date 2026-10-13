@@ -2,12 +2,13 @@
 // Die Texte zu Recht und Risiko sind Vorlagen – vor dem Verkauf von einer Fachperson prüfen lassen (siehe GO-LIVE.md).
 
 import { SITE, operatorReady, selling } from './config.js';
-import { esc, num, signed } from './util.js';
+import { esc, num, signed, settings } from './util.js';
 
-const price = (x) => `${num(x, 2)} ${SITE.currency}`;
-const dateText = (iso) => new Date(iso).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' });
+const price = (x) => new Intl.NumberFormat(settings.locale, { style: 'currency', currency: SITE.currency }).format(x);
+const dateText = (iso) => new Date(iso).toLocaleDateString(settings.locale, { day: 'numeric', month: 'long', year: 'numeric' });
 const op = SITE.operator;
-const or = (value, placeholder) => (value ? esc(value) : `<span class="todo">[${placeholder}]</span>`);
+// Angaben des Betreibers bleiben in jeder Sprache, wie sie eingetragen sind
+const or = (value, placeholder) => (value ? `<span translate="no">${esc(value)}</span>` : `<span class="todo">[${placeholder}]</span>`);
 
 // ---------- Betreiber-Zugang ----------
 
@@ -86,16 +87,16 @@ export function pricingView(el, { access, user, record }) {
       const url = `${plan.checkout}${plan.checkout.includes('?') ? '&' : '?'}custom=${encodeURIComponent(user().uid)}`;
       return `<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">${esc(plan.name)} abonnieren</a>`;
     };
-    const until = a.until ? ` bis ${new Date(a.until).toLocaleDateString('de-DE')}` : '';
+    const until = a.until ? ` bis ${new Date(a.until).toLocaleDateString(settings.locale)}` : '';
     const status = a.reason === 'paid' ? `<p class="notice ok">Dein Paket ${esc(SITE.plans[a.plan].name)} ist aktiv${until}${a.cancel ? ' und verlängert sich nicht mehr' : ''}.</p>`
       : a.reason === 'owner' ? '<p class="notice ok">Betreiber-Zugang: Alle Funktionen sind für dich freigeschaltet.</p>'
       : a.reason === 'open' ? '<p class="notice">Die Bezahlschranke ist ausgeschaltet – alle Funktionen sind offen.</p>'
       : a.reason === 'none' ? '<p class="notice">Für dein Konto läuft kein Abo. Wähle ein Paket, um die Inhalte zu sehen.</p>' : '';
     const rec = record?.();
     const measured = !rec ? '' : `<section class="panel"><div class="label">Erfolgskontrolle – offen nachgemessen</div>
-      <p>${rec.d7 ? `Kaufsignale der Seite seit ${new Date(rec.since * 86_400_000).toLocaleDateString('de-DE')}: nach 7 Tagen im Schnitt <strong>${signed(rec.d7.avg, 1)} %</strong>,
+      <p>${rec.d7 ? `Kaufsignale der Seite seit ${new Date(rec.since * 86_400_000).toLocaleDateString(settings.locale)}: nach 7 Tagen im Schnitt <strong>${signed(rec.d7.avg, 1)} %</strong>,
         ${rec.d7.up} von ${rec.d7.n} im Plus (Bitcoin im selben Zeitraum ${signed(rec.d7.btc, 1)} %).`
-        : `Jedes Kaufsignal der Seite wird seit ${new Date(rec.since * 86_400_000).toLocaleDateString('de-DE')} nach 7 und 30 Tagen nachgemessen. Erste Ergebnisse erscheinen 7 Tage nach den ersten Signalen.`}</p></section>`;
+        : `Jedes Kaufsignal der Seite wird seit ${new Date(rec.since * 86_400_000).toLocaleDateString(settings.locale)} nach 7 und 30 Tagen nachgemessen. Erste Ergebnisse erscheinen 7 Tage nach den ersten Signalen.`}</p></section>`;
     const yes = (t) => `<li class="yes">${t}</li>`;
     const card = (key, featured, hint, list) => `<section class="panel plan${featured ? ' featured' : ''}">
         <div class="label">${esc(SITE.plans[key].name)}</div>
@@ -210,7 +211,7 @@ const LEGAL = {
     <p>Es gilt das Recht des Staates, in dem der Anbieter seinen Sitz hat (${esc(op.country)}), unter Ausschluss des UN-Kaufrechts. Zwingende Schutzvorschriften des Staates, in dem du als Verbraucher wohnst, bleiben unberührt.
       Gerichtsstand ist der Sitz des Anbieters, soweit das Gesetz nichts anderes vorschreibt.</p>
     <h3>14. Schlussbestimmung</h3>
-    <p>Ist eine Bestimmung unwirksam, bleiben die übrigen gültig.</p>`],
+    <p>Ist eine Bestimmung unwirksam, bleiben die übrigen gültig. Maßgeblich ist die deutsche Fassung dieser Bedingungen. Übersetzungen dienen nur dem Verständnis.</p>`],
 
   datenschutz: () => ['Datenschutzerklärung', `${missing()}
     <h3>Verantwortlich</h3>${address()}

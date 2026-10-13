@@ -12,6 +12,7 @@
 // Die Regeln wurden mit Gebühren über mehrere Jahre zurückgerechnet (siehe Hinweise auf der Seite).
 
 import { fearZone, CORE_IDS, CORE_DD } from './model.js';
+import { settings } from './util.js';
 
 export const DEFAULTS = {
   fee: 0.0025,            // Gebühr je Kauf oder Verkauf
@@ -411,7 +412,7 @@ export function plan({ holdings, cash = 0, candidates = [], core = [], regime, o
 }
 
 const ORDER = { sell: 0, profit: 1, reduce: 2, swap: 3, buy: 4, add: 5 };
-const fmt = (v) => (v > 0 ? '+' : '') + Math.round(v).toLocaleString('de-DE');
+const fmt = (v) => (v > 0 ? '+' : '') + Math.round(v).toLocaleString(settings.locale);
 
 // Der stärkste Einzelfaktor als kurze Begründung
 function factorHint(a) {

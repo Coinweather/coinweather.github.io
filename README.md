@@ -21,6 +21,8 @@ Danach `http://localhost:8123` öffnen.
 | `js/app.js` | Ansichten (Markt, Detail, Portfolio, Konto) und Datenabruf |
 | `js/config.js` | Name, Betreiber, Preise, Bezahlschranke |
 | `js/site.js` | Einstieg, Preise, Rechtstexte, Hinweise aufs Abo |
+| `js/i18n.js` | Sprache und Währung der Anzeige; übersetzt die fertige Seite mit einem Wörterbuch |
+| `js/lang/en.js` | Englisches Wörterbuch (deutsche Grundform → Englisch) |
 | `js/model.js` | Prognosemodell: Indikatoren, Bewertungskurven, Markt-Index, Rückblick-Test |
 | `js/manager.js` | Portfolio-Manager: Regeln für Kaufen, Verkaufen, Tauschen, Gewinnmitnahme |
 | `js/api.js` | Datenquellen: CoinGecko (Kurse), Binance (Kursgeschichte), alternative.me (Fear & Greed), cryptocurrency.cv (Nachrichten) |
@@ -102,3 +104,16 @@ Die Seite ist technisch ein öffentliches, kostenloses Werkzeug. Für ein bezahl
 - **Bezahlschranke:** Derzeit liegen Code und berechnete Daten offen im Netz. Ein Abo braucht einen Zahlungsanbieter und einen Server, der die Daten nur an zahlende Konten ausliefert.
 - **Betrieb:** Die Berechnung läuft über GitHub Actions ohne Zusage zur Pünktlichkeit. Zahlende Kunden brauchen einen verlässlicheren Dienst und eine Überwachung.
 - **Nachweis:** Die Erfolgskontrolle misst seit dem 12.10.2026. Belastbar wird sie erst nach mehreren Monaten und Marktphasen.
+
+## Sprachen und Währungen
+
+- Die Texte stehen auf Deutsch im Programm. Für andere Sprachen übersetzt `js/i18n.js` die fertige Seite mit einem Wörterbuch aus `js/lang/`:
+  Jeder Text wird auf eine Grundform gebracht (Zahlen, Beträge, Daten als `#`, Satzzeichen am Rand entfernt) und nachgeschlagen.
+  Gibt es für einen ganzen Text keinen Eintrag, werden seine Teile einzeln übersetzt (getrennt an ` – `, `: `, Satzgrenzen).
+  `{*}` in einem Schlüssel steht für einen beliebigen Namen.
+- Hauptsprache der Seite ist Englisch; Deutsch lässt sich im Fuß der Seite und unter „Konto“ wählen. Eine weitere Sprache ist eine weitere Datei in `js/lang/`
+  und ein Eintrag in `LANGS`.
+- Neue oder geänderte deutsche Texte brauchen einen Eintrag im Wörterbuch, sonst bleiben sie in anderen Sprachen deutsch. Zum Finden: auf `localhost`
+  in der Konsole `localStorage.setItem('coinwetter-ernte', '1')` setzen, die Seite durchklicken und `__ernte()` aufrufen – das listet die Grundformen aller Texte.
+- Alle Werte im Programm sind US-Dollar. Die Anzeige rechnet mit den Wechselkursen aus dem Schnappschuss um (`fx`); Eingaben erfolgen in der gewählten Währung.
+- Die zentrale Berechnung legt Zahlen in Texten sprachneutral ab; `localise` in `js/util.js` schreibt sie beim Laden in der gewählten Schreibweise.

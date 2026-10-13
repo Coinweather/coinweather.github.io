@@ -7,6 +7,10 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { quickAnalyse, detailAnalyse, marketIndex, prepare, analyseNews } from '../js/model.js';
+import { settings } from '../js/util.js';
+
+// Zahlen in den Texten als Platzhalter ablegen: Die Website schreibt sie in der Sprache des Nutzers (util.js, localise)
+settings.tokens = true;
 
 const OUT = process.argv[2] ?? 'out/snapshot.json';
 const PAGES = 4;
@@ -165,10 +169,19 @@ const sumUp = (key) => {
 };
 const record = { since: track.since, days: track.days.length, d7: sumUp('e7'), d30: sumUp('e30') };
 
+// Wechselkurse je US-Dollar für die Anzeige in anderen Währungen – abgeleitet aus dem Bitcoin-Kurs in jeder Währung
+const FX = ['eur', 'chf', 'gbp', 'cad', 'aud', 'jpy'];
+let fx = null;
+try {
+  const btc = (await getJson(`https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd,${FX.join(',')}`)).bitcoin;
+  if (btc?.usd > 0) fx = Object.fromEntries(FX.filter((c) => btc[c] > 0).map((c) => [c, Number((btc[c] / btc.usd).toPrecision(6))]));
+} catch (err) { console.warn('Wechselkurse nicht geladen:', err.message); }
+
 const snapshot = {
   version: 1,
   time: Date.now(),
   record,
+  fx,
   market: { value: market.value, signal: market.signal, label: market.label, parts: market.parts, regime, cycle: market.cycle, forecast: market.forecast },
   fng: fng ? { value: fng.value, week: fng.week, month: fng.month, cmc } : null,
   coins: coins.map((c) => {

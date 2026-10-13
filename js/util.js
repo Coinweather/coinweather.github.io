@@ -1,4 +1,9 @@
-export const settings = { currency: 'usd' };
+// Anzeige-Einstellungen. Alle Werte im Programm sind US-Dollar; umgerechnet wird erst bei der Anzeige.
+//   currency / rate: Währung der Anzeige und ihr Kurs je US-Dollar
+//   locale:          Schreibweise von Zahlen und Daten
+//   tokens:          nur bei der zentralen Berechnung – Zahlen in Texten werden als Platzhalter abgelegt und erst im
+//                    Browser in der Sprache des Nutzers geschrieben (siehe localise)
+export const settings = { currency: 'usd', rate: 1, locale: 'de-DE', tokens: false };
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -9,37 +14,50 @@ export const avg = (a) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (ch) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
-export function money(v, currency = settings.currency) {
-  if (!isNum(v)) return '–';
-  const a = Math.abs(v);
-  const digits = a >= 1000 ? 0 : a >= 1 ? 2 : a >= 0.01 ? 4 : 8;
-  return new Intl.NumberFormat('de-DE', {
-    style: 'currency', currency: currency.toUpperCase(),
-    minimumFractionDigits: Math.min(digits, 2), maximumFractionDigits: digits,
-  }).format(v);
-}
+// Betrag aus der Anzeige-Währung in US-Dollar und zurück – für Eingabefelder
+export const fromDisplay = (value) => value / settings.rate;
+export const toDisplay = (usd) => usd * settings.rate;
+export const currencyCode = () => settings.currency.toUpperCase();
 
-export function compact(v, currency = settings.currency) {
-  if (!isNum(v)) return '–';
-  return new Intl.NumberFormat('de-DE', {
-    style: 'currency', currency: currency.toUpperCase(), notation: 'compact', maximumFractionDigits: 2,
-  }).format(v);
-}
-
-// Ein Formatierer je Stellenzahl – toLocaleString legt sonst bei jedem Aufruf einen neuen an (rund 50-mal langsamer)
+// Ein Formatierer je Schreibweise und Einstellung – jedes Mal einen neuen anzulegen wäre rund 50-mal langsamer
 const formats = new Map();
-const format = (d) => {
-  let f = formats.get(d);
-  if (!f) { f = new Intl.NumberFormat('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }); formats.set(d, f); }
+function format(key, options) {
+  const id = `${settings.locale}|${key}`;
+  let f = formats.get(id);
+  if (!f) { f = new Intl.NumberFormat(settings.locale, options()); formats.set(id, f); }
   return f;
-};
-export const num = (v, d = 1) => (isNum(v) ? format(d).format(v) : '–');
+}
 
-// Vorzeichen nach dem Runden: aus -0,04 wird bei 0 Stellen „0“, nicht „-0“
-export function signed(v, d = 1) {
+// v: Betrag in US-Dollar
+export function money(v) {
   if (!isNum(v)) return '–';
-  const r = Number(v.toFixed(d));
-  return (r > 0 ? '+' : '') + num(r === 0 ? 0 : v, d);
+  const shown = v * settings.rate, a = Math.abs(shown);
+  const digits = a >= 1000 ? 0 : a >= 1 ? 2 : a >= 0.01 ? 4 : 8;
+  return format(`m${settings.currency}${digits}`, () => ({ style: 'currency', currency: currencyCode(),
+    minimumFractionDigits: Math.min(digits, 2), maximumFractionDigits: digits })).format(shown);
+}
+
+export function compact(v) {
+  if (!isNum(v)) return '–';
+  return format(`c${settings.currency}`, () => ({ style: 'currency', currency: currencyCode(), notation: 'compact', maximumFractionDigits: 2 }))
+    .format(v * settings.rate);
+}
+
+const plain = (v, d) => format(`n${d}`, () => ({ minimumFractionDigits: d, maximumFractionDigits: d })).format(v);
+// Vorzeichen nach dem Runden: aus -0,04 wird bei 0 Stellen „0“, nicht „-0“
+const withSign = (v, d) => { const r = Number(v.toFixed(d)); return (r > 0 ? '+' : '') + plain(r === 0 ? 0 : v, d); };
+const token = (kind, v, d) => `⟦${kind}|${Number(v.toFixed(Math.min(d + 4, 12)))}|${d}⟧`;
+
+export const num = (v, d = 1) => (!isNum(v) ? '–' : settings.tokens ? token('n', v, d) : plain(v, d));
+export const signed = (v, d = 1) => (!isNum(v) ? '–' : settings.tokens ? token('s', v, d) : withSign(v, d));
+
+// Ersetzt die Zahlen-Platzhalter der zentralen Berechnung in allen Texten eines Objekts durch Zahlen in der eingestellten Schreibweise
+const TOKEN = /⟦([ns])\|(-?[\d.e+-]+)\|(\d+)⟧/g;
+export function localise(value) {
+  if (typeof value === 'string') return value.includes('⟦') ? value.replace(TOKEN, (_, kind, v, d) => (kind === 's' ? withSign(Number(v), Number(d)) : plain(Number(v), Number(d)))) : value;
+  if (Array.isArray(value)) { for (let i = 0; i < value.length; i++) if (typeof value[i] === 'string' || (value[i] && typeof value[i] === 'object')) value[i] = localise(value[i]); return value; }
+  if (value && typeof value === 'object') { for (const k in value) { const x = value[k]; if (typeof x === 'string' || (x && typeof x === 'object')) value[k] = localise(x); } }
+  return value;
 }
 
 export const tone = (v) => (v > 0 ? 'up' : v < 0 ? 'down' : 'muted');

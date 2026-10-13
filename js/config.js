@@ -23,7 +23,7 @@ export const SITE = {
   // Abo: zwei Pakete, monatliche Abrechnung, kein kostenloser Umfang. Preise inklusive Mehrwertsteuer.
   // Standard zeigt den Markt (Index, Signale, Detailansichten), Komplett zusätzlich Portfolio und Daytrading.
   paywall: true,       // true: Inhalte nur mit Abo. false: alles offen – nur zum Entwickeln
-  currency: '€',
+  currency: 'EUR',     // Währung, in der das Abo verkauft wird
   plans: {
     standard: { name: 'Standard', price: 3.99, checkout: '' },   // checkout: Bezahl-Link des Zahlungsanbieters
     full: { name: 'Komplett', price: 7.99, checkout: '' },
