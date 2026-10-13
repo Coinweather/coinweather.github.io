@@ -1,4 +1,4 @@
-# Coinwetter verkaufen – was fertig ist und was noch fehlt
+# Coinweather verkaufen – was fertig ist und was noch fehlt
 
 Stand: 12. Oktober 2026. Diese Liste ersetzt keine Rechtsberatung. Die Rechtstexte der Seite sind Vorlagen.
 

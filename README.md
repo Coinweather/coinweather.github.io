@@ -1,4 +1,4 @@
-# Coinwetter
+# Coinweather
 
 > Was für den Verkauf als Abo fertig ist und was noch fehlt, steht in [GO-LIVE.md](GO-LIVE.md). Name, Betreiber, Preise und Bezahlung werden in `js/config.js` eingestellt.
 

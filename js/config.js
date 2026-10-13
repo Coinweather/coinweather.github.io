@@ -2,7 +2,7 @@
 // Die Schritte bis zum Verkauf stehen in GO-LIVE.md.
 
 export const SITE = {
-  name: 'Coinwetter',
+  name: 'Coinweather',
   claim: 'Die Wetterlage am Kryptomarkt',
 
   // Betreiber – Pflichtangaben für Impressum, AGB und Datenschutz.

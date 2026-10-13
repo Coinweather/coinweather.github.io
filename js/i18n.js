@@ -10,13 +10,13 @@ import { settings } from './util.js';
 
 // Sprache: [Name in der Sprache selbst, Schreibweise von Zahlen und Daten, Titel der Seite, Kürzel für Tag und Jahr]
 export const LANGS = {
-  en: ['English', 'en-US', 'Coinwetter – the weather report for the crypto market', 'D', 'Y'],
-  de: ['Deutsch', 'de-DE', 'Coinwetter – die Wetterlage am Kryptomarkt', 'T', 'J'],
-  es: ['Español', 'es-ES', 'Coinwetter – el parte meteorológico del mercado cripto', 'D', 'A'],
-  fr: ['Français', 'fr-FR', 'Coinwetter – la météo du marché crypto', 'J', 'A'],
-  it: ['Italiano', 'it-IT', 'Coinwetter – il meteo del mercato crypto', 'G', 'A'],
-  pt: ['Português', 'pt-BR', 'Coinwetter – a previsão do tempo do mercado cripto', 'D', 'A'],
-  tr: ['Türkçe', 'tr-TR', 'Coinwetter – kripto piyasasının hava durumu', 'G', 'Y'],
+  en: ['English', 'en-US', 'Coinweather – the weather report for the crypto market', 'D', 'Y'],
+  de: ['Deutsch', 'de-DE', 'Coinweather – die Wetterlage am Kryptomarkt', 'T', 'J'],
+  es: ['Español', 'es-ES', 'Coinweather – el parte meteorológico del mercado cripto', 'D', 'A'],
+  fr: ['Français', 'fr-FR', 'Coinweather – la météo du marché crypto', 'J', 'A'],
+  it: ['Italiano', 'it-IT', 'Coinweather – il meteo del mercato crypto', 'G', 'A'],
+  pt: ['Português', 'pt-BR', 'Coinweather – a previsão do tempo do mercado cripto', 'D', 'A'],
+  tr: ['Türkçe', 'tr-TR', 'Coinweather – kripto piyasasının hava durumu', 'G', 'Y'],
 };
 export const CURRENCIES = ['usd', 'eur', 'chf', 'gbp', 'cad', 'aud', 'jpy'];
 const KEY = 'coinwetter-einstellungen', RATES_KEY = 'coinwetter-wechselkurse';
