@@ -104,7 +104,7 @@ async function image() {
     ${fng ? row(795, T.fng, `${fng.value} – ${mood(fng.value)}`) : ''}
     ${btc ? row(860, T.btc, `$${fmt(btc.current_price)} (${signed(btc.price_change_percentage_24h_in_currency ?? 0)})`) : ''}
     ${market.cycle ? row(925, T.cycle, T.zone[market.cycle.zone] ?? market.cycle.label) : ''}
-    <text x="90" y="995" font-size="28" fill="#6b7686">${esc(T.note)}</text>
+    <text x="90" y="995" font-size="24" fill="#6b7686">${esc(T.note)}</text>
     <text x="90" y="1040" font-size="28" fill="#9aa4b2" font-weight="700">coinweather.github.io</text>
   </svg>`;
   return sharp(Buffer.from(svg)).jpeg({ quality: 88 }).toBuffer();
