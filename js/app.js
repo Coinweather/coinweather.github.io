@@ -1285,19 +1285,34 @@ const prefsPanel = () => `<section class="panel"><div class="label">Einstellunge
 // Mit Konto wird festgehalten, wann und wie oft jemand die Seite nutzt, welche Bereiche und Coins er aufruft und die letzten
 // 20 Seiten. Gesammelt wird im Browser und alle paar Sekunden gebündelt gespeichert (users/{uid}, siehe firestore.rules).
 const usage = { uid: null, counts: null, recent: [], dirty: false, timer: null, first: null };
+
+// Herkunft aus Werbe-Links wie coinweather.github.io/?von=reddit: Der erste Kanal zählt. Danach verschwindet der Zusatz
+// aus der Adresse, damit er beim Weitergeben des Links nicht mitwandert.
+const REF_KEY = 'coinwetter-von';
+const referrer = (() => {
+  let ref = null;
+  try {
+    const von = new URLSearchParams(location.search).get('von')?.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 30);
+    ref = localStorage.getItem(REF_KEY);
+    if (von && !ref) { ref = von; localStorage.setItem(REF_KEY, von); }
+    if (von) history.replaceState(null, '', location.pathname + location.hash);
+  } catch { /* ohne Speicher keine Herkunft */ }
+  return ref;
+})();
 const USAGE_FLUSH_MS = 8000, USAGE_BEAT_MS = 120_000;
 
 async function usageStart(user) {
   if (usage.uid) await usageFlush();
   usage.uid = user?.uid ?? null;
   usage.counts = { visits: 1, pages: {}, coins: {} };
-  usage.recent = []; usage.first = null; usage.dirty = !!user;
+  usage.recent = []; usage.first = null; usage.dirty = !!user; usage.sourceSaved = false;
   if (!user) return;
   try {
     const old = await auth.loadUsage(user.uid);
     if (usage.uid !== user.uid) return;
     usage.recent = [...usage.recent, ...(Array.isArray(old?.recent) ? old.recent : [])].slice(0, 20);
     usage.first = old?.firstSeen ?? null;
+    if (old?.source) usage.sourceSaved = true;   // der erste Kanal bleibt
   }
   catch { /* ohne Leserecht beginnt die Liste neu */ }
   // Die aufgerufene Seite zählt route(), das nach jedem An- und Abmelden läuft
@@ -1331,6 +1346,7 @@ async function usageFlush() {
     firstSeen: usage.first ?? Date.now(), lastSeen: Date.now(), lastPage: usage.recent[0]?.p ?? null, recent: usage.recent,
     lang: i18n.prefs.lang, currency: i18n.prefs.currency, device: matchMedia('(max-width: 760px)').matches ? 'Handy' : 'Computer',
     access: a.reason, accessUntil: a.until ?? null };
+  if (referrer && !usage.sourceSaved) { base.source = referrer; usage.sourceSaved = true; }
   usage.first ??= base.firstSeen;
   try { await auth.saveUsage(usage.uid, base, counts); }
   catch { /* z. B. Regeln noch nicht veröffentlicht – die Statistik ist für die Seite nicht nötig */ }
@@ -2422,7 +2438,7 @@ function adminView() {
 
   function detailHtml(u) {
     const pages = top(u.pages, 12), coins = top(u.coins, 10);
-    return `<tr class="admin-detail"><td colspan="9"><div class="admin-grid">
+    return `<tr class="admin-detail"><td colspan="10"><div class="admin-grid">
         <div><div class="label">Bereiche (Aufrufe)</div><ul class="admin-list">${pages.map(([k, n]) => `<li>${esc(ADMIN_PAGES[k] ?? k)} <b>${n}</b></li>`).join('') || '<li class="muted">–</li>'}</ul>
           <div class="label">Meistgesehene Coins</div><ul class="admin-list">${coins.map(([k, n]) => `<li>${esc(state.byId.get(k)?.name ?? k)} <b>${n}</b></li>`).join('') || '<li class="muted">–</li>'}</ul></div>
         <div><div class="label">Zuletzt aufgerufen</div><ul class="admin-list">${(u.recent ?? []).map((r) => `<li><span class="muted">${when(r.t)}</span> ${esc(pageName(r.p))}</li>`).join('') || '<li class="muted">–</li>'}</ul></div>
@@ -2459,19 +2475,21 @@ function adminView() {
         ${card('Aktiv 7 Tage', count((u) => seen(u) < 7 * DAY), `30 Tage: ${count((u) => seen(u) < 30 * DAY)}`)}
         ${card('In Testphase', count((u) => u.access === 'trial'), `abgelaufen: ${count((u) => u.access === 'expired')}`)}
         ${card('Mit Abo', count((u) => u.access === 'paid'), '')}
+        ${card('Herkunft', '', Object.entries(users.reduce((m, u) => { const k = u.source ?? 'direkt'; m[k] = (m[k] ?? 0) + 1; return m; }, {}))
+          .sort((a, b) => b[1] - a[1]).map(([k, n]) => `${esc(k)} ${n}`).join(' · ') || '–')}
       </div>
       <div class="admin-tools"><input type="search" id="ad-filter" placeholder="Suchen nach E-Mail, Name oder Kennung" value="${esc(filter)}">
         <label>Sortieren <select id="ad-sort"><option value="lastSeen">Zuletzt aktiv</option><option value="created">Neueste Konten</option><option value="visits">Meiste Besuche</option></select></label></div>
       <div class="table-wrap"><table class="admin-table"><thead><tr><th>E-Mail</th><th>Status</th><th>Zuletzt aktiv</th><th>Zuletzt gesehen</th><th class="num">Besuche</th>
-        <th class="num">Aufrufe</th><th>Zugang</th><th>Erstellt</th><th></th></tr></thead><tbody>
+        <th class="num">Aufrufe</th><th>Zugang</th><th>Erstellt</th><th>Herkunft</th><th></th></tr></thead><tbody>
         ${list.map((u) => {
           const [cls, label] = state_(u);
           return `<tr><td>${esc(u.email ?? u.name ?? u.uid)}</td><td><span class="badge ${cls}">${label}</span></td><td>${ago(u.lastSeen)}</td>
             <td>${esc(pageName(u.lastPage))}</td><td class="num">${u.visits ?? 0}</td><td class="num">${total(u.pages)}</td><td>${esc(accessText(u))}</td>
-            <td>${u.created ? new Date(u.created).toLocaleDateString('de-CH') : '–'}</td>
+            <td>${u.created ? new Date(u.created).toLocaleDateString('de-CH') : '–'}</td><td>${esc(u.source ?? 'direkt')}</td>
             <td><button class="btn ghost small" data-user="${esc(u.uid)}">${openRows.has(u.uid) ? 'Schließen' : 'Details'}</button></td></tr>
             ${openRows.has(u.uid) ? detailHtml(u) : ''}`;
-        }).join('') || '<tr><td colspan="9" class="empty">Noch keine erfassten Nutzer.</td></tr>'}
+        }).join('') || '<tr><td colspan="10" class="empty">Noch keine erfassten Nutzer.</td></tr>'}
       </tbody></table></div></div>`;
     view.querySelector('#ad-sort').value = sort;
     view.querySelector('[data-reload]').addEventListener('click', load);

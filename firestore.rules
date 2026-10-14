@@ -22,7 +22,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if own(userId) || admin();
       allow create, update: if own(userId) && request.resource.data.keys().hasOnly(['email', 'name', 'provider', 'created', 'firstSeen', 'lastSeen',
-        'lastPage', 'lang', 'currency', 'device', 'access', 'accessUntil', 'recent', 'visits', 'pages', 'coins']);
+        'lastPage', 'lang', 'currency', 'device', 'access', 'accessUntil', 'recent', 'visits', 'pages', 'coins', 'source']);
       allow delete: if own(userId);
     }
     // Abo-Stand (status, plan, until, cancel): lesen darf die Person selbst und der Betreiber. Geschrieben wird er ausschließlich

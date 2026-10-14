@@ -235,7 +235,7 @@ const LEGAL = {
         Anmeldung und Speicherung laufen über Firebase (Google Ireland Limited / Google LLC).</li>
       <li><strong>Portfolio:</strong> die Bestände, Kaufpreise und Einstellungen, die du einträgst, der Verlauf deiner Änderungen sowie Zeitpunkt und Stand deiner Zustimmung zu AGB und Risikohinweis.</li>
       <li><strong>Nutzung (nur mit Konto):</strong> wann du die Seite zuerst und zuletzt genutzt hast, wie oft, welche Bereiche und Coins du aufrufst, die letzten 20 aufgerufenen Seiten,
-        Sprache, Währung und ob du ein Handy oder einen Computer verwendest. Der Betreiber sieht diese Angaben zusammen mit deiner E-Mail-Adresse und deinem Portfolio, um Konten zu betreuen,
+        über welchen Werbe-Link du gekommen bist, Sprache, Währung und ob du ein Handy oder einen Computer verwendest. Der Betreiber sieht diese Angaben zusammen mit deiner E-Mail-Adresse und deinem Portfolio, um Konten zu betreuen,
         Fehler zu finden und das Angebot zu verbessern. Sie werden mit deinem Konto gelöscht.</li>
       <li><strong>Abo:</strong> Die Zahlung wickelt ${SITE.paymentProvider ? esc(SITE.paymentProvider) : 'ein Zahlungsanbieter'} ab. Der Anbieter erhält von dort keine Kartendaten, sondern nur, ob und bis wann dein Abo läuft.</li>
       <li><strong>In deinem Browser:</strong> Einstellungen, eine Kopie deines Portfolios und die Anmeldung werden lokal gespeichert, damit die Seite funktioniert.</li>
