@@ -66,7 +66,8 @@ export async function onUser(cb) {
   if (!available) return cb(null);
   const { au, auth } = await init();
   au.onAuthStateChanged(auth, (u) => cb(u ? { uid: u.uid, email: u.email, name: u.displayName,
-    verified: !!u.emailVerified } : null));
+    verified: !!u.emailVerified, created: Date.parse(u.metadata?.creationTime ?? '') || null,
+    provider: u.providerData?.[0]?.providerId === 'google.com' ? 'google' : 'email' } : null));
 }
 
 export const register = (email, password) => run(({ au, auth }) => au.createUserWithEmailAndPassword(auth, email, password));
@@ -103,11 +104,37 @@ export async function watchSubscription(uid, cb) {
   }, () => cb(null));
 }
 
+// ---------- Nutzung für die Betreiber-Übersicht: users/{uid} ----------
+
+// Eigener Eintrag (für die Liste der zuletzt besuchten Seiten); null, wenn es keinen gibt oder das Lesen nicht erlaubt ist
+export async function loadUsage(uid) {
+  const { fs, db } = await init();
+  const snap = await fs.getDoc(fs.doc(db, 'users', uid));
+  return snap.exists() ? snap.data() : null;
+}
+
+// Schreibt den Stand und zählt Besuche, Bereiche und Coins hoch. counts: { visits, pages: {name: n}, coins: {id: n} }
+export async function saveUsage(uid, base, counts) {
+  const { fs, db } = await init();
+  const inc = (map) => Object.fromEntries(Object.entries(map ?? {}).map(([k, n]) => [k, fs.increment(n)]));
+  // Leere Zähler weglassen: Eine leere Map würde beim Zusammenführen die bisherigen Werte ersetzen
+  const data = { ...base };
+  if (Object.keys(counts.pages ?? {}).length) data.pages = inc(counts.pages);
+  if (Object.keys(counts.coins ?? {}).length) data.coins = inc(counts.coins);
+  if (counts.visits) data.visits = fs.increment(counts.visits);
+  await fs.setDoc(fs.doc(db, 'users', uid), data, { merge: true });
+}
+
+// Für Betreiber: alle Einträge, das Portfolio und der Abo-Stand einer Person. Die Firestore-Regeln erlauben das nur Betreibern.
+export const listUsage = () => run(async ({ fs, db }) => (await fs.getDocs(fs.collection(db, 'users'))).docs.map((d) => ({ uid: d.id, ...d.data() })));
+export const readPortfolio = (uid) => run(async ({ fs, db }) => { const snap = await fs.getDoc(fs.doc(db, 'portfolios', uid)); return snap.exists() ? snap.data() : null; });
+
 // Löscht das gespeicherte Portfolio und danach das Konto. Firebase verlangt dafür eine frische Anmeldung –
 // das wird vorab geprüft, damit nicht das Portfolio weg ist und das Konto noch besteht.
 export const deleteAccount = (uid) => run(async ({ au, fs, auth, db }) => {
   const last = Date.parse(auth.currentUser?.metadata?.lastSignInTime ?? '');
   if (!(Date.now() - last < 4 * 60_000)) throw Object.assign(new Error('Anmeldung zu alt'), { code: 'auth/requires-recent-login' });
   await fs.deleteDoc(fs.doc(db, 'portfolios', uid));
+  await fs.deleteDoc(fs.doc(db, 'users', uid)).catch(() => {});
   await au.deleteUser(auth.currentUser);
 });

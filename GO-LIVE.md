@@ -10,11 +10,12 @@ Stand: 12. Oktober 2026. Diese Liste ersetzt keine Rechtsberatung. Die Rechtstex
   bei geändertem `legalVersion` wird neu gefragt
 - Eigener Risikohinweis vor dem Bereich Daytrading
 - Konto: Abo-Stand, Konto und Daten löschen, Portfolio als Tabelle exportieren
-- Abo-Logik: zwei Pakete mit monatlicher Abrechnung, kein kostenloser Umfang und keine Testzeit. Ohne Abo erscheint überall die Seite
+- Abo-Logik: zwei Pakete mit monatlicher Abrechnung. Neue Konten haben 30 Tage lang alles kostenlos (`trialDays` in `js/config.js`, ohne Zahlungsdaten, endet von selbst). Ohne Abo oder Testphase erscheint überall die Seite
   „Pakete und Preise“. Standard (3,99 €): der Markt – Index, Signale und Detailansichten für alle 1000 Coins.
   Komplett (7,99 €): zusätzlich Portfolio (Wertentwicklung, Reserve-Ziel, Modell-Schritte) und Daytrading.
   Freischaltung über `subscriptions/{Konto-Kennung}`; alles in `js/config.js` einstellbar. Die Bezahlschranke ist eingeschaltet,
   kaufen lässt sich noch nichts („Der Verkauf startet in Kürze“).
+- Nutzerübersicht für Betreiber unter `#/admin` (Konten, online, aktiv, Testphase, aufgerufene Bereiche und Coins, Portfolio). Braucht die veröffentlichten `firestore.rules`.
 - Betreiber-Zugang ohne Abo: über eine bestätigte E-Mail-Adresse (Google-Anmeldung) oder die Konto-Kennung in `owners`.
   Die Konto-Kennung steht unter „Konto“.
 - Quellenangaben: „Data provided by CoinGecko“, alternative.me direkt beim Fear-&-Greed-Index
@@ -72,7 +73,7 @@ Alle Daten müssen über den Schnappschuss laufen. Dieser Umbau steht noch aus u
 - Freischaltung: Nach einer Zahlung muss in Firestore das Dokument `subscriptions/{Konto-Kennung}` entstehen:
   `status` (`active`), `plan` (`standard` oder `full`), `until` (Ende des bezahlten Monats in Millisekunden), `cancel` (true, wenn gekündigt).
   Wege dorthin: eine Automatisierung (Zahlungs-Benachrichtigung → Firestore), eine kleine Cloud Function oder am Anfang von Hand in der Firebase-Konsole.
-- `firestore.rules` in Firebase veröffentlichen (enthält die Regel für `subscriptions`).
+- `firestore.rules` in Firebase veröffentlichen (Regeln für `subscriptions`, `users` und die Nutzerübersicht).
 - Sind Betreiberangaben und beide Bezahl-Links eingetragen, erscheinen die Kauf-Knöpfe von selbst.
 
 ### 6. Ohne Firma verkaufen
@@ -92,7 +93,7 @@ Die Einzelheiten bitte bei der Ausgleichskasse oder einer Treuhänderin bestäti
 
 ## Preis
 
-Festgelegt: **Standard 3,99 € und Komplett 7,99 € im Monat**, nur monatliche Abrechnung, nichts kostenlos.
+Festgelegt: **Standard 3,99 € und Komplett 7,99 € im Monat**, nur monatliche Abrechnung, davor 30 Tage kostenlos testen.
 
 Was davon übrig bleibt, am Beispiel eines Wiederverkäufers mit 7,9 % + 1 € je Zahlung und 19 % Mehrwertsteuer:
 
@@ -112,7 +113,7 @@ Was davon übrig bleibt, am Beispiel eines Wiederverkäufers mit 7,9 % + 1 € j
   Bezahlte Anzeigen für Krypto-Angebote sind bei Google und Meta nur eingeschränkt oder mit Freigabe möglich.
 - **Die Erfolgskontrolle ist das Verkaufsargument:** jede Woche veröffentlichen, was aus den Signalen wurde – auch die schlechten Wochen.
 - Wöchentlicher „Wetterbericht“ als Newsletter und Kurzvideo (Marktphase, Fear & Greed, was das Modell tut und warum).
-- Ohne kostenlosen Umfang muss die Verkaufsseite überzeugen: Beispiele zeigen (Bildschirmfotos, ein Muster-Coin), Erfolgskontrolle offen ausweisen, monatliche Kündbarkeit betonen.
+- Die Testphase senkt die Hürde; danach muss die Verkaufsseite überzeugen: Beispiele zeigen (Bildschirmfotos, ein Muster-Coin), Erfolgskontrolle offen ausweisen, monatliche Kündbarkeit betonen.
 - Dort sein, wo die Zielgruppe fragt: deutschsprachige Krypto-Foren, YouTube, X, Reddit – mit Erklärungen statt Kaufaufrufen.
 - Empfehlungsprogramm (ein Monat gratis je geworbenem Kunden), sobald zahlende Kunden da sind.
 

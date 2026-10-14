@@ -23,14 +23,16 @@ export async function isOwner(user) {
 
 // ---------- Einstieg (oben auf der Seite „Preise“, solange kein Abo läuft) ----------
 
-function landing() {
+function landing(signedIn) {
+  const trial = SITE.trialDays > 0;
   return `<section class="intro">
     <div class="intro-text">
-      <span class="intro-tag">Ab ${price(SITE.plans.standard.price)} im Monat · monatlich kündbar</span>
+      <span class="intro-tag">${trial && !signedIn ? `${SITE.trialDays} Tage kostenlos testen · danach ab ${price(SITE.plans.standard.price)} im Monat` : `Ab ${price(SITE.plans.standard.price)} im Monat · monatlich kündbar`}</span>
       <h1>${esc(SITE.claim)}.</h1>
       <p class="lead">${esc(SITE.name)} zeigt für 1000 Coins, wie die Aussichten stehen – als Wahrscheinlichkeit, nicht als Versprechen.
         Jede Regel ist an Kursen seit 2018 geprüft, und was aus den Signalen wird, messen wir offen nach.</p>
-      <div class="btn-row"><button class="btn" type="button" data-to-plans>Paket wählen</button></div>
+      <div class="btn-row">${trial && !signedIn ? `<a class="btn" href="#/konto">${SITE.trialDays} Tage kostenlos testen</a> ` : ''}<button class="btn${trial && !signedIn ? ' ghost' : ''}" type="button" data-to-plans>Pakete ansehen</button></div>
+      ${trial && !signedIn ? '<p class="intro-note">Ohne Zahlungsdaten. Die Testphase endet von selbst – es verlängert sich nichts kostenpflichtig.</p>' : ''}
       <p class="intro-note">Keine Anlageberatung. Kryptowerte können stark fallen – bis zum Totalverlust.</p>
     </div>
     <ul class="intro-points">
@@ -62,13 +64,15 @@ export function upsell(kind) {
 
 const FAQ = [
   [`Was ist der Unterschied zwischen ${STD} und ${FULL}?`, `${STD} zeigt den Markt: Markt-Index, Signale und Aussicht für alle 1000 Coins, die stärksten Kaufsignale und die Detailansichten. ${FULL} enthält zusätzlich das Portfolio mit Wertentwicklung, Reserve-Ziel und Modell-Schritten sowie die Daytrading-Muster.`],
-  ['Gibt es eine kostenlose Version oder eine Testzeit?', 'Nein. Dafür ist das Abo monatlich kündbar, und du kannst den Kauf 14 Tage lang widerrufen.'],
+  ['Gibt es eine kostenlose Version oder eine Testzeit?', SITE.trialDays > 0
+    ? `Ja: Mit einem neuen Konto kannst du ${SITE.trialDays} Tage lang alle Funktionen kostenlos testen, ohne Zahlungsdaten. Danach endet der Zugang von selbst; ein Abo schließt du nur ab, wenn du ein Paket wählst.`
+    : 'Nein. Dafür ist das Abo monatlich kündbar, und du kannst den Kauf 14 Tage lang widerrufen.'],
   ['Ist das eine Anlageberatung?', `Nein. ${SITE.name} ist ein Informationsdienst. Alle sehen dieselben Signale; sie berücksichtigen weder dein Vermögen noch deine Ziele oder deine Erfahrung. Was du kaufst oder verkaufst, entscheidest du allein.`],
   ['Wie gut sind die Signale?', 'Ehrlich: Ein „Eher kaufen“ ist ein schwaches Signal – in der Prüfung lief etwas mehr als jeder zweite Fall ins Plus. Der Vorteil entsteht über viele Käufe, nicht beim einzelnen. Die Erfolgskontrolle zeigt, was aus den Signalen der Seite tatsächlich geworden ist.'],
   ['Versprecht ihr Gewinne?', 'Nein. Kurse lassen sich nicht sicher vorhersagen. Die Rückrechnungen beruhen auf vergangenen Kursen und fallen besser aus als die Wirklichkeit, weil sie nur Coins enthalten, die es heute noch gibt.'],
   ['Habt ihr Zugriff auf mein Geld oder mein Börsenkonto?', 'Nein. Du trägst deine Bestände selbst ein oder importierst eine Tabelle. Es gibt keine Verbindung zu einer Börse, und die Seite führt keine Käufe oder Verkäufe aus.'],
   ['Wie kündige ich?', 'Jederzeit zum Ende des bezahlten Monats, ohne Frist. Dein Portfolio bleibt danach gespeichert, bis du dein Konto löschst.'],
-  ['Welche Daten speichert ihr?', 'Deine E-Mail-Adresse für die Anmeldung und das Portfolio, das du einträgst. Kein Tracking, keine Werbe-Cookies. Im Konto kannst du alles exportieren und löschen.'],
+  ['Welche Daten speichert ihr?', 'Deine E-Mail-Adresse für die Anmeldung, das Portfolio, das du einträgst, und eine einfache Nutzungsstatistik deines Kontos (wann und welche Bereiche du nutzt). Keine Werbe-Cookies, keine Analyse-Dienste von Dritten. Im Konto kannst du alles löschen.'],
 ];
 
 export function pricingView(el, { access, user, record }) {
@@ -79,6 +83,8 @@ export function pricingView(el, { access, user, record }) {
     const button = (key) => {
       const plan = SITE.plans[key];
       if (a.reason === 'open' || a.reason === 'owner') return '<span class="muted">Für dich freigeschaltet.</span>';
+      if (a.reason === 'trial') return '<span class="muted">In deiner Testphase freigeschaltet.</span>';
+      if (!user() && SITE.trialDays > 0) return `<a class="btn" href="#/konto">${SITE.trialDays} Tage kostenlos testen</a>`;
       if (a.reason === 'paid') return a.plan === key ? `<span class="badge buy">Dein Paket</span> ${manage('Abo verwalten', '')}`
         : manage('Paket wechseln', '<span class="muted">Wechsel über die Abo-Verwaltung deines Zahlungsanbieters.</span>');
       if (!selling()) return '<span class="muted">Der Verkauf startet in Kürze.</span>';
@@ -91,6 +97,8 @@ export function pricingView(el, { access, user, record }) {
     const status = a.reason === 'paid' ? `<p class="notice ok">Dein Paket ${esc(SITE.plans[a.plan].name)} ist aktiv${until}${a.cancel ? ' und verlängert sich nicht mehr' : ''}.</p>`
       : a.reason === 'owner' ? '<p class="notice ok">Betreiber-Zugang: Alle Funktionen sind für dich freigeschaltet.</p>'
       : a.reason === 'open' ? '<p class="notice">Die Bezahlschranke ist ausgeschaltet – alle Funktionen sind offen.</p>'
+      : a.reason === 'trial' ? `<p class="notice ok">Deine kostenlose Testphase läuft${until} – alle Funktionen sind freigeschaltet. Danach endet der Zugang von selbst.</p>`
+      : a.reason === 'expired' ? `<p class="notice">Deine kostenlose Testphase ist abgelaufen${until ? ` (${new Date(a.until).toLocaleDateString(settings.locale)})` : ''}. Wähle ein Paket, um weiterzumachen.</p>`
       : a.reason === 'none' ? '<p class="notice">Für dein Konto läuft kein Abo. Wähle ein Paket, um die Inhalte zu sehen.</p>' : '';
     const rec = record?.();
     const measured = !rec ? '' : `<section class="panel"><div class="label">Erfolgskontrolle – offen nachgemessen</div>
@@ -105,7 +113,7 @@ export function pricingView(el, { access, user, record }) {
         <ul class="plan-list">${list.map(yes).join('')}</ul>
         <div class="plan-cta">${button(key)}</div>
       </section>`;
-    el.innerHTML = `${a.plan ? '' : landing()}
+    el.innerHTML = `${a.plan ? '' : landing(!!user())}
       <div class="page-head" id="plans"><div><h1 class="page-title">Pakete und Preise</h1>
         <p class="hint">Zwei Pakete, monatliche Abrechnung, jederzeit zum Monatsende kündbar.</p></div></div>
       ${status}
@@ -115,6 +123,7 @@ export function pricingView(el, { access, user, record }) {
         ${card('full', true, 'Der Markt, dein Portfolio und Daytrading.', [`Alles aus ${esc(STD)}`, 'Portfolio mit Wertentwicklung und Vergleich zu Bitcoin',
           'Reserve-Ziel und Modell-Schritte für dein Portfolio', 'Import und Export als Tabelle', 'Daytrading-Muster mit Einstieg, Ziel und Stopp'])}
       </div>
+      ${SITE.trialDays > 0 ? `<p class="hint">Neue Konten können alle Funktionen ${SITE.trialDays} Tage kostenlos testen – ohne Zahlungsdaten. Die Testphase endet von selbst.</p>` : ''}
       <p class="hint">Preise pro Monat inklusive Mehrwertsteuer. Das Abo verlängert sich jeweils um einen Monat, bis du kündigst. 14 Tage Widerrufsrecht.
         Es gelten die <a href="#/agb">AGB</a> und der <a href="#/risiko">Risikohinweis</a>. ${esc(SITE.name)} ist keine Anlageberatung.</p>
       ${measured}
@@ -180,10 +189,12 @@ const LEGAL = {
     <h3>3. Konto</h3>
     <p>Für das Abo brauchst du ein Konto. Du musst volljährig sein, richtige Angaben machen und deine Zugangsdaten geheim halten. Ein Konto ist für eine Person bestimmt.</p>
     <h3>4. Abo und Preise</h3>
-    <p>Die Inhalte stehen nur im Abo zur Verfügung. Es gibt die Pakete ${esc(STD)} und ${esc(FULL)}; Umfang und Preise stehen unter <a href="#/preise">Preise</a>.
+    <p>Die Inhalte stehen im Abo${SITE.trialDays > 0 ? ' oder während der kostenlosen Testphase' : ''} zur Verfügung. Es gibt die Pakete ${esc(STD)} und ${esc(FULL)}; Umfang und Preise stehen unter <a href="#/preise">Preise</a>.
       Die Preise gelten pro Monat und enthalten die gesetzliche Mehrwertsteuer.</p>
     <p>Das Abo läuft einen Monat und verlängert sich jeweils um einen weiteren Monat, bis es gekündigt wird. Die Zahlung wird monatlich im Voraus fällig und über
       ${SITE.paymentProvider ? esc(SITE.paymentProvider) : 'einen Zahlungsanbieter oder Wiederverkäufer'} abgewickelt, der beim Kauf genannt wird.</p>
+    ${SITE.trialDays > 0 ? `<p>Neue Konten können alle Funktionen ${SITE.trialDays} Tage ab dem Erstellen des Kontos kostenlos nutzen. Dafür sind keine Zahlungsdaten nötig.
+      Die Testphase endet von selbst und geht nicht in ein kostenpflichtiges Abo über. Je Person ist eine Testphase vorgesehen; der Anbieter kann das Angebot für neue Konten ändern oder beenden.</p>` : ''}
     <h3>5. Kündigung</h3>
     <p>Du kannst das Abo jederzeit zum Ende des bezahlten Monats kündigen – über die Verwaltung deines Abos oder per E-Mail an die oben genannte Adresse. Dein Konto kannst du jederzeit unter „Konto“ löschen.
       Der Anbieter kann den Zugang sperren oder kündigen, wenn gegen diese Bedingungen verstoßen wird; bereits bezahlte Entgelte für die Zeit danach werden dann anteilig erstattet, sofern die Sperre nicht auf einem schuldhaften Verstoß beruht.</p>
@@ -216,13 +227,16 @@ const LEGAL = {
   datenschutz: () => ['Datenschutzerklärung', `${missing()}
     <h3>Verantwortlich</h3>${address()}
     <h3>Kurz gesagt</h3>
-    <p>${SITE.name} verwendet keine Werbe-Cookies und kein Tracking. Gespeichert wird nur, was für Anmeldung, Portfolio und Abo nötig ist.</p>
+    <p>${SITE.name} verwendet keine Werbe-Cookies und keine Analyse-Dienste von Dritten. Gespeichert wird, was für Anmeldung, Portfolio und Abo nötig ist, und – nur mit Konto – eine einfache Nutzungsstatistik.</p>
     <h3>Welche Daten verarbeitet werden</h3>
     <ul>
       <li><strong>Aufruf der Seite:</strong> Der Hosting-Anbieter (${esc(SITE.hosting)}) verarbeitet technisch nötige Daten wie IP-Adresse, Zeitpunkt und Browser, um die Seite auszuliefern.</li>
       <li><strong>Konto:</strong> E-Mail-Adresse und ein verschlüsselt gespeichertes Passwort oder – bei Anmeldung mit Google – Name und E-Mail-Adresse deines Google-Kontos.
         Anmeldung und Speicherung laufen über Firebase (Google Ireland Limited / Google LLC).</li>
       <li><strong>Portfolio:</strong> die Bestände, Kaufpreise und Einstellungen, die du einträgst, der Verlauf deiner Änderungen sowie Zeitpunkt und Stand deiner Zustimmung zu AGB und Risikohinweis.</li>
+      <li><strong>Nutzung (nur mit Konto):</strong> wann du die Seite zuerst und zuletzt genutzt hast, wie oft, welche Bereiche und Coins du aufrufst, die letzten 20 aufgerufenen Seiten,
+        Sprache, Währung und ob du ein Handy oder einen Computer verwendest. Der Betreiber sieht diese Angaben zusammen mit deiner E-Mail-Adresse und deinem Portfolio, um Konten zu betreuen,
+        Fehler zu finden und das Angebot zu verbessern. Sie werden mit deinem Konto gelöscht.</li>
       <li><strong>Abo:</strong> Die Zahlung wickelt ${SITE.paymentProvider ? esc(SITE.paymentProvider) : 'ein Zahlungsanbieter'} ab. Der Anbieter erhält von dort keine Kartendaten, sondern nur, ob und bis wann dein Abo läuft.</li>
       <li><strong>In deinem Browser:</strong> Einstellungen, eine Kopie deines Portfolios und die Anmeldung werden lokal gespeichert, damit die Seite funktioniert.</li>
     </ul>

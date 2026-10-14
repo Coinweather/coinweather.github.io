@@ -30,7 +30,7 @@ Danach `http://localhost:8123` öffnen.
 | `js/portfolio.js` | Speicherung im Browser und CSV-Import |
 | `js/auth.js` | Konten und Speicherung im Konto (Firebase) |
 | `js/firebase-config.js` | Zugangsdaten des Firebase-Projekts |
-| `firestore.rules` | Zugriffsregeln: Jede Person sieht nur ihr eigenes Portfolio |
+| `firestore.rules` | Zugriffsregeln: Jede Person sieht nur ihr eigenes Portfolio und ihre Nutzung; Betreiber lesen alles für die Nutzerübersicht |
 
 ## Konten einrichten (Firebase)
 

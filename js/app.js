@@ -1222,6 +1222,9 @@ function access() {
   if (depot.owner) return { plan: 'full', reason: 'owner' };
   const s = abo.sub;
   if (s && ['active', 'trialing'].includes(s.status) && (!s.until || s.until > Date.now())) return { plan: s.plan, reason: 'paid', until: s.until, cancel: s.cancel };
+  // Kostenlose Testphase ab dem Erstellen des Kontos: alle Funktionen, danach endet der Zugang von selbst
+  const trialEnd = SITE.trialDays > 0 && depot.user.created ? depot.user.created + SITE.trialDays * 86_400_000 : null;
+  if (trialEnd) return trialEnd > Date.now() ? { plan: 'full', reason: 'trial', until: trialEnd } : { plan: null, reason: 'expired', until: trialEnd };
   return { plan: null, reason: 'none' };
 }
 const fullAccess = () => access().plan === 'full';
@@ -1272,10 +1275,70 @@ const prefsPanel = () => `<section class="panel"><div class="label">Einstellunge
     <div class="prefs">${i18n.prefsControls()}</div>
     <p class="hint">Beträge werden aus US-Dollar zum aktuellen Wechselkurs umgerechnet. Eingaben machst du in der gewählten Währung.</p></section>`;
 
+// ---------- Nutzung für die Betreiber-Übersicht ----------
+// Mit Konto wird festgehalten, wann und wie oft jemand die Seite nutzt, welche Bereiche und Coins er aufruft und die letzten
+// 20 Seiten. Gesammelt wird im Browser und alle paar Sekunden gebündelt gespeichert (users/{uid}, siehe firestore.rules).
+const usage = { uid: null, counts: null, recent: [], dirty: false, timer: null, first: null };
+const USAGE_FLUSH_MS = 8000, USAGE_BEAT_MS = 120_000;
+
+async function usageStart(user) {
+  if (usage.uid) await usageFlush();
+  usage.uid = user?.uid ?? null;
+  usage.counts = { visits: 1, pages: {}, coins: {} };
+  usage.recent = []; usage.first = null; usage.dirty = !!user;
+  if (!user) return;
+  try {
+    const old = await auth.loadUsage(user.uid);
+    if (usage.uid !== user.uid) return;
+    usage.recent = [...usage.recent, ...(Array.isArray(old?.recent) ? old.recent : [])].slice(0, 20);
+    usage.first = old?.firstSeen ?? null;
+  }
+  catch { /* ohne Leserecht beginnt die Liste neu */ }
+  // Die aufgerufene Seite zählt route(), das nach jedem An- und Abmelden läuft
+}
+
+function usagePage(name, id) {
+  if (!usage.uid || name === 'admin') return;
+  const page = name === 'coin' ? 'coin' : name;
+  let coin = null;
+  if (name === 'coin' && id) { try { coin = decodeURIComponent(id); } catch { coin = id; } }
+  const p = coin ? `coin/${coin}` : page;
+  // Dieselbe Seite kurz hintereinander (Neuaufbau nach dem Anmelden) zählt einmal
+  if (usage.recent[0]?.p === p && Date.now() - usage.recent[0].t < 5000) return;
+  usage.recent = [{ t: Date.now(), p }, ...usage.recent].slice(0, 20);
+  usage.counts.pages[page] = (usage.counts.pages[page] ?? 0) + 1;
+  if (coin) usage.counts.coins[coin] = (usage.counts.coins[coin] ?? 0) + 1;
+  usage.dirty = true;
+  clearTimeout(usage.timer);
+  usage.timer = setTimeout(usageFlush, USAGE_FLUSH_MS);
+}
+
+async function usageFlush() {
+  clearTimeout(usage.timer);
+  const user = depot.user;
+  if (!usage.uid || !user || user.uid !== usage.uid) return;
+  const counts = usage.counts;
+  usage.counts = { visits: 0, pages: {}, coins: {} };
+  usage.dirty = false;
+  const a = access();
+  const base = { email: user.email ?? null, name: user.name ?? null, provider: user.provider ?? null, created: user.created ?? null,
+    firstSeen: usage.first ?? Date.now(), lastSeen: Date.now(), lastPage: usage.recent[0]?.p ?? null, recent: usage.recent,
+    lang: i18n.prefs.lang, currency: i18n.prefs.currency, device: matchMedia('(max-width: 760px)').matches ? 'Handy' : 'Computer',
+    access: a.reason, accessUntil: a.until ?? null };
+  usage.first ??= base.firstSeen;
+  try { await auth.saveUsage(usage.uid, base, counts); }
+  catch { /* z. B. Regeln noch nicht veröffentlicht – die Statistik ist für die Seite nicht nötig */ }
+}
+
+// Solange die Seite offen und sichtbar ist, alle zwei Minuten „zuletzt aktiv“ auffrischen; beim Verlassen sofort speichern
+setInterval(() => { if (usage.uid && document.visibilityState === 'visible') usageFlush(); }, USAGE_BEAT_MS);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && usage.dirty) usageFlush(); });
+
 function renderAccountLink() {
   const link = $('#nav-account');
   link.textContent = depot.user ? (depot.user.name || depot.user.email || 'Konto') : 'Anmelden';
   link.classList.toggle('signed-in', !!depot.user);
+  $('#nav-admin').hidden = !depot.owner;
 }
 
 auth.onUser(async (user) => {
@@ -1286,6 +1349,7 @@ auth.onUser(async (user) => {
   depot.user = user;
   depot.owner = owner;
   depot.ready = true;
+  if (user?.uid !== before?.uid) usageStart(user);
   abo.stop?.();
   abo.stop = null; abo.sub = null; abo.loaded = false;
   if (user && SITE.paywall) {
@@ -1486,11 +1550,13 @@ function accountView(gate = false) {
       const planText = a.reason === 'open' ? 'Die Bezahlschranke ist ausgeschaltet – alle Funktionen sind offen.'
         : a.reason === 'owner' ? 'Betreiber-Zugang – alle Funktionen sind freigeschaltet.'
         : a.reason === 'paid' ? `Paket ${SITE.plans[a.plan].name} ist aktiv${until ? ` bis ${until}` : ''}${a.cancel ? ' und verlängert sich nicht mehr' : ''}.`
+        : a.reason === 'trial' ? `Kostenlose Testphase bis ${until}: Alle Funktionen sind freigeschaltet. Danach endet der Zugang von selbst – es entstehen keine Kosten.`
+        : a.reason === 'expired' ? `Deine kostenlose Testphase ist am ${until} abgelaufen.`
         : 'Für dein Konto läuft kein Abo.';
       view.innerHTML = `<h2>Konto</h2><section class="panel">
         <p>Angemeldet als <strong>${esc(depot.user.email ?? depot.user.name ?? '')}</strong></p>
         <p class="hint" id="a-sync"></p>
-        <p><a class="btn" href="#/">Zum Markt</a> <button class="btn ghost" id="a-logout">Abmelden</button></p>
+        <p><a class="btn" href="#/">Zum Markt</a> ${depot.owner ? '<a class="btn ghost" href="#/admin">Nutzerübersicht</a> ' : ''}<button class="btn ghost" id="a-logout">Abmelden</button></p>
         <p id="a-msg" class="notice" hidden></p>
       </section>
       <section class="panel"><div class="label">Abo</div><p>${planText}</p>
@@ -1527,7 +1593,7 @@ function accountView(gate = false) {
     view.innerHTML = `<div class="gate">
         <div>
           <h1>${gate ? 'Melde dich an, um dein Portfolio zu sehen' : `Dein Konto bei ${esc(SITE.name)}`}</h1>
-          <p class="lead">Für ein Abo brauchst du ein Konto. Darin liegen auch dein Portfolio und deine Einstellungen. <a href="#/preise">Pakete und Preise</a></p>
+          <p class="lead">${SITE.trialDays > 0 ? `Mit einem neuen Konto testest du ${SITE.trialDays} Tage lang alle Funktionen kostenlos – ohne Zahlungsdaten. ` : 'Für ein Abo brauchst du ein Konto. '}Darin liegen auch dein Portfolio und deine Einstellungen. <a href="#/preise">Pakete und Preise</a></p>
           ${BENEFITS}
         </div>
         ${form}
@@ -2273,17 +2339,148 @@ function portfolioView() {
 
 // ---------- Start ----------
 
+// ---------- Betreiber: Übersicht der Nutzer ----------
+// Nur für die Konten in SITE.owners / SITE.ownerMails; die Firestore-Regeln geben die Daten auch nur ihnen heraus.
+// Die Seite bleibt deutsch (translate="no"): Sie ist für den Betreiber, nicht für Kunden.
+const ADMIN_PAGES = { markt: 'Markt', coin: 'Coin-Details', portfolio: 'Portfolio', daytrading: 'Daytrading', konto: 'Konto', preise: 'Preise',
+  agb: 'AGB', datenschutz: 'Datenschutz', impressum: 'Impressum', risiko: 'Risikohinweis' };
+const ADMIN_ACCESS = { trial: 'Testphase', expired: 'Test abgelaufen', paid: 'Abo', owner: 'Betreiber', none: 'kein Zugang', open: 'offen' };
+const MINUTE = 60_000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
+let adminTimer = null;
+
+function adminView() {
+  let users = null, error = null, loading = false, filter = '', sort = 'lastSeen';
+  const openRows = new Set(), portfolios = new Map();
+  const when = (t) => (t ? new Date(t).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' }) : '–');
+  const ago = (t) => {
+    if (!t) return '–';
+    const d = Date.now() - t;
+    return d < 2 * MINUTE ? 'gerade eben' : d < HOUR ? `vor ${Math.round(d / MINUTE)} Min.` : d < DAY ? `vor ${Math.round(d / HOUR)} Std.` : `vor ${Math.round(d / DAY)} Tagen`;
+  };
+  const state_ = (u) => (Date.now() - (u.lastSeen ?? 0) < 5 * MINUTE ? ['buy', 'online'] : Date.now() - (u.lastSeen ?? 0) < DAY ? ['hold', 'heute aktiv']
+    : Date.now() - (u.lastSeen ?? 0) < 30 * DAY ? ['none', 'aktiv (30 Tage)'] : ['sell', 'inaktiv']);
+  const accessText = (u) => `${ADMIN_ACCESS[u.access] ?? u.access ?? '–'}${u.accessUntil && ['trial', 'expired', 'paid'].includes(u.access) ? ` bis ${new Date(u.accessUntil).toLocaleDateString('de-CH')}` : ''}`;
+  const total = (m) => Object.values(m ?? {}).reduce((s, n) => s + (Number(n) || 0), 0);
+  const top = (m, n) => Object.entries(m ?? {}).sort((a, b) => b[1] - a[1]).slice(0, n);
+  const pageName = (p) => (p?.startsWith('coin/') ? `Coin: ${state.byId.get(p.slice(5))?.name ?? p.slice(5)}` : ADMIN_PAGES[p] ?? p ?? '–');
+
+  async function load() {
+    loading = true; render();
+    try { users = await auth.listUsage(); error = null; } catch (err) { error = err.message; }
+    loading = false; render();
+  }
+
+  async function loadPortfolio(uid) {
+    if (portfolios.has(uid)) return;
+    portfolios.set(uid, 'loading');
+    try { portfolios.set(uid, await auth.readPortfolio(uid)); } catch (err) { portfolios.set(uid, { error: err.message }); }
+    render();
+  }
+
+  function portfolioHtml(uid) {
+    const p = portfolios.get(uid);
+    if (p === undefined || p === 'loading') return '<p class="muted">Portfolio wird geladen …</p>';
+    if (p === null) return '<p class="muted">Kein Portfolio gespeichert.</p>';
+    if (p.error) return `<p class="notice">${esc(p.error)}</p>`;
+    const rows = (p.positions ?? []).map((pos) => {
+      const c = state.byId.get(pos.id) ?? null;
+      return { name: c?.name ?? pos.name ?? pos.symbol, symbol: (pos.symbol || c?.symbol || '').toUpperCase(), amount: pos.amount, value: c ? pos.amount * c.current_price : null };
+    }).sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+    const value = rows.reduce((s, r) => s + (r.value ?? 0), 0) + (p.cash ?? 0);
+    const log = (p.log ?? []).slice(-10).reverse();
+    return `<p><strong>${rows.length} Positionen</strong> · Wert rund ${money(value)} · Bargeld ${money(p.cash ?? 0)}
+        · Reserve-Ziel ${p.reservePct ?? 'Strategie'}${p.reservePct === null || p.reservePct === undefined ? ` „${RESERVE_MODES[p.reserveMode ?? 'balanced']?.label ?? p.reserveMode}“` : ' %'}
+        · Zustimmung AGB ${p.consent ? `${esc(p.consent.v)} am ${when(p.consent.t)}` : 'fehlt'}</p>
+      ${rows.length ? `<p class="muted">${rows.map((r) => `${esc(r.name)} (${esc(r.symbol)}) ${r.value === null ? '' : money(r.value)}`).join(' · ')}</p>` : ''}
+      ${log.length ? `<div class="label">Letzte Änderungen im Portfolio</div><ul class="admin-list">${log.map((e) => `<li><span class="muted">${when(e.t)}</span> ${esc(e.text ?? e.note ?? '')}</li>`).join('')}</ul>` : ''}`;
+  }
+
+  function detailHtml(u) {
+    const pages = top(u.pages, 12), coins = top(u.coins, 10);
+    return `<tr class="admin-detail"><td colspan="9"><div class="admin-grid">
+        <div><div class="label">Bereiche (Aufrufe)</div><ul class="admin-list">${pages.map(([k, n]) => `<li>${esc(ADMIN_PAGES[k] ?? k)} <b>${n}</b></li>`).join('') || '<li class="muted">–</li>'}</ul>
+          <div class="label">Meistgesehene Coins</div><ul class="admin-list">${coins.map(([k, n]) => `<li>${esc(state.byId.get(k)?.name ?? k)} <b>${n}</b></li>`).join('') || '<li class="muted">–</li>'}</ul></div>
+        <div><div class="label">Zuletzt aufgerufen</div><ul class="admin-list">${(u.recent ?? []).map((r) => `<li><span class="muted">${when(r.t)}</span> ${esc(pageName(r.p))}</li>`).join('') || '<li class="muted">–</li>'}</ul></div>
+        <div><div class="label">Konto</div><ul class="admin-list">
+            <li>Konto erstellt: ${when(u.created)}</li><li>Erster Besuch erfasst: ${when(u.firstSeen)}</li><li>Anmeldung: ${u.provider === 'google' ? 'Google' : 'E-Mail'}</li>
+            <li>Sprache ${esc(u.lang ?? '–')}, Währung ${esc((u.currency ?? '–').toUpperCase())}, ${esc(u.device ?? '–')}</li><li>Konto-Kennung: <code>${esc(u.uid)}</code></li></ul>
+          <div class="label">Portfolio</div>${portfolioHtml(u.uid)}</div>
+      </div></td></tr>`;
+  }
+
+  function render() {
+    if (error) {
+      view.innerHTML = `<div translate="no"><h1 class="page-title">Nutzerübersicht</h1><section class="panel"><p class="notice">${esc(error)}</p>
+        <p>Wahrscheinlich sind die neuen Firestore-Regeln noch nicht veröffentlicht. In der Firebase-Konsole unter Firestore → Regeln den Inhalt
+        der Datei <code>firestore.rules</code> einfügen und auf „Veröffentlichen“ klicken.</p><button class="btn" data-reload>Erneut laden</button></section></div>`;
+      view.querySelector('[data-reload]').addEventListener('click', load);
+      return;
+    }
+    if (!users) { view.innerHTML = '<div translate="no"><h1 class="page-title">Nutzerübersicht</h1><section class="panel"><p class="muted">Wird geladen …</p></section></div>'; return; }
+    const now = Date.now(), seen = (u) => now - (u.lastSeen ?? 0);
+    const count = (fn) => users.filter(fn).length;
+    const card = (label, value, sub = '') => `<div class="card"><div class="label">${label}</div><div class="value">${value}</div><div class="muted">${sub}</div></div>`;
+    const q = filter.trim().toLowerCase();
+    const list = users.filter((u) => !q || [u.email, u.name, u.uid].some((x) => x?.toLowerCase().includes(q)))
+      .sort((a, b) => (sort === 'created' ? (b.created ?? 0) - (a.created ?? 0) : sort === 'visits' ? (b.visits ?? 0) - (a.visits ?? 0) : (b.lastSeen ?? 0) - (a.lastSeen ?? 0)));
+    view.innerHTML = `<div translate="no">
+      <div class="page-head"><div><h1 class="page-title">Nutzerübersicht</h1>
+        <p class="hint">Erfasst wird jedes Konto ab seinem ersten Besuch mit dieser Version. „Online“ heißt: in den letzten 5 Minuten aktiv.</p></div>
+        <div class="actions"><button class="btn ghost" data-reload>${loading ? 'Lädt …' : 'Aktualisieren'}</button></div></div>
+      <div class="summary">
+        ${card('Konten', users.length, `${count((u) => now - (u.created ?? 0) < 7 * DAY)} neu in 7 Tagen`)}
+        ${card('Online', count((u) => seen(u) < 5 * MINUTE), 'letzte 5 Minuten')}
+        ${card('Aktiv heute', count((u) => seen(u) < DAY), 'letzte 24 Stunden')}
+        ${card('Aktiv 7 Tage', count((u) => seen(u) < 7 * DAY), `30 Tage: ${count((u) => seen(u) < 30 * DAY)}`)}
+        ${card('In Testphase', count((u) => u.access === 'trial'), `abgelaufen: ${count((u) => u.access === 'expired')}`)}
+        ${card('Mit Abo', count((u) => u.access === 'paid'), '')}
+      </div>
+      <div class="admin-tools"><input type="search" id="ad-filter" placeholder="Suchen nach E-Mail, Name oder Kennung" value="${esc(filter)}">
+        <label>Sortieren <select id="ad-sort"><option value="lastSeen">Zuletzt aktiv</option><option value="created">Neueste Konten</option><option value="visits">Meiste Besuche</option></select></label></div>
+      <div class="table-wrap"><table class="admin-table"><thead><tr><th>E-Mail</th><th>Status</th><th>Zuletzt aktiv</th><th>Zuletzt gesehen</th><th class="num">Besuche</th>
+        <th class="num">Aufrufe</th><th>Zugang</th><th>Erstellt</th><th></th></tr></thead><tbody>
+        ${list.map((u) => {
+          const [cls, label] = state_(u);
+          return `<tr><td>${esc(u.email ?? u.name ?? u.uid)}</td><td><span class="badge ${cls}">${label}</span></td><td>${ago(u.lastSeen)}</td>
+            <td>${esc(pageName(u.lastPage))}</td><td class="num">${u.visits ?? 0}</td><td class="num">${total(u.pages)}</td><td>${esc(accessText(u))}</td>
+            <td>${u.created ? new Date(u.created).toLocaleDateString('de-CH') : '–'}</td>
+            <td><button class="btn ghost small" data-user="${esc(u.uid)}">${openRows.has(u.uid) ? 'Schließen' : 'Details'}</button></td></tr>
+            ${openRows.has(u.uid) ? detailHtml(u) : ''}`;
+        }).join('') || '<tr><td colspan="9" class="empty">Noch keine erfassten Nutzer.</td></tr>'}
+      </tbody></table></div></div>`;
+    view.querySelector('#ad-sort').value = sort;
+    view.querySelector('[data-reload]').addEventListener('click', load);
+    view.querySelector('#ad-sort').addEventListener('change', (e) => { sort = e.target.value; render(); });
+    const input = view.querySelector('#ad-filter');
+    input.addEventListener('input', () => { filter = input.value; render(); const again = view.querySelector('#ad-filter'); again.focus(); again.setSelectionRange(filter.length, filter.length); });
+    for (const b of view.querySelectorAll('[data-user]')) b.addEventListener('click', () => {
+      const uid = b.dataset.user;
+      if (openRows.has(uid)) openRows.delete(uid); else { openRows.add(uid); loadPortfolio(uid); }
+      render();
+    });
+  }
+
+  load();
+  // Alle zwei Minuten neu laden, damit „online“ stimmt; die Kurs-Aktualisierungen bauen die Seite nicht jedes Mal neu
+  clearInterval(adminTimer);
+  adminTimer = setInterval(() => { if (location.hash.startsWith('#/admin') && current?.admin === load) load(); else clearInterval(adminTimer); }, 2 * MINUTE);
+  return { update() {}, admin: load };
+}
+
 function route() {
   const [name, arg] = location.hash.replace(/^#\/?/, '').split('/');
   const pages = ['preise', ...site.LEGAL_KINDS];
-  const section = name === 'portfolio' ? 'portfolio' : name === 'konto' ? 'account' : name === 'daytrading' ? 'trading' : pages.includes(name) ? null : 'market';
+  const section = name === 'portfolio' ? 'portfolio' : name === 'konto' ? 'account' : name === 'daytrading' ? 'trading' : name === 'admin' ? 'admin'
+    : pages.includes(name) ? null : 'market';
   for (const a of document.querySelectorAll('nav a')) a.classList.toggle('active', a.dataset.nav === section);
   let id = arg;
   try { id = decodeURIComponent(arg ?? ''); } catch { /* fehlerhafte Adresse – unverändert verwenden */ }
   const open = name === 'konto' || pages.includes(name);
   const sales = () => site.pricingView(view, { access, user: () => depot.user, record: () => state.record });
   // Mit Bezahlschranke erst abwarten, wer angemeldet ist und ob ein Abo läuft – sonst blitzt die Verkaufsseite kurz auf
-  if (SITE.paywall && !open && (!depot.ready || (depot.user && !depot.owner && !abo.loaded))) current = waitView();
+  usagePage(name || 'markt', arg);
+  if (name === 'admin') current = !depot.ready ? waitView() : depot.owner ? adminView() : accountView();
+  else if (SITE.paywall && !open && (!depot.ready || (depot.user && !depot.owner && !abo.loaded))) current = waitView();
   else if (!open && !access().plan) current = sales();   // ohne Abo gibt es keine Inhalte
   else if (name === 'coin' && id) current = detailView(id);
   else if (name === 'portfolio') current = !depot.user ? accountView(true) : fullAccess() ? portfolioView() : lockedView('portfolio');

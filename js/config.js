@@ -17,10 +17,14 @@ export const SITE = {
   },
 
   // Stand der Rechtstexte. Ändert sich das Datum, werden angemeldete Nutzer erneut um Zustimmung gebeten.
-  legalVersion: '2026-10-12',
+  legalVersion: '2026-10-14',
   hosting: 'GitHub Pages (GitHub Inc., USA)',
 
-  // Abo: zwei Pakete, monatliche Abrechnung, kein kostenloser Umfang. Preise inklusive Mehrwertsteuer.
+  // Kostenlose Testphase: Neue Konten haben so viele Tage lang alle Funktionen, ohne Zahlungsdaten. Danach endet der Zugang
+  // von selbst. 0 schaltet sie ab. Gezählt wird ab dem Erstellen des Kontos.
+  trialDays: 30,
+
+  // Abo: zwei Pakete, monatliche Abrechnung. Preise inklusive Mehrwertsteuer.
   // Standard zeigt den Markt (Index, Signale, Detailansichten), Komplett zusätzlich Portfolio und Daytrading.
   paywall: true,       // true: Inhalte nur mit Abo. false: alles offen – nur zum Entwickeln
   currency: 'EUR',     // Währung, in der das Abo verkauft wird
