@@ -1,0 +1,61 @@
+# Postet jeden Morgen den Wetterbericht des Kryptomarkts mit Bild auf allen eingerichteten Kanälen
+# (scripts/post-daily.mjs). Ein Kanal ist aktiv, sobald seine Geheimnisse hinterlegt sind – siehe SOCIAL-MEDIA.md.
+name: Tägliche Beiträge
+
+on:
+  schedule:
+    - cron: '30 5 * * *'   # 05:30 UTC = 07:30 Uhr Schweizer Sommerzeit, 06:30 Uhr im Winter
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      POST_LANG: ${{ vars.POST_LANG }}
+      HAS_INSTAGRAM: ${{ secrets.INSTAGRAM_USER_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Bildbibliothek installieren
+        run: npm install --no-save --silent sharp@0.33.5
+      - name: Bild erzeugen
+        run: mkdir -p out && node scripts/post-daily.mjs --dry --image out/daily.jpg
+      - name: Bild zum Ansehen ablegen
+        uses: actions/upload-artifact@v4
+        with:
+          name: tagesbild
+          path: out/daily.jpg
+          retention-days: 7
+      # Instagram holt das Bild von einer öffentlichen Adresse: Es liegt dafür im Zweig "media"
+      - name: Bild für Instagram bereitstellen
+        if: env.HAS_INSTAGRAM == 'true'
+        run: |
+          name="daily-$(date -u +%Y%m%d).jpg"
+          cd out && mv daily.jpg "$name"
+          git init -q -b media
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$name" && git commit -q -m "Bild vom $(date -u +%Y-%m-%d)"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" media
+          echo "IMAGE_URL=https://raw.githubusercontent.com/${{ github.repository }}/media/$name" >> "$GITHUB_ENV"
+          sleep 10
+      - name: Posten
+        run: node scripts/post-daily.mjs
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_TOKEN }}
+          INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
