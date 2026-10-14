@@ -128,7 +128,7 @@ nav #nav-account:not(.signed-in) { background: linear-gradient(135deg, var(--acc
 .card .muted { font-size: 12.5px; min-height: 1.2em; }
 
 .controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 36px 0 14px; }
-#search, .form input, .form select {
+#search, .form input, .form select, .start-row input, .admin-tools input, .admin-tools select {
   background: var(--panel); color: var(--text);
   border: 1px solid var(--line-strong); border-radius: 12px;
   padding: 11px 14px; font: inherit; min-width: 0; width: 100%; transition: border-color .15s, box-shadow .15s;
@@ -541,3 +541,13 @@ html.i18n-wait body { visibility: hidden; }
 .admin-list { list-style: none; margin: 4px 0 14px; padding: 0; font-size: 13.5px; }
 .admin-list li { padding: 3px 0; border-bottom: 1px solid var(--line); }
 .admin-list b { float: right; }
+
+/* Leeres Portfolio: mit Bargeld starten */
+.empty-state .or { max-width: 420px; margin: 26px auto 18px; }
+.empty-state h3 { margin: 0 0 6px; }
+.start-cash { max-width: 420px; margin: 14px auto 0; text-align: left; }
+.start-cash label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.start-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.start-row input { flex: 1 1 160px; min-width: 0; }
+.start-row .btn { flex: 0 0 auto; }
+.admin-tools select { width: auto; }

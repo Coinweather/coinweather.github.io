@@ -2129,6 +2129,7 @@ function portfolioView() {
 
   const self = { update };
   let optionCount = -1;
+  let emptyShown = null;
 
   function update() {
     const list = depot.data.positions;
@@ -2145,11 +2146,29 @@ function portfolioView() {
 
     const isEmpty = !list.length && !depot.data.cash;
     $('#p-body').hidden = isEmpty;
-    $('#p-empty').innerHTML = isEmpty ? `<section class="panel empty-state">
+    // Nur bei einem Wechsel neu aufbauen – sonst ginge ein angefangener Betrag bei jeder Kursaktualisierung verloren
+    if (isEmpty !== emptyShown) {
+      emptyShown = isEmpty;
+      $('#p-empty').innerHTML = isEmpty ? `<section class="panel empty-state">
         <h2>Noch nichts im Portfolio</h2>
-        <p class="muted">Füge deine Coins hinzu oder importiere dein Portfolio. Danach siehst du Wert, Gewinn und konkrete Vorschläge.</p>
-        <div class="btn-row"><button class="btn" data-open-add>+ Position hinzufügen</button><button class="btn ghost" data-open-import>Importieren</button></div>
+        <p class="muted">Trag ein, wie viel du anlegen möchtest – der Manager schlägt dann vor, was du davon kaufen kannst. Hast du schon Coins, füge sie hinzu oder importiere dein Portfolio.</p>
+        <form id="p-start" class="start-cash">
+          <label for="p-start-value">Startkapital <span translate="no">(${currencyCode()})</span></label>
+          <div class="start-row"><input id="p-start-value" inputmode="decimal" placeholder="z. B. 5000" autocomplete="off">
+            <button class="btn" type="submit">Startkapital speichern</button></div>
+        </form>
+        <div class="or"><span>oder</span></div>
+        <div class="btn-row"><button class="btn ghost" data-open-add>+ Coins hinzufügen</button><button class="btn ghost" data-open-import>Portfolio importieren</button></div>
       </section>` : '';
+      $('#p-start')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const amount = pf.parseInput($('#p-start-value').value.trim());
+        if (!(amount > 0)) return say('Bitte einen Betrag größer als 0 eingeben.');
+        const cash = fromDisplay(amount);
+        message = 'Startkapital gespeichert. Die Vorschläge werden jetzt berechnet.';
+        saveDepot({ ...depot.data, cash, cashFix: { amount, currency: settings.currency } }, { note: `Startkapital: ${money(cash)}` });
+      });
+    }
     if (isEmpty) { advice = null; reserve(0, 0); return; }
 
     const rows = list.map((pos) => {
