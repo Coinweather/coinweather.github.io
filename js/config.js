@@ -12,7 +12,7 @@ export const SITE = {
     street: 'Stationsstrasse 167', // Strasse und Hausnummer
     city: '6023 Rothenburg', // PLZ und Ort
     country: 'Schweiz',
-    email: 'hansb67@gmail.com', // Kontakt-Adresse für Kunden
+    email: 'janj2763@gmail.com', // Kontakt-Adresse für Kunden
     register: '',      // UID / Handelsregister-Nummer, falls vorhanden
   },
 
