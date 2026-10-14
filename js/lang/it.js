@@ -1148,4 +1148,5 @@ export default {
   "Zwei Pakete, monatliche Abrechnung, jederzeit zum Monatsende kündbar": "Due piani, fatturazione mensile, disdicibile in qualsiasi momento a fine mese",
   "Zwei Zyklen sind eine sehr schmale Grundlage": "Due cicli sono una base molto ristretta",
   "Zyklus": "Ciclo",
+  "Noch nichts eingetragen. Trag unten dein Bargeld ein – dann schlägt der Manager vor, was du davon kaufen kannst": "Non hai ancora inserito nulla. Inserisci qui sotto la tua liquidità – il gestore ti proporrà che cosa potresti comprare",
 };

@@ -1148,4 +1148,5 @@ export default {
   "Zwei Pakete, monatliche Abrechnung, jederzeit zum Monatsende kündbar": "Deux formules, facturation mensuelle, résiliable à tout moment pour la fin du mois",
   "Zwei Zyklen sind eine sehr schmale Grundlage": "Deux cycles constituent une base très étroite",
   "Zyklus": "Cycle",
+  "Noch nichts eingetragen. Trag unten dein Bargeld ein – dann schlägt der Manager vor, was du davon kaufen kannst": "Rien n’est encore saisi. Indique tes liquidités ci-dessous – le gestionnaire te proposera alors ce que tu pourrais acheter avec",
 };

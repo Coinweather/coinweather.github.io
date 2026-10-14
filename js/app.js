@@ -1189,6 +1189,11 @@ const depotValue = (data) => data.cash + data.positions.reduce((sum, pos) => {
 function saveDepot(data, { internal = false, note = null } = {}) {
   const before = depot.data;
   const next = pf.normalise(data);
+  // Ändert ein Kauf oder Verkauf das Bargeld, wird der eingetragene Betrag in seiner Währung mitgeführt
+  const fixRate = next.cashFix && i18n.rateOf(next.cashFix.currency);
+  if (next.cashFix && next.cash !== before.cash && data.cashFix === before.cashFix) {
+    next.cashFix = fixRate > 0 ? { ...next.cashFix, amount: Math.round(next.cash * fixRate * 100) / 100 } : null;
+  }
   // Geänderten Bestand für die Wertentwicklung festhalten – nur wenn Kurse da sind, sonst wäre der Wert falsch
   if (state.coins.length) {
     const held = { cash: next.cash, positions: next.positions.map((pos) => ({ id: pos.id ?? coinOf(pos)?.id ?? null, amount: pos.amount })) };
@@ -1786,15 +1791,20 @@ function portfolioView() {
     const mode = e.target.closest('[data-mode]')?.dataset.mode;
     if (mode) { message = ''; saveDepot({ ...depot.data, reservePct: null, reserveMode: mode }); }
   });
-  $('#p-cash').addEventListener('submit', (e) => {
-    e.preventDefault();
+  // Bargeld wird in der gewählten Währung eingetragen und so gespeichert; intern rechnet die Seite in US-Dollar
+  const saveCash = () => {
     const raw = $('#p-cash-value').value.trim();
-    const cash = raw ? fromDisplay(pf.parseInput(raw)) : 0;
-    if (!(cash >= 0)) return say('Bitte einen Betrag von 0 oder mehr eingeben.');
-    message = 'Bargeld gespeichert.';
+    const amount = raw ? pf.parseInput(raw) : 0;
+    if (!(amount >= 0)) return say('Bitte einen Betrag von 0 oder mehr eingeben.');
     $('#p-cash-value').blur();
-    saveDepot({ ...depot.data, cash }, { note: `Bargeld auf ${money(cash)} gesetzt` });
-  });
+    if (raw === cashText()) return;
+    message = 'Bargeld gespeichert.';
+    const cash = fromDisplay(amount);
+    saveDepot({ ...depot.data, cash, cashFix: { amount, currency: settings.currency } }, { note: `Bargeld auf ${money(cash)} gesetzt` });
+  };
+  $('#p-cash').addEventListener('submit', (e) => { e.preventDefault(); saveCash(); });
+  // „Fertig“, ✕ oder Esc übernehmen einen eingetippten Betrag, ohne dass erst „Speichern“ nötig ist
+  $('#dlg-reserve').addEventListener('close', saveCash);
 
   // ----- Position ändern: tauschen, verkaufen oder entfernen -----
   const EDIT = {
@@ -2063,6 +2073,10 @@ function portfolioView() {
       $('#coinlist').innerHTML = state.coins.map((c) => `<option value="${esc(c.name)} (${esc(c.symbol.toUpperCase())})">`).join('');
     }
 
+    // In einer anderen Währung eingetragenes Bargeld folgt dem aktuellen Wechselkurs
+    const fix = depot.data.cashFix, fixRate = fix && i18n.rateOf(fix.currency);
+    if (fixRate > 0 && Math.abs(fix.amount / fixRate - depot.data.cash) > 0.01) return saveDepot({ ...depot.data, cash: fix.amount / fixRate }, { internal: true });
+
     const isEmpty = !list.length && !depot.data.cash;
     $('#p-body').hidden = isEmpty;
     $('#p-empty').innerHTML = isEmpty ? `<section class="panel empty-state">
@@ -2070,7 +2084,7 @@ function portfolioView() {
         <p class="muted">Füge deine Coins hinzu oder importiere dein Portfolio. Danach siehst du Wert, Gewinn und konkrete Vorschläge.</p>
         <div class="btn-row"><button class="btn" data-open-add>+ Position hinzufügen</button><button class="btn ghost" data-open-import>Importieren</button></div>
       </section>` : '';
-    if (isEmpty) { advice = null; return; }
+    if (isEmpty) { advice = null; reserve(0, 0); return; }
 
     const rows = list.map((pos) => {
       const c = find(pos);
@@ -2140,7 +2154,8 @@ function portfolioView() {
     $('#r-chip').textContent = `${value} %`;
     const share = total ? actual / total * 100 : 0;
     const gap = total * value / 100 - actual;
-    $('#r-actual').innerHTML = `Aktuell liegen <strong>${money(actual)}</strong> in Reserve (${num(share, 0)} %). `
+    $('#r-actual').innerHTML = !total ? 'Noch nichts eingetragen. Trag unten dein Bargeld ein – dann schlägt der Manager vor, was du davon kaufen kannst.'
+      : `Aktuell liegen <strong>${money(actual)}</strong> in Reserve (${num(share, 0)} %). `
       + (Math.abs(gap) < total * 0.02 ? 'Das entspricht dem Ziel.'
         : gap > 0 ? `Für ${value} % fehlen rund <strong>${money(gap)}</strong> – dafür schlägt der Manager Verkäufe vor.`
           : `Das sind rund <strong>${money(-gap)}</strong> mehr als das Ziel – dafür schlägt der Manager Käufe vor.`);
@@ -2158,7 +2173,14 @@ function portfolioView() {
       ${esc(advice.texts[mode] ?? advice.text)}
       ${h ? `In vergleichbaren Marktphasen seit 2018 stand der Markt 30 Tage später in <strong>${h.up} %</strong> der Fälle höher; im schlechtesten Zehntel der Fälle lag er mindestens <strong>${-h.worst} %</strong> tiefer.` : ''}`;
     const cashInput = $('#p-cash-value');
-    if (document.activeElement !== cashInput) cashInput.value = depot.data.cash ? String(Math.round(depot.data.cash * 100) / 100).replace('.', ',') : '';
+    if (document.activeElement !== cashInput) cashInput.value = cashText();
+  }
+
+  // Bargeld als Eingabetext in der gewählten Währung – wie eingetragen, wenn es in dieser Währung eingetragen wurde
+  function cashText() {
+    const fix = depot.data.cashFix;
+    const amount = fix && fix.currency === settings.currency ? fix.amount : Math.round(toDisplay(depot.data.cash) * 100) / 100;
+    return amount ? amount.toLocaleString(settings.locale, { maximumFractionDigits: 2, useGrouping: false }) : '';
   }
 
   // Verteilung des Portfolios als Balken: die größten Positionen einzeln, der Rest zusammengefasst

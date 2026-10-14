@@ -48,6 +48,9 @@ export function setRates(fx) {
   return before !== `${settings.currency}${settings.rate}`;
 }
 
+// Kurs einer Währung je US-Dollar; undefined, solange er nicht bekannt ist
+export const rateOf = (currency) => rates[currency];
+
 // Einstellung speichern; wirksam wird sie mit dem Neuladen der Seite
 export function savePrefs(next) {
   if (LANGS[next.lang]) prefs.lang = next.lang;

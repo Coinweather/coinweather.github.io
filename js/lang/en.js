@@ -1138,4 +1138,5 @@ export default {
   "Zwei Pakete, monatliche Abrechnung, jederzeit zum Monatsende kündbar": "Two plans, monthly billing, cancel any time at the end of the month",
   "Zwei Zyklen sind eine sehr schmale Grundlage": "Two cycles are a very narrow basis",
   "Zyklus": "Cycle",
+  "Noch nichts eingetragen. Trag unten dein Bargeld ein – dann schlägt der Manager vor, was du davon kaufen kannst": "Nothing entered yet. Enter your cash below – the manager will then suggest what you could buy with it",
 };

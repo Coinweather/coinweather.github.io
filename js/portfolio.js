@@ -5,7 +5,7 @@ import * as tr from './track.js';
 const KEY = 'krypto-markt-depot';
 const LEGACY_KEY = 'krypto-markt-portfolio';   // frühere Version: nur die Liste der Positionen
 
-export const empty = () => ({ positions: [], cash: 0, reservePct: null, reserveMode: 'balanced', track: tr.empty(), log: [], consent: null, prefs: null });
+export const empty = () => ({ positions: [], cash: 0, cashFix: null, reservePct: null, reserveMode: 'balanced', track: tr.empty(), log: [], consent: null, prefs: null });
 
 // Macht aus beliebigen gespeicherten Daten ein gültiges Portfolio
 export function normalise(data) {
@@ -17,7 +17,10 @@ export function normalise(data) {
       ...(Number.isFinite(p.since) ? { since: p.since } : {}),
       ...(Number.isFinite(p.peak) ? { peak: p.peak } : {}) }));
   const pct = data?.reservePct;
+  const fix = data?.cashFix;
   return { positions, cash: Number.isFinite(data?.cash) && data.cash > 0 ? data.cash : 0,
+    // Bargeld, wie es eingetragen wurde (Betrag und Währung): Es bleibt gleich, auch wenn sich der Dollarkurs ändert
+    cashFix: Number.isFinite(fix?.amount) && fix.amount >= 0 && typeof fix?.currency === 'string' ? { amount: fix.amount, currency: fix.currency } : null,
     // Gewünschte Reserve in Prozent; null bedeutet: dem Vorschlag der Seite folgen
     reservePct: Number.isFinite(pct) && pct >= 0 && pct <= 100 ? pct : null,
     // Welchem Vorschlag gefolgt wird, solange kein eigener Wert gesetzt ist
@@ -77,6 +80,8 @@ export function parseNumber(value) {
 export function parseInput(value) {
   const s = String(value ?? '').replace(/[^\d.,\-]/g, '');
   if (!s) return NaN;
+  // Mit Punkt und Komma ist das hintere Zeichen das Dezimaltrennzeichen: „1,000.50“ wie „1.000,50“
+  if (s.includes(',') && s.includes('.') && s.lastIndexOf('.') > s.lastIndexOf(',')) return Number(s.replace(/,/g, ''));
   if (s.includes(',')) return Number(s.replace(/\./g, '').replace(',', '.'));
   // "5.000" oder "1.250.000" meint Tausender, "0.5" eine Dezimalzahl
   return Number(/^-?[1-9]\d{0,2}(\.\d{3})+$/.test(s) ? s.replace(/\./g, '') : s);

@@ -1148,4 +1148,5 @@ export default {
   "Zwei Pakete, monatliche Abrechnung, jederzeit zum Monatsende kündbar": "İki paket, aylık faturalama, istediğin zaman ay sonu itibarıyla iptal",
   "Zwei Zyklen sind eine sehr schmale Grundlage": "İki döngü çok dar bir dayanaktır",
   "Zyklus": "Döngü",
+  "Noch nichts eingetragen. Trag unten dein Bargeld ein – dann schlägt der Manager vor, was du davon kaufen kannst": "Henüz bir şey girilmedi. Aşağıya nakdini gir – yönetici onunla neler alabileceğini önerir",
 };
