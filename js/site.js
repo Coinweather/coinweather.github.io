@@ -174,7 +174,7 @@ const LEGAL = {
     <h3>Inhalte und Verweise</h3>
     <p>Die Inhalte werden sorgfältig erstellt, eine Gewähr für Richtigkeit, Vollständigkeit und Aktualität gibt es nicht. Für Inhalte verlinkter fremder Seiten ist deren Betreiber verantwortlich.</p>
     <h3>Daten</h3>
-    <p>Data provided by <a href="https://www.coingecko.com/en/api" target="_blank" rel="noopener">CoinGecko</a> · Kursgeschichte: Binance ·
+    <p>Data provided by <a href="https://www.coingecko.com/en/api" target="_blank" rel="noopener">CoinGecko</a> · Kursgeschichte: Binance, Gate.io ·
       Fear &amp; Greed Index: <a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener">alternative.me</a> · Nachrichten: cryptocurrency.cv</p>`],
 
   risiko: () => ['Risikohinweis', `<p class="lead">Bitte lies diesen Hinweis, bevor du dich auf ein Signal verlässt.</p>${RISK_POINTS}`],
@@ -241,7 +241,7 @@ const LEGAL = {
       <li><strong>In deinem Browser:</strong> Einstellungen, eine Kopie deines Portfolios und die Anmeldung werden lokal gespeichert, damit die Seite funktioniert.</li>
     </ul>
     <h3>Abrufe bei Dritten</h3>
-    <p>Kurse, Coin-Bilder, Kursgeschichte, Stimmungsindex und Nachrichten lädt dein Browser direkt bei CoinGecko, Binance, alternative.me, cryptocurrency.cv, GitHub und Google.
+    <p>Kurse, Coin-Bilder, Kursgeschichte, Stimmungsindex und Nachrichten lädt dein Browser direkt bei CoinGecko, Binance, Gate.io, alternative.me, cryptocurrency.cv, GitHub und Google.
       Dabei erfahren diese Anbieter technisch bedingt deine IP-Adresse. Weitere Daten von dir werden dabei nicht übermittelt.</p>
     <h3>Zwecke und Rechtsgrundlagen</h3>
     <p>Die Daten werden verarbeitet, um den Dienst bereitzustellen und den Vertrag mit dir zu erfüllen, um gesetzliche Pflichten einzuhalten und auf Grundlage des berechtigten Interesses

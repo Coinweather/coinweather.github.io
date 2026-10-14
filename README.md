@@ -26,7 +26,7 @@ Danach `http://localhost:8123` öffnen.
 | `scripts/lang-check.mjs` | Prüft, ob jedes Wörterbuch alle Einträge hat |
 | `js/model.js` | Prognosemodell: Indikatoren, Bewertungskurven, Markt-Index, Rückblick-Test |
 | `js/manager.js` | Portfolio-Manager: Regeln für Kaufen, Verkaufen, Tauschen, Gewinnmitnahme |
-| `js/api.js` | Datenquellen: CoinGecko (Kurse), Binance (Kursgeschichte), alternative.me (Fear & Greed), cryptocurrency.cv (Nachrichten) |
+| `js/api.js` | Datenquellen: CoinGecko (Kurse), Binance und Gate.io (Kursgeschichte der letzten 4 Jahre), alternative.me (Fear & Greed), cryptocurrency.cv (Nachrichten) |
 | `js/portfolio.js` | Speicherung im Browser und CSV-Import |
 | `js/auth.js` | Konten und Speicherung im Konto (Firebase) |
 | `js/firebase-config.js` | Zugangsdaten des Firebase-Projekts |
@@ -101,7 +101,7 @@ Die Seite hält jeden geänderten Bestand mit Zeitpunkt fest (`js/track.js`) und
 Die Seite ist technisch ein öffentliches, kostenloses Werkzeug. Für ein bezahltes Angebot fehlen Dinge, die sich nicht im Code lösen lassen:
 
 - **Recht:** Kauf- und Verkaufssignale gegen Geld können je nach Land als Anlageberatung oder Finanzdienstleistung gelten. Vor dem Start mit einer Fachperson klären; dazu Impressum, Datenschutzerklärung und AGB.
-- **Datenlizenzen:** Die kostenlosen Zugänge (CoinGecko, Binance-Marktdaten, alternative.me, cryptocurrency.cv) sind teils nur für private Nutzung oder mit Auflagen freigegeben. Für ein kommerzielles Angebot die Bedingungen prüfen und nötigenfalls bezahlte Tarife buchen.
+- **Datenlizenzen:** Die kostenlosen Zugänge (CoinGecko, Binance-Marktdaten, Gate.io, alternative.me, cryptocurrency.cv) sind teils nur für private Nutzung oder mit Auflagen freigegeben. Für ein kommerzielles Angebot die Bedingungen prüfen und nötigenfalls bezahlte Tarife buchen.
 - **Bezahlschranke:** Derzeit liegen Code und berechnete Daten offen im Netz. Ein Abo braucht einen Zahlungsanbieter und einen Server, der die Daten nur an zahlende Konten ausliefert.
 - **Betrieb:** Die Berechnung läuft über GitHub Actions ohne Zusage zur Pünktlichkeit. Zahlende Kunden brauchen einen verlässlicheren Dienst und eine Überwachung.
 - **Nachweis:** Die Erfolgskontrolle misst seit dem 12.10.2026. Belastbar wird sie erst nach mehreren Monaten und Marktphasen.

@@ -66,6 +66,9 @@ function reindex(coins) {
   state.byId = state.raw;
 }
 
+// Welche Börse die Kursgeschichte des Coins führt, weiß die zentrale Berechnung; ohne sie werden beide versucht
+const histSource = (c) => (state.server && state.histKnown ? c.hist ?? null : undefined);
+
 function rebuild() {
   if (state.server) {
     // Bewertungen stehen fest; nur die Tagesindikatoren für Diagramm und Rückblick-Test werden ergänzt
@@ -98,6 +101,8 @@ function rebuild() {
     if (daily && isNum(c.current_price)) {
       c.ind = prepare(daily.t, [...daily.p.slice(0, -1), c.current_price], daily.v);
       c.analysis = detailAnalyse(c, c.ind, regime, state.news.get(c.id));
+      // Die Daytrading-Muster sind an Binance-Kursen geprüft
+      if (daily.source !== 'Binance') delete c.analysis.trade;
     }
   }
   reindex(coins);
@@ -201,8 +206,8 @@ async function refineAll() {
     const worker = async () => {
       for (let c = todo.shift(); c; c = todo.shift()) {
         try {
-          const data = await api.history(c.symbol);
-          if (data && !state.daily.has(c.id)) state.daily.set(c.id, { ...data, source: 'Binance' });
+          const data = await api.history(c.symbol, histSource(c));
+          if (data && !state.daily.has(c.id)) state.daily.set(c.id, data);
         } catch { /* einzelner Coin nicht ladbar – es bleibt bei der Schnellbewertung */ }
         if (++done % 20 === 0) { rebuild(); current?.update(); }
       }
@@ -230,6 +235,7 @@ async function loadSnapshot() {
 
     const live = new Map([...state.raw.values()].map((c) => [c.id, c.current_price]));
     state.server = true;
+    state.histKnown = snap.coins.some((c) => c.hist);   // ältere Schnappschüsse kennen die Börse noch nicht
     state.gen++;                        // beendet eine laufende Berechnung im Browser
     state.raw = new Map();
     for (const c of snap.coins) {
@@ -418,8 +424,8 @@ const INFO = {
     <p>Dieselben drei Regeln steuern das Reserve-Ziel im Portfolio. Eigene Regeln je Altcoin (kein Kauf im eigenen Abwärtstrend, kein Kauf nach eigener Gier, Kauf nach eigener Angst)
       halfen in der Prüfung jeweils nur in einem von zwei Zeiträumen und sind deshalb nicht eingebaut.</p>
     <h3>Grundlage</h3>
-    <p>Tageskurse von 84 Coins seit 2018 (rund ${num(174000, 0)} Coin-Tage), geprüft in zwei getrennten Zeiträumen. Tageskurse gibt es nur für Coins, die bei Binance gehandelt werden;
-      die übrigen bekommen eine einfachere Schnellbewertung. Token auf Aktien, Fonds, Edelmetalle und Währungen erhalten keine Prognose.</p>${LIMITS}` },
+    <p>Tageskurse von 84 Coins seit 2018 (rund ${num(174000, 0)} Coin-Tage), geprüft in zwei getrennten Zeiträumen. Bewertet wird mit den Tageskursen der letzten 4 Jahre von Binance, sonst von Gate.io;
+      Coins, die an keiner der beiden Börsen gehandelt werden, bekommen eine einfachere Schnellbewertung. Token auf Aktien, Fonds, Edelmetalle und Währungen erhalten keine Prognose.</p>${LIMITS}` },
 
   index: { title: 'Jetzt kaufen? – der Markt-Index', body: () => `
     <p>Der Index reicht von 0 (klar verkaufen) über 50 (neutral) bis 100 (klar kaufen) und bewertet die nächsten Wochen.</p>
@@ -925,12 +931,12 @@ function detailView(id) {
     try {
       if (!state.daily.has(id)) {
         let data = null;
-        try { data = await api.history(c.symbol); } catch { /* Binance nicht erreichbar */ }
+        try { data = await api.history(c.symbol, histSource(c)); } catch { /* Börsen nicht erreichbar */ }
         // Gleiches Kürzel, aber ein anderer Coin? Dann weicht der Kurs deutlich ab
         if (data && Math.abs(data.p[data.p.length - 1] / c.current_price - 1) > 0.1) data = null;
-        const source = data ? 'Binance' : 'CoinGecko';
-        if (!data) data = await api.chart(id, 'usd');
-        state.daily.set(id, { ...data, source });
+        // Nur wenn keine Börse den Coin führt: CoinGecko, im kostenlosen Zugang höchstens ein Jahr
+        if (!data) data = { ...(await api.chart(id, 'usd')), source: 'CoinGecko' };
+        state.daily.set(id, data);
         rebuild();
       }
     } catch (err) {
@@ -2049,14 +2055,14 @@ function portfolioView() {
       historyTried.add(id);
       const c = state.byId.get(id);
       if (!c) continue;
-      let data = null, source = 'Binance';
-      try { data = await api.history(c.symbol); } catch { /* Binance nicht erreichbar */ }
+      let data = null;
+      try { data = await api.history(c.symbol, histSource(c)); } catch { /* Börsen nicht erreichbar */ }
       if (data && Math.abs(data.p[data.p.length - 1] / c.current_price - 1) > 0.1) data = null;   // gleiches Kürzel, anderer Coin
       if (!data && fallbacks < 3) {
-        fallbacks++; source = 'CoinGecko';
-        try { data = await api.chart(id, 'usd'); } catch { /* Limit erreicht – es bleibt beim heutigen Kurs */ }
+        fallbacks++;
+        try { data = { ...(await api.chart(id, 'usd')), source: 'CoinGecko' }; } catch { /* Limit erreicht – es bleibt beim heutigen Kurs */ }
       }
-      if (data) state.daily.set(id, { ...data, source });
+      if (data) state.daily.set(id, data);
     }
     historyLoading = false;
     rebuild();

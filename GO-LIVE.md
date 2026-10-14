@@ -49,6 +49,7 @@ Das ist der wichtigste Punkt, und ein Haftungsausschluss löst ihn nicht.
 |---|---|---|
 | CoinGecko | Der kostenlose Zugang (Demo) hat keine Lizenz für kommerzielle Nutzung | Bezahlplan buchen (Basic 35 $ im Monat, 29 $ bei Jahreszahlung), Schlüssel als Secret hinterlegen |
 | Binance (`data-api.binance.vision`) | Die Daten stehen unter einer Lizenz ohne kommerzielle Nutzung; bezahlte Abo-Dienste sind ausdrücklich ausgeschlossen | Kursgeschichte auf eine lizenzierte Quelle umstellen (z. B. CoinGecko-Bezahlplan) |
+| Gate.io (`api.gateio.ws`) | Zweite Quelle der Kursgeschichte für Coins, die Binance nicht führt. Die API-Bedingungen von Gate.io zur Weitergabe von Daten in einem bezahlten Dienst sind nicht geprüft | Bedingungen prüfen; mit dem CoinGecko-Bezahlplan (volle Kursgeschichte) entfällt die Quelle |
 | alternative.me | Kommerzielle Nutzung erlaubt, wenn die Quelle direkt bei den Daten steht | erledigt |
 | cryptocurrency.cv (Nachrichten) | Bedingungen ungeklärt | klären oder Nachrichten abschalten |
 

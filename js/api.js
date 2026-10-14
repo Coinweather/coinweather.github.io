@@ -54,11 +54,45 @@ export async function chart(id, currency) {
   return data;
 }
 
-// Tageskurse der letzten 4 Jahre von Binance (Paar gegen USDT). Gibt null zurück, wenn der Coin dort nicht gehandelt wird.
+// Tageskurse der letzten 4 Jahre: von Binance, sonst von Gate.io (jeweils Paar gegen USDT). Das Ergebnis trägt die Quelle
+// (source). Gibt null zurück, wenn der Coin an keiner der beiden Börsen gehandelt wird.
 const DAYS_4Y = 1461;
 const histories = new Map();
 
-export async function history(symbol) {
+// from: Börse laut zentraler Berechnung ('Binance', 'Gate.io' oder null für keine). Ohne Angabe werden beide versucht.
+export async function history(symbol, from) {
+  let data = null;
+  if (from === undefined || from === 'Binance') {
+    try { data = await binanceHistory(symbol); } catch { /* Binance nicht erreichbar – dann Gate.io */ }
+    if (data) return { ...data, source: 'Binance' };
+  }
+  if (from === undefined || from === 'Gate.io') data = await gateHistory(symbol).catch(() => null);
+  return data ? { ...data, source: 'Gate.io' } : null;
+}
+
+// Gate.io liefert höchstens 1000 Tage je Anfrage – vier Jahre kommen in zwei Teilen
+const gates = new Map();
+async function gateHistory(symbol) {
+  const pair = symbol.toUpperCase() + '_USDT';
+  const hit = gates.get(pair);
+  if (hit && Date.now() - hit.time < CHART_TTL_MS) return hit.data;
+  const now = Math.floor(Date.now() / 1000), day = 86_400;
+  let rows = [];
+  for (const [from, to] of [[now - DAYS_4Y * day, now - 731 * day], [now - 730 * day, now]]) {
+    const res = await fetch(`https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair=${encodeURIComponent(pair)}&interval=1d&from=${from}&to=${to}`);
+    if (!res.ok) { rows = null; break; }
+    const part = await res.json();
+    if (Array.isArray(part)) rows = rows.concat(part);
+  }
+  // Spalten: 0 = Tagesbeginn (Sekunden), 1 = Handelsvolumen in USDT, 2 = Schlusskurs
+  rows = rows && [...new Map(rows.map((r) => [Number(r[0]), r])).values()].sort((a, b) => a[0] - b[0]);
+  const fresh = rows && rows.length >= 60 && Date.now() - Number(rows[rows.length - 1][0]) * 1000 < 3 * 86_400_000;
+  const data = fresh ? { t: rows.map((r) => Number(r[0]) * 1000), p: rows.map((r) => Number(r[2])), v: rows.map((r) => Number(r[1])) } : null;
+  gates.set(pair, { time: Date.now(), data });
+  return data;
+}
+
+async function binanceHistory(symbol) {
   const pair = symbol.toUpperCase() + 'USDT';
   const hit = histories.get(pair);
   if (hit && Date.now() - hit.time < CHART_TTL_MS) return hit.data;

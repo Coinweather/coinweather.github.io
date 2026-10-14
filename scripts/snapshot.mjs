@@ -62,6 +62,22 @@ async function history(symbol) {
   return { t: cut.map((r) => r[0]), p: cut.map((r) => Number(r[4])), v: cut.map((r) => Number(r[7])) };
 }
 
+// Tageskurse der letzten 4 Jahre von Gate.io für Coins, die Binance nicht führt (höchstens 1000 Tage je Anfrage)
+async function gateHistory(symbol) {
+  const now = Math.floor(Date.now() / 1000), day = 86_400;
+  let rows = [];
+  for (const [from, to] of [[now - DAYS_4Y * day, now - 731 * day], [now - 730 * day, now]]) {
+    const res = await fetch(`https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair=${encodeURIComponent(symbol)}_USDT&interval=1d&from=${from}&to=${to}`);
+    if (!res.ok) return null;
+    const part = await res.json();
+    if (Array.isArray(part)) rows = rows.concat(part);
+  }
+  // Spalten: 0 = Tagesbeginn (Sekunden), 1 = Handelsvolumen in USDT, 2 = Schlusskurs
+  rows = [...new Map(rows.map((r) => [Number(r[0]), r])).values()].sort((a, b) => a[0] - b[0]);
+  if (rows.length < 60 || Date.now() - Number(rows[rows.length - 1][0]) * 1000 > 3 * 86_400_000) return null;
+  return { t: rows.map((r) => Number(r[0]) * 1000), p: rows.map((r) => Number(r[2])), v: rows.map((r) => Number(r[1])) };
+}
+
 async function optional(label, fn) {
   try { return await fn(); } catch (err) { console.warn(`${label} nicht verfügbar: ${err.message}`); return null; }
 }
@@ -105,21 +121,33 @@ const regime = market.regime;
 const prices = await optional('Binance-Kurse', async () =>
   new Map((await getJson('https://data-api.binance.vision/api/v3/ticker/price', { tries: 2, wait: 5000 })).map((x) => [x.symbol, Number(x.price)])));
 
-let refined = 0;
+// Coins, die Binance nicht führt, bekommen ihre Tageskurse von Gate.io – so rechnet der Score bei allen Coins,
+// die an einer der beiden Börsen gehandelt werden, mit bis zu 4 Jahren Kursgeschichte
+const gatePrices = await optional('Gate.io-Kurse', async () =>
+  new Map((await getJson('https://api.gateio.ws/api/v4/spot/tickers', { tries: 2, wait: 5000 })).map((x) => [x.currency_pair, Number(x.last)])));
+
+const refined = { Binance: 0, 'Gate.io': 0 };
 const queue = [...coins];
 async function worker() {
   for (let c = queue.shift(); c; c = queue.shift()) {
     c.analysis = quickAnalyse(c, regime);
-    const p = prices?.get(c.symbol.toUpperCase() + 'USDT');
-    if (c.analysis.signal === 'none' || !p || !(Math.abs(p / c.current_price - 1) < 0.1)) continue;
-    const daily = c.id === 'bitcoin' ? btcData : await optional(c.symbol, () => history(c.symbol.toUpperCase()));
+    if (c.analysis.signal === 'none') continue;
+    const sym = c.symbol.toUpperCase();
+    const near = (p) => p && Math.abs(p / c.current_price - 1) < 0.1;   // gleiches Kürzel mit anderem Kurs ist ein anderer Coin
+    let daily = null, source = null;
+    if (c.id === 'bitcoin') { daily = btcData; source = 'Binance'; }
+    else if (near(prices?.get(sym + 'USDT'))) { daily = await optional(c.symbol, () => history(sym)); source = 'Binance'; }
+    if (!daily && near(gatePrices?.get(sym + '_USDT'))) { daily = await optional(c.symbol, () => gateHistory(sym)); source = 'Gate.io'; }
     if (!daily) continue;
+    c.hist = source;   // die Seite lädt das Diagramm dann direkt von dieser Börse
     c.analysis = detailAnalyse(c, prepare(daily.t, [...daily.p.slice(0, -1), c.current_price], daily.v), regime);
-    refined++;
+    // Die Daytrading-Muster sind an Binance-Kursen geprüft – für andere Börsen gibt es keine Handelsvorschläge
+    if (source !== 'Binance') delete c.analysis.trade;
+    refined[source]++;
   }
 }
 await Promise.all([worker(), worker(), worker(), worker()]);
-console.log(`${refined} Coins mit Tageskursen verfeinert`);
+console.log(`Mit Tageskursen verfeinert: ${refined.Binance} Coins von Binance, ${refined['Gate.io']} von Gate.io`);
 
 // ---------- Erfolgskontrolle ----------
 // Einmal am Tag werden die stärksten Kaufsignale mit ihrem Kurs festgehalten. 7 und 30 Tage später wird nachgesehen,
@@ -191,6 +219,7 @@ const snapshot = {
     // Die Marktphase ist für alle Coins gleich und steht einmal unter market.regime
     const { regime: _shared, ...analysis } = c.analysis;
     out.analysis = analysis;
+    if (c.hist) out.hist = c.hist;
     return out;
   }),
 };
