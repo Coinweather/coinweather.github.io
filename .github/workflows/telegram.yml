@@ -1,0 +1,24 @@
+# Schickt jeden Morgen den Wetterbericht des Kryptomarkts in den Telegram-Kanal (scripts/post-telegram.mjs).
+# Ohne die Geheimnisse TELEGRAM_BOT_TOKEN und TELEGRAM_CHAT_ID wird nur angezeigt, was gepostet würde.
+name: Telegram-Beitrag
+
+on:
+  schedule:
+    - cron: '30 5 * * *'   # 05:30 UTC = 07:30 Uhr Schweizer Sommerzeit, 06:30 Uhr im Winter
+  workflow_dispatch:
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Beitrag schicken
+        run: node scripts/post-telegram.mjs
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_LANG: ${{ vars.TELEGRAM_LANG }}
