@@ -8,9 +8,9 @@ export const SITE = {
   // Betreiber – Pflichtangaben für Impressum, AGB und Datenschutz.
   // Solange Name, Adresse oder E-Mail fehlen, bleibt der Verkauf gesperrt und die Rechtstexte zeigen einen Hinweis.
   operator: {
-    name: '',          // Vor- und Nachname oder Firma
-    street: '',        // Strasse und Hausnummer
-    city: '',          // PLZ und Ort
+    name: 'Hans Bueri', // Vor- und Nachname oder Firma
+    street: 'Stationsstrasse', // Strasse und Hausnummer – Hausnummer fehlt noch
+    city: '6023 Rothenburg', // PLZ und Ort
     country: 'Schweiz',
     email: '',         // Kontakt-Adresse für Kunden
     register: '',      // UID / Handelsregister-Nummer, falls vorhanden
