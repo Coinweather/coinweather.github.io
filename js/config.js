@@ -9,10 +9,10 @@ export const SITE = {
   // Solange Name, Adresse oder E-Mail fehlen, bleibt der Verkauf gesperrt und die Rechtstexte zeigen einen Hinweis.
   operator: {
     name: 'Hans Bueri', // Vor- und Nachname oder Firma
-    street: 'Stationsstrasse', // Strasse und Hausnummer – Hausnummer fehlt noch
+    street: 'Stationsstrasse 167', // Strasse und Hausnummer
     city: '6023 Rothenburg', // PLZ und Ort
     country: 'Schweiz',
-    email: '',         // Kontakt-Adresse für Kunden
+    email: 'hansb67@gmail.com', // Kontakt-Adresse für Kunden
     register: '',      // UID / Handelsregister-Nummer, falls vorhanden
   },
 
