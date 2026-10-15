@@ -168,6 +168,8 @@ async function x() {
   oauth.oauth_signature = crypto.createHmac('sha1', `${enc(env.X_API_SECRET)}&${enc(env.X_ACCESS_SECRET)}`).update(base).digest('base64');
   const header = 'OAuth ' + Object.keys(oauth).sort().map((k) => `${enc(k)}="${enc(oauth[k])}"`).join(', ');
   const r = await fetch(url, { method: 'POST', headers: { authorization: header, 'content-type': 'application/json' }, body: JSON.stringify({ text: text.x }) });
+  // Ohne Guthaben im X-Entwicklerkonto lehnt X jeden Beitrag ab – das ist kein Fehler der Seite und soll den Ablauf nicht rot färben
+  if (r.status === 402) return 'kein Guthaben im X-Entwicklerkonto – nicht gepostet';
   if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 200)}`);
 }
 
@@ -234,7 +236,7 @@ let failed = 0, active = 0;
 for (const [name, keys, send] of CHANNELS) {
   if (!keys.every((k) => env[k])) { console.log(`${name}: nicht eingerichtet – übersprungen`); continue; }
   active++;
-  try { await send(jpg, env.IMAGE_URL); console.log(`${name}: gepostet`); }
+  try { const note = await send(jpg, env.IMAGE_URL); console.log(`${name}: ${note ?? 'gepostet'}`); }
   catch (err) { failed++; console.error(`${name}: FEHLER – ${err.message}`); }
 }
 if (!active) console.log('Noch kein Kanal eingerichtet. Die Schritte stehen in SOCIAL-MEDIA.md.');
