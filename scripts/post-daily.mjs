@@ -268,6 +268,8 @@ if (process.argv.includes('--dry')) process.exit(0);
 
 let failed = 0, active = 0;
 for (const [name, keys, send] of CHANNELS) {
+  // Von Hand gestartet, kann der Ablauf auf einzelne Kanäle beschränkt werden (Eingabe „only“, z. B. „Facebook“)
+  if (env.ONLY && !env.ONLY.toLowerCase().split(/[ ,]+/).includes(name.toLowerCase())) { console.log(`${name}: diesmal nicht gewählt`); continue; }
   if (!keys.every((k) => env[k])) { console.log(`${name}: nicht eingerichtet – übersprungen`); continue; }
   active++;
   try { const note = await send(jpg, env.IMAGE_URL); console.log(`${name}: ${note ?? 'gepostet'}`); }

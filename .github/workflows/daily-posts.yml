@@ -6,6 +6,11 @@ on:
   schedule:
     - cron: '30 5 * * *'   # 05:30 UTC = 07:30 Uhr Schweizer Sommerzeit, 06:30 Uhr im Winter
   workflow_dispatch:
+    inputs:
+      only:
+        description: "Nur diese Kanäle (z. B. Facebook oder Telegram,Bluesky). Leer = alle."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -16,6 +21,7 @@ jobs:
     timeout-minutes: 10
     env:
       POST_LANG: ${{ vars.POST_LANG }}
+      ONLY: ${{ github.event.inputs.only }}
       HAS_INSTAGRAM: ${{ secrets.INSTAGRAM_USER_ID != '' }}
     steps:
       - uses: actions/checkout@v4
