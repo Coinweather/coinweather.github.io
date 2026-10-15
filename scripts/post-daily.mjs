@@ -104,13 +104,46 @@ const short = (channel, limit, noLink = false) => {
   const nfa = lang === 'de' ? 'Keine Anlageberatung.' : 'Not financial advice.';
   const make = (withAsk, withTags) => [`${R.icon} ${hook}`, '', R.index, fngShort, R.btc, ...(withAsk ? ['', ask] : []), '',
     noLink ? `${T.cta} – ${T.bio} 🔗` : `${T.cta}: ${link(channel)}`, withTags ? `${nfa} ${H.tagsShort}` : nfa].filter((l) => l !== null).join('\n');
-  const size = (t) => [...t.replace(link(channel), 'x'.repeat(23))].length + (t.match(/\p{Extended_Pictographic}/gu) ?? []).length;
+  // Bluesky zählt Schriftzeichen (Grapheme), den Link in voller Länge
+  const size = (t) => [...new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(t)].length;
   return [make(true, true), make(true, false), make(false, false)].find((t) => size(t) <= limit) ?? make(false, false);
 };
 
+// ---------- X: reicher Text mit Stimmungsbalken, grösstem Gewinner und täglicher Umfrage ----------
+// X rechnet pro Beitrag ab, nicht nach Länge – Text und Umfrage kosten nichts extra. Gezählt wird nach den Regeln von X:
+// Emojis und die meisten Sonderzeichen zählen doppelt.
+const xLength = (t) => [...new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(t)].reduce((n, { segment: g }) => {
+  if (/\p{Extended_Pictographic}/u.test(g)) return n + 2;
+  const c = g.codePointAt(0);
+  return n + ((c <= 4351) || (c >= 8192 && c <= 8205) || (c >= 8208 && c <= 8223) || (c >= 8242 && c <= 8247) ? 1 : 2);
+}, 0);
+const XT = {
+  en: { index: 'Market index', fng: 'Fear & Greed', week: 'last week', top: 'Top gainer', vote: 'Your move today? Vote 👇',
+    foot: 'Full picture: link in bio · Not financial advice', poll: ['🟢 Buying', '🟡 Holding', '🔴 Selling', '👀 Just watching'] },
+  de: { index: 'Markt-Index', fng: 'Fear & Greed', week: 'letzte Woche', top: 'Top-Gewinner', vote: 'Was machst du heute? Stimm ab 👇',
+    foot: 'Alles im Detail: Link im Profil · Keine Anlageberatung', poll: ['🟢 Ich kaufe', '🟡 Ich halte', '🔴 Ich verkaufe', '👀 Ich schaue zu'] },
+}[lang];
+const moodIcon = (v) => (v < 25 ? '😱' : v < 45 ? '😨' : v <= 55 ? '😐' : v <= 75 ? '😏' : '🔥');
+const bar = (v) => '▰'.repeat(Math.round(v / 10)) + '▱'.repeat(10 - Math.round(v / 10));
+// Grösster Gewinner der 100 grössten Coins in 24 Stunden – eine Beobachtung, keine Empfehlung; Stablecoins zählen nicht
+const gainer = coins.filter((c) => c.market_cap_rank <= 100 && c.analysis?.signal !== 'none' && Number.isFinite(c.price_change_percentage_24h_in_currency))
+  .sort((a, b) => b.price_change_percentage_24h_in_currency - a.price_change_percentage_24h_in_currency)[0];
+function richX() {
+  const parts = (withBar, withTop, withTags) => [
+    `${R.icon} ${hook}`, '',
+    `📊 ${XT.index}: ${market.value}/100 · ${R.label}`,
+    withBar ? bar(market.value) : null,
+    fng ? `${moodIcon(fng.value)} ${XT.fng}: ${fng.value} (${mood(fng.value)})${Number.isFinite(fng.week) && fng.week !== fng.value && !hook.includes('→') ? ` · ${XT.week} ${fng.week}` : ''}` : null,
+    btc ? `₿ Bitcoin: $${fmt(btc.current_price)} (${signed(btc.price_change_percentage_24h_in_currency ?? 0)})` : null,
+    withTop && gainer?.price_change_percentage_24h_in_currency > 0 ? `🚀 ${XT.top}: ${gainer.symbol.toUpperCase()} ${signed(gainer.price_change_percentage_24h_in_currency)}` : null,
+    '', XT.vote, XT.foot, withTags ? H.tagsShort : null,
+  ].filter((l) => l !== null).join('\n');
+  return [parts(true, true, true), parts(true, true, false), parts(false, true, false), parts(false, false, false)].find((t) => xLength(t) <= 280) ?? parts(false, false, false);
+}
+
 const text = {
   telegram: [`${R.icon} <b>${T.title} – ${esc(day)}</b>`, `<i>${esc(hook)}</i>`, '', ...body.map(esc), '', `<i>${T.note}</i>`, `👉 <a href="${link('telegram')}">${T.cta}</a>`].join('\n'),
-  x: short('x', 280, true),
+  x: richX(),
   bluesky: short('bluesky', 300),
   facebook: [`${R.icon} ${hook}`, '', ...body, '', ask, '', `${T.cta}: ${link('facebook')}`, '', T.note, '', H.tagsShort].join('\n'),
   instagram: [`${R.icon} ${hook}`, '', ...body, '', ask, '', `${T.cta} – ${T.bio}`, '', T.note, '.', H.tagsLong].join('\n'),
@@ -168,7 +201,7 @@ async function x() {
   const base = ['POST', enc(url), enc(params)].join('&');
   oauth.oauth_signature = crypto.createHmac('sha1', `${enc(env.X_API_SECRET)}&${enc(env.X_ACCESS_SECRET)}`).update(base).digest('base64');
   const header = 'OAuth ' + Object.keys(oauth).sort().map((k) => `${enc(k)}="${enc(oauth[k])}"`).join(', ');
-  const r = await fetch(url, { method: 'POST', headers: { authorization: header, 'content-type': 'application/json' }, body: JSON.stringify({ text: text.x }) });
+  const r = await fetch(url, { method: 'POST', headers: { authorization: header, 'content-type': 'application/json' }, body: JSON.stringify({ text: text.x, poll: { options: XT.poll, duration_minutes: 1440 } }) });
   // Ohne Guthaben im X-Entwicklerkonto lehnt X jeden Beitrag ab – das ist kein Fehler der Seite und soll den Ablauf nicht rot färben
   if (r.status === 402) return 'kein Guthaben im X-Entwicklerkonto – nicht gepostet';
   if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 200)}`);
