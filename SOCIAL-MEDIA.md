@@ -94,3 +94,76 @@ in der Bio deines Profils ein.
 Ein Bild (1080 × 1080) mit Markt-Index, Fear & Greed, Bitcoin-Kurs und Zyklus, dazu ein kurzer Text mit dem Hinweis
 „Keine Anlageberatung“ und einem Link mit `?von=<kanal>` – so siehst du in der Nutzerübersicht, welcher Kanal Anmeldungen bringt.
 Einzelne Coins werden bewusst nicht als Kauftipp gepostet.
+
+---
+
+## Profiltexte (zum Kopieren)
+
+Profilbild: `werbung/coinweather-profilbild.jpg` · Titelbild: `werbung/coinweather-titelbild.jpg`
+
+**Name überall:** Coinweather · **Benutzername:** möglichst `coinweather` (sonst `coinweather_app` oder `coinweatherhq`)
+
+**X – Bio** (max. 160 Zeichen) · Website: `https://coinweather.github.io/?von=x`
+```
+Is now a good time to buy crypto? ☀️🌧️ Daily crypto weather: market index, Fear & Greed & signals for 1,000 coins. Probabilities, not promises. NFA
+```
+
+**Instagram – Bio** (max. 150 Zeichen) · Link: `https://coinweather.github.io/?von=instagram`
+```
+☀️🌧️ Daily crypto weather report
+📊 Market index · Fear & Greed · 1,000 coins
+🎯 Probabilities, not promises · NFA
+👇 Try 30 days free
+```
+
+**Bluesky – Beschreibung** (max. 256 Zeichen) · Website im Profil: `https://coinweather.github.io/?von=bluesky`
+```
+Is now a good time to buy crypto? ☀️🌧️
+A daily weather report for the crypto market: 0–100 market index, Fear & Greed and signals for 1,000 coins – with an open track record.
+Probabilities, not promises. Not financial advice.
+👇 Try 30 days free
+```
+
+**Telegram – Kanalbeschreibung** (max. 255 Zeichen)
+```
+☀️🌧️ The daily weather report for the crypto market.
+Every morning: market index (0–100), Fear & Greed, Bitcoin and cycle – in one short message.
+Probabilities, not promises. Not financial advice.
+👉 coinweather.github.io
+```
+
+**Facebook-Seite – Kurzbeschreibung (Intro)** (max. 101 Zeichen) · Website: `https://coinweather.github.io/?von=facebook`
+```
+Daily crypto weather report: market index, Fear & Greed and signals for 1,000 coins. NFA.
+```
+
+**Facebook-Seite – Info (ausführlich)**
+```
+Is now a good time to buy crypto? Coinweather turns the crypto market into a simple daily weather report – from storm to sunshine.
+
+• Market index from 0 to 100 that rates the next few weeks
+• Fear & Greed and the position in the market cycle at a glance
+• Signals for 1,000 coins, each showing how often comparable cases ended higher
+• An open track record: every buy signal is re-measured after 7 and 30 days
+
+Every rule is tested on daily prices since 2018. Probabilities, not promises – not financial advice.
+Try everything free for 30 days, no payment details required.
+```
+
+**Angeheftete Vorstellung** (als ersten Beitrag posten und oben anheften – auf X, Bluesky, Facebook und Telegram)
+```
+👋 Welcome to Coinweather – the weather report for the crypto market.
+
+Every morning you get one short update: is the market stormy ⛈️ or sunny ☀️?
+
+📊 Market index (0–100)
+😨 Fear & Greed
+🔁 Where we are in the cycle
+🎯 Signals for 1,000 coins – with an open track record, including the bad calls
+
+No hype, no price targets, no promises. Just probabilities from a model tested on prices since 2018.
+
+Try it free for 30 days 👉 https://coinweather.github.io/?von=x
+Not financial advice.
+```
+(Für Bluesky, Facebook und Telegram im Link `?von=x` durch `?von=bluesky`, `?von=facebook` bzw. `?von=telegram` ersetzen.)

@@ -71,12 +71,48 @@ const R = {
 const body = [R.index, R.fng, R.btc, R.cycle, R.signals].filter(Boolean);
 
 // Fassungen je Kanal: Telegram mit Formatierung, X und Bluesky kurz, Facebook und Instagram mit Hashtags
+// Aufhänger der ersten Zeile: das Auffälligste des Tages – eine deutliche Stimmungsänderung, ein großer Bitcoin-Tag
+// oder sonst der kurze Wetter-Check. Die Frage am Ende lädt zum Kommentieren ein und wechselt täglich.
+const btcDay = btc?.price_change_percentage_24h_in_currency ?? 0;
+const H = {
+  en: {
+    mood: (from, to) => `Sentiment ${to > from ? 'heated up' : 'cooled down'} this week: Fear & Greed ${from} → ${to}`,
+    btc: (v) => `Bitcoin ${v > 0 ? 'up' : 'down'} ${fmt(Math.abs(v), 1)} % today – here’s the bigger picture`,
+    plain: 'Your 30-second crypto weather check',
+    ask: ['Buying, holding or waiting? 👇', 'What’s your read on the market today? 👇', 'Fear or greed – where are you today? 👇',
+      'Does this match your gut feeling? 👇', 'Sun or storm ahead – what do you think? 👇'],
+    tagsShort: '#Bitcoin #Crypto',
+    tagsLong: '#bitcoin #crypto #cryptocurrency #btc #ethereum #cryptomarket #fearandgreed #cryptotrading #altcoins #blockchain',
+  },
+  de: {
+    mood: (from, to) => `Die Stimmung hat sich diese Woche ${to > from ? 'erhitzt' : 'abgekühlt'}: Fear & Greed ${from} → ${to}`,
+    btc: (v) => `Bitcoin heute ${v > 0 ? 'plus' : 'minus'} ${fmt(Math.abs(v), 1)} % – so steht der Markt insgesamt`,
+    plain: 'Dein 30-Sekunden-Wettercheck für Krypto',
+    ask: ['Kaufen, halten oder abwarten? 👇', 'Wie schätzt du den Markt heute ein? 👇', 'Angst oder Gier – wo stehst du heute? 👇',
+      'Passt das zu deinem Bauchgefühl? 👇', 'Sonne oder Sturm – was erwartest du? 👇'],
+    tagsShort: '#Bitcoin #Krypto',
+    tagsLong: '#bitcoin #krypto #crypto #kryptowährung #btc #ethereum #fearandgreed #altcoins #blockchain #investieren',
+  },
+}[lang];
+const hook = fng && Number.isFinite(fng.week) && Math.abs(fng.value - fng.week) >= 8 ? H.mood(fng.week, fng.value)
+  : Math.abs(btcDay) >= 3 ? H.btc(btcDay) : H.plain;
+const ask = H.ask[Math.floor(snap.time / 86_400_000) % H.ask.length];
+// X erlaubt 280 Zeichen (Links zählen 23, Emojis doppelt), Bluesky 300 – notfalls entfällt die Frage, dann die Hashtags
+const fngShort = fng ? `${T.fng}: ${fng.value} – ${mood(fng.value)}` : null;
+const short = (channel, limit) => {
+  const nfa = lang === 'de' ? 'Keine Anlageberatung.' : 'Not financial advice.';
+  const make = (withAsk, withTags) => [`${R.icon} ${hook}`, '', R.index, fngShort, R.btc, ...(withAsk ? ['', ask] : []), '',
+    `${T.cta}: ${link(channel)}`, withTags ? `${nfa} ${H.tagsShort}` : nfa].filter((l) => l !== null).join('\n');
+  const size = (t) => [...t.replace(link(channel), 'x'.repeat(23))].length + (t.match(/\p{Extended_Pictographic}/gu) ?? []).length;
+  return [make(true, true), make(true, false), make(false, false)].find((t) => size(t) <= limit) ?? make(false, false);
+};
+
 const text = {
-  telegram: [`${R.icon} <b>${T.title} – ${esc(day)}</b>`, '', ...body.map(esc), '', `<i>${T.note}</i>`, `👉 <a href="${link('telegram')}">${T.cta}</a>`].join('\n'),
-  x: [`${R.icon} ${T.title} – ${day}`, '', R.index, R.fng, R.cycle, '', T.note, link('x')].filter((l) => l !== null).join('\n'),
-  bluesky: [`${R.icon} ${T.title} – ${day}`, '', R.index, R.fng, R.cycle, '', T.note, link('bluesky')].filter((l) => l !== null).join('\n'),
-  facebook: [`${R.icon} ${T.title} – ${day}`, '', ...body, '', T.note, `${T.cta}: ${link('facebook')}`, '', T.tags].join('\n'),
-  instagram: [`${R.icon} ${T.title} – ${day}`, '', ...body, '', T.note, `${T.cta} – ${T.bio}`, '', T.tags].join('\n'),
+  telegram: [`${R.icon} <b>${T.title} – ${esc(day)}</b>`, `<i>${esc(hook)}</i>`, '', ...body.map(esc), '', `<i>${T.note}</i>`, `👉 <a href="${link('telegram')}">${T.cta}</a>`].join('\n'),
+  x: short('x', 280),
+  bluesky: short('bluesky', 300),
+  facebook: [`${R.icon} ${hook}`, '', ...body, '', ask, '', `${T.cta}: ${link('facebook')}`, '', T.note, '', H.tagsShort].join('\n'),
+  instagram: [`${R.icon} ${hook}`, '', ...body, '', ask, '', `${T.cta} – ${T.bio}`, '', T.note, '.', H.tagsLong].join('\n'),
 };
 
 // ---------- Bild 1080 × 1080 ----------
