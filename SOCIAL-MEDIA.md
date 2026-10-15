@@ -19,7 +19,7 @@ Im Protokoll steht pro Kanal „gepostet“, „nicht eingerichtet“ oder der F
 |---|---|---|
 | Telegram | 10 Minuten | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` |
 | Bluesky | 5 Minuten | `BLUESKY_HANDLE`, `BLUESKY_APP_PASSWORD` |
-| X (Twitter) | 20 Minuten | `X_API_KEY`, `X_API_SECRET`, `X_ACCESS_TOKEN`, `X_ACCESS_SECRET` |
+| X (Twitter) | 20 Minuten + Guthaben (rund 0,50 $ im Monat) | `X_API_KEY`, `X_API_SECRET`, `X_ACCESS_TOKEN`, `X_ACCESS_SECRET` |
 | Facebook-Seite | 30 Minuten | `FACEBOOK_PAGE_ID`, `FACEBOOK_PAGE_TOKEN` |
 | Instagram | +10 Minuten nach Facebook | `INSTAGRAM_USER_ID` (nutzt `FACEBOOK_PAGE_TOKEN` mit) |
 
@@ -59,8 +59,10 @@ Plattform, sonst bleiben Beiträge privat) sowie **Reddit** (tägliche automatis
    Wichtig: Das Access Token **nach** Schritt 4 erzeugen, sonst darf es nicht posten.
 6. **Bei GitHub:** `X_API_KEY`, `X_API_SECRET` (Consumer Keys), `X_ACCESS_TOKEN`, `X_ACCESS_SECRET` (Access Token und Secret).
 
-Hinweis: Die Bedingungen des kostenlosen X-Zugangs ändern sich immer wieder. Ein Beitrag pro Tag lag bisher im Rahmen.
-Bei X geht der Beitrag ohne Bild raus (nur Text mit Link).
+**Kosten:** Den Gratis-Zugang gibt es seit Februar 2026 nicht mehr. X rechnet pro Beitrag ab: im Developer Portal unter
+**Billing / Credits** Guthaben kaufen. Ein Beitrag ohne Link kostet etwa 0,015 $, mit Link etwa 0,20 $ (Stand Oktober 2026,
+Preise ändern sich). Der tägliche X-Beitrag kommt deshalb **ohne Link und ohne Bild** aus und verweist auf den Link im Profil –
+die Website-Adresse im X-Profil muss also eingetragen sein. Ohne Guthaben meldet der Ablauf „kein Guthaben – nicht gepostet“.
 
 ## Facebook-Seite
 

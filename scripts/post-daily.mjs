@@ -99,17 +99,18 @@ const hook = fng && Number.isFinite(fng.week) && Math.abs(fng.value - fng.week) 
 const ask = H.ask[Math.floor(snap.time / 86_400_000) % H.ask.length];
 // X erlaubt 280 Zeichen (Links zählen 23, Emojis doppelt), Bluesky 300 – notfalls entfällt die Frage, dann die Hashtags
 const fngShort = fng ? `${T.fng}: ${fng.value} – ${mood(fng.value)}` : null;
-const short = (channel, limit) => {
+// noLink: X verlangt für Beiträge mit Link ein Vielfaches – dort steht der Link im Profil
+const short = (channel, limit, noLink = false) => {
   const nfa = lang === 'de' ? 'Keine Anlageberatung.' : 'Not financial advice.';
   const make = (withAsk, withTags) => [`${R.icon} ${hook}`, '', R.index, fngShort, R.btc, ...(withAsk ? ['', ask] : []), '',
-    `${T.cta}: ${link(channel)}`, withTags ? `${nfa} ${H.tagsShort}` : nfa].filter((l) => l !== null).join('\n');
+    noLink ? `${T.cta} – ${T.bio} 🔗` : `${T.cta}: ${link(channel)}`, withTags ? `${nfa} ${H.tagsShort}` : nfa].filter((l) => l !== null).join('\n');
   const size = (t) => [...t.replace(link(channel), 'x'.repeat(23))].length + (t.match(/\p{Extended_Pictographic}/gu) ?? []).length;
   return [make(true, true), make(true, false), make(false, false)].find((t) => size(t) <= limit) ?? make(false, false);
 };
 
 const text = {
   telegram: [`${R.icon} <b>${T.title} – ${esc(day)}</b>`, `<i>${esc(hook)}</i>`, '', ...body.map(esc), '', `<i>${T.note}</i>`, `👉 <a href="${link('telegram')}">${T.cta}</a>`].join('\n'),
-  x: short('x', 280),
+  x: short('x', 280, true),
   bluesky: short('bluesky', 300),
   facebook: [`${R.icon} ${hook}`, '', ...body, '', ask, '', `${T.cta}: ${link('facebook')}`, '', T.note, '', H.tagsShort].join('\n'),
   instagram: [`${R.icon} ${hook}`, '', ...body, '', ask, '', `${T.cta} – ${T.bio}`, '', T.note, '.', H.tagsLong].join('\n'),
