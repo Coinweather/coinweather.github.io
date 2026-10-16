@@ -35,8 +35,9 @@ async function checkMeta() {
   const token = env.FACEBOOK_PAGE_TOKEN;
   if (!token) return console.log('FACEBOOK_PAGE_TOKEN fehlt.');
   const q = (p) => new URLSearchParams({ ...p, access_token: token });
-  const info = (await (await fetch(`${GRAPH}/debug_token?${q({ input_token: token })}`)).json()).data;
-  if (!info) console.log('Token: konnte nicht geprüft werden');
+  const debug = await (await fetch(`${GRAPH}/debug_token?${q({ input_token: token })}`)).json();
+  const info = debug.data;
+  if (!info) { console.log(`Token: UNGÜLTIG – ${debug.error?.message ?? 'keine Antwort'}`); process.exitCode = 1; }
   else {
     const when = (s) => new Date(s * 1000).toLocaleString('de-CH', { timeZone: 'Europe/Zurich' });
     console.log(`Token: ${info.is_valid ? 'gültig' : 'UNGÜLTIG'} · Art: ${info.type ?? '?'} · läuft ab: ${info.expires_at ? when(info.expires_at) : 'nie'}`);
