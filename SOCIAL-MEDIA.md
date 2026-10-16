@@ -14,6 +14,8 @@ Name `POST_LANG`, Wert `de`.
 
 **Testen:** https://github.com/Coinweather/coinweather.github.io/actions/workflows/daily-posts.yml → **Run workflow**.
 Im Protokoll steht pro Kanal „gepostet“, „nicht eingerichtet“ oder der Fehler.
+Nur Facebook/Instagram posten: im Feld **only** `Facebook,Instagram` eintragen.
+**Nur prüfen, ohne zu posten:** Häkchen bei **check** setzen – das Protokoll zeigt, ob der Facebook-Token gültig ist und wann er abläuft.
 
 | Kanal | Aufwand | Geheimnisse |
 |---|---|---|
@@ -71,10 +73,17 @@ die Website-Adresse im X-Profil muss also eingetragen sein. Ohne Guthaben meldet
 3. **Tools → Graph API Explorer**: rechts deine App wählen → **User Token** → Berechtigungen hinzufügen:
    `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `business_management`
    (für Instagram zusätzlich `instagram_basic`, `instagram_content_publish`) → **Generate Access Token** → bestätigen.
-4. **Langlebig machen:** Tools → **Access Token Debugger** → Token einfügen → **Debug** → unten **Extend Access Token**.
-5. Im Graph API Explorer mit dem verlängerten Token die Abfrage `me/accounts` senden. Bei deiner Seite stehen
-   `id` (= Seiten-ID) und `access_token` (= Seiten-Token; aus einem verlängerten Token läuft er nicht ab).
-6. **Bei GitHub:** `FACEBOOK_PAGE_ID` = id, `FACEBOOK_PAGE_TOKEN` = access_token der Seite.
+4. **Langlebig machen (wichtig!):** https://developers.facebook.com/tools/debug/accesstoken/ → das eben erzeugte Token einfügen →
+   **Debuggen** → ganz unten **Zugriffsschlüssel verlängern / Extend Access Token** → das **neue, lange** Token kopieren.
+5. Zurück im Graph API Explorer: das verlängerte Token oben ins Feld **Zugriffsschlüssel** einfügen (das alte ersetzen),
+   die Abfrage `me/accounts` senden. Bei deiner Seite stehen `id` (= Seiten-ID) und `access_token` (= Seiten-Token).
+6. **Kontrolle:** diesen Seiten-Token im Access Token Debugger prüfen. Dort muss **Läuft ab: Nie** stehen.
+   Steht dort eine Uhrzeit, wurde in Schritt 5 noch das kurze Token verwendet – dann Schritt 4 und 5 wiederholen.
+7. **Bei GitHub:** `FACEBOOK_PAGE_ID` = id, `FACEBOOK_PAGE_TOKEN` = access_token der Seite.
+
+Ein kurzes Token läuft nach etwa einer Stunde ab; dann meldet der Ablauf „Session has expired“ und Facebook und Instagram fallen aus.
+Ein Seiten-Token aus einem verlängerten Token läuft nicht ab – es wird nur ungültig, wenn du das Facebook-Passwort änderst,
+dich bei der App abmeldest oder die Berechtigungen entziehst. Dann die Schritte 3–7 wiederholen.
 
 ## Instagram
 
@@ -85,7 +94,7 @@ die Website-Adresse im X-Profil muss also eingetragen sein. Ohne Guthaben meldet
    `<Seiten-ID>?fields=instagram_business_account` senden. Die angezeigte `id` ist die Instagram-Kennung.
 4. **Bei GitHub:** `INSTAGRAM_USER_ID` = diese id. (`FACEBOOK_PAGE_TOKEN` ist schon hinterlegt.)
 
-Instagram holt das Bild von einer öffentlichen Adresse. Der Ablauf legt es dafür täglich im Zweig `media` ab.
+Instagram holt die Bilder von öffentlichen Adressen. Der Ablauf legt sie dafür täglich im Zweig `media` ab.
 In Instagram sind Links in Beiträgen nicht anklickbar – trag deshalb `https://coinweather.github.io/?von=instagram`
 in der Bio deines Profils ein.
 
@@ -93,9 +102,21 @@ in der Bio deines Profils ein.
 
 ## Was gepostet wird
 
-Ein Bild (1080 × 1080) mit Markt-Index, Fear & Greed, Bitcoin-Kurs und Zyklus, dazu ein kurzer Text mit dem Hinweis
-„Keine Anlageberatung“ und einem Link mit `?von=<kanal>` – so siehst du in der Nutzerübersicht, welcher Kanal Anmeldungen bringt.
-Einzelne Coins werden bewusst nicht als Kauftipp gepostet.
+Vier Bilder im Hochformat (1080 × 1350 – nimmt im Feed am meisten Platz ein):
+1. **Wetterbericht:** Markt-Index mit Balken, Fear & Greed, Bitcoin, Zyklus, Zahl der Kaufsignale
+2. **Aussicht:** wie oft Bitcoin und der mittlere Coin nach vergleichbaren Markttagen seit 2018 nach 7 und 30 Tagen höher standen
+3. **Größte Bewegungen:** je 3 Gewinner und Verlierer der 100 größten Coins in 24 Stunden (Beobachtung, keine Empfehlung)
+4. **Angebot:** was die Seite kann, „30 Tage kostenlos“, Link in der Bio
+
+Instagram zeigt sie als Karussell (zum Wischen), Facebook als Album, Bluesky alle vier, Telegram das erste; X bekommt nur Text
+mit Umfrage. Der Text auf Facebook und Instagram ist ausführlich: Aufhänger, alle Werte mit Symbolen, größter Gewinner und
+Verlierer, eine Häufigkeit aus den Tests, eine täglich wechselnde Frage, Abstimmen per Kommentar (🟢/🟡/🔴), das Angebot mit Link
+(Facebook) bzw. „Link in der Bio“ (Instagram), Aufforderung zum Speichern und Folgen, „Keine Anlageberatung“ und Hashtags
+(Instagram erlaubt seit Dezember 2025 höchstens 5). Jeder Link trägt `?von=<kanal>` – so siehst du in der Nutzerübersicht,
+welcher Kanal Anmeldungen bringt. Einzelne Coins werden bewusst nicht als Kauftipp gepostet.
+
+**Mehr Reichweite:** In der ersten Stunde nach dem Posten (07:30 Uhr) auf Kommentare antworten – das zeigen Facebook und
+Instagram dann mehr Leuten.
 
 ---
 
