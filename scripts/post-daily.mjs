@@ -29,29 +29,46 @@ const arg = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1
 const lang = (env.POST_LANG ?? env.TELEGRAM_LANG) === 'de' ? 'de' : 'en';
 const GRAPH = 'https://graph.facebook.com/v21.0';
 
-// ---------- Zugang zu Facebook und Instagram prüfen (ohne zu posten) ----------
-// Meldet, ob der Seiten-Token gültig ist und wann er abläuft. Der Token selbst wird nie ausgegeben.
+// ---------- Zugang zu Facebook und Instagram ----------
+// Hinterlegt sein darf der Seiten-Token oder der verlängerte Benutzer-Token (ein häufiger Stolperstein beim Einrichten).
+// Auf einer Facebook-Seite posten darf nur der Seiten-Token – ist ein Benutzer-Token hinterlegt, holt der Ablauf ihn daraus.
+// Ein Seiten-Token aus einem verlängerten Benutzer-Token läuft nie ab; der Benutzer-Token selbst gilt 60 Tage.
+const when = (s) => new Date(s * 1000).toLocaleString('de-CH', { timeZone: 'Europe/Zurich' });
+const graph = async (path, p) => (await fetch(`${GRAPH}/${path}?${new URLSearchParams(p)}`)).json();
+const describe = async (token) => (await graph('debug_token', { input_token: token, access_token: token }));
+let metaReady;
+const metaToken = () => (metaReady ??= (async () => {
+  const stored = env.FACEBOOK_PAGE_TOKEN;
+  if (!stored || !env.FACEBOOK_PAGE_ID) return { token: stored };
+  const info = (await describe(stored)).data;
+  if (info?.type !== 'USER') return { token: stored, info };
+  const page = await graph(env.FACEBOOK_PAGE_ID, { fields: 'access_token', access_token: stored });
+  return page.access_token ? { token: page.access_token, derived: true, info } : { token: stored, info };
+})());
+
+// Prüfen ohne zu posten: ob der Token gültig ist und wann er abläuft. Der Token selbst wird nie ausgegeben.
 async function checkMeta() {
-  const token = env.FACEBOOK_PAGE_TOKEN;
-  if (!token) return console.log('FACEBOOK_PAGE_TOKEN fehlt.');
-  const q = (p) => new URLSearchParams({ ...p, access_token: token });
-  const debug = await (await fetch(`${GRAPH}/debug_token?${q({ input_token: token })}`)).json();
-  const info = debug.data;
-  if (!info) { console.log(`Token: UNGÜLTIG – ${debug.error?.message ?? 'keine Antwort'}`); process.exitCode = 1; }
-  else {
-    const when = (s) => new Date(s * 1000).toLocaleString('de-CH', { timeZone: 'Europe/Zurich' });
-    console.log(`Token: ${info.is_valid ? 'gültig' : 'UNGÜLTIG'} · Art: ${info.type ?? '?'} · läuft ab: ${info.expires_at ? when(info.expires_at) : 'nie'}`);
-    if (info.data_access_expires_at) console.log(`Datenzugriff bis: ${when(info.data_access_expires_at)}`);
-    if (info.scopes) console.log(`Berechtigungen: ${info.scopes.join(', ')}`);
-    if (info.error?.message) console.log(`Meldung von Facebook: ${info.error.message}`);
-  }
+  if (!env.FACEBOOK_PAGE_TOKEN) return console.log('FACEBOOK_PAGE_TOKEN fehlt.');
+  const show = async (label, token) => {
+    const debug = await describe(token), info = debug.data;
+    if (!info) { console.log(`${label}: UNGÜLTIG – ${debug.error?.message ?? 'keine Antwort'}`); return null; }
+    console.log(`${label}: ${info.is_valid ? 'gültig' : 'UNGÜLTIG'} · Art: ${info.type ?? '?'} · läuft ab: ${info.expires_at ? when(info.expires_at) : 'nie'}`);
+    if (info.error?.message) console.log(`  Meldung von Facebook: ${info.error.message}`);
+    return info;
+  };
+  const stored = await show('Hinterlegter Token', env.FACEBOOK_PAGE_TOKEN);
+  if (stored?.scopes) console.log(`  Berechtigungen: ${stored.scopes.join(', ')}`);
+  const meta = await metaToken();
+  const used = meta.derived ? await show('Daraus geholter Seiten-Token', meta.token) : stored;
+  if (meta.derived) console.log(`  Hinweis: Der hinterlegte Benutzer-Token gilt bis ${stored.expires_at ? when(stored.expires_at) : '–'}. Bis dahin läuft alles;
+  danach einen neuen Token erzeugen – oder jetzt schon den Seiten-Token (me/accounts) hinterlegen, der nie abläuft.`);
   for (const [label, id, fields] of [['Facebook-Seite', env.FACEBOOK_PAGE_ID, 'name'], ['Instagram-Konto', env.INSTAGRAM_USER_ID, 'username']]) {
     if (!id) { console.log(`${label}: nicht eingerichtet`); continue; }
-    const r = await (await fetch(`${GRAPH}/${id}?${q({ fields })}`)).json();
+    const r = await graph(id, { fields, access_token: meta.token });
     console.log(`${label}: ${r.error ? `FEHLER – ${r.error.message}` : `erreichbar (${r[fields]})`}`);
     if (r.error) process.exitCode = 1;
   }
-  if (info && (!info.is_valid || info.expires_at)) process.exitCode = 1;
+  if (!used?.is_valid || (used.type === 'PAGE' && used.expires_at)) process.exitCode = 1;
 }
 if (args.includes('--check')) { await checkMeta(); process.exit(); }
 
@@ -425,9 +442,10 @@ async function bluesky(jpgs) {
 // Facebook: alle Bilder unveröffentlicht hochladen, dann als ein Beitrag (Album) mit Text veröffentlichen.
 // Klappt das Album nicht, kommt wenigstens das Hauptbild mit Text – so fällt kein Tag aus.
 async function facebook(jpgs) {
+  const { token } = await metaToken();
   const upload = async (jpg, extra) => {
     const form = new FormData();
-    for (const [k, v] of Object.entries({ access_token: env.FACEBOOK_PAGE_TOKEN, ...extra })) form.append(k, v);
+    for (const [k, v] of Object.entries({ access_token: token, ...extra })) form.append(k, v);
     form.append('source', new Blob([jpg], { type: 'image/jpeg' }), 'coinweather.jpg');
     const r = await (await fetch(`${GRAPH}/${env.FACEBOOK_PAGE_ID}/photos`, { method: 'POST', body: form })).json();
     if (!r.id) throw new Error(r.error?.message ?? 'abgelehnt');
@@ -437,7 +455,7 @@ async function facebook(jpgs) {
   try {
     const ids = [];
     for (const jpg of jpgs) ids.push(await upload(jpg, { published: 'false' }));
-    const form = new URLSearchParams({ message: text.facebook, access_token: env.FACEBOOK_PAGE_TOKEN });
+    const form = new URLSearchParams({ message: text.facebook, access_token: token });
     ids.forEach((id, i) => form.append(`attached_media[${i}]`, JSON.stringify({ media_fbid: id })));
     album = await (await fetch(`${GRAPH}/${env.FACEBOOK_PAGE_ID}/feed`, { method: 'POST', body: form })).json();
     if (album.id) return `gepostet (${ids.length} Bilder)`;
@@ -455,7 +473,8 @@ async function facebook(jpgs) {
 async function instagram() {
   const urls = env.IMAGE_BASE ? Array.from({ length: SLIDES }, (_, i) => `${env.IMAGE_BASE}${i + 1}.jpg`) : env.IMAGE_URL ? [env.IMAGE_URL] : [];
   if (!urls.length) throw new Error('Keine öffentliche Bildadresse (IMAGE_BASE)');
-  const q = (p) => new URLSearchParams({ ...p, access_token: env.FACEBOOK_PAGE_TOKEN });
+  const { token } = await metaToken();
+  const q = (p) => new URLSearchParams({ ...p, access_token: token });
   const create = async (p) => {
     const r = await (await fetch(`${GRAPH}/${env.INSTAGRAM_USER_ID}/media?${q(p)}`, { method: 'POST' })).json();
     if (!r.id) throw new Error(r.error?.message ?? 'Bild abgelehnt');
@@ -503,6 +522,13 @@ if (args.includes('--show')) for (const [k, t] of Object.entries(text)) console.
 if (args.includes('--dry')) process.exit(0);
 
 let failed = 0, active = 0;
+// Rechtzeitig erinnern, bevor ein hinterlegter Benutzer-Token abläuft (Seiten-Token laufen nicht ab)
+if (env.FACEBOOK_PAGE_TOKEN && env.FACEBOOK_PAGE_ID) {
+  const { derived, info } = await metaToken();
+  if (derived && info?.expires_at && info.expires_at * 1000 - Date.now() < 14 * 86_400_000) {
+    console.log(`Hinweis: Der Facebook-Token läuft am ${when(info.expires_at)} ab – bitte neu erzeugen (SOCIAL-MEDIA.md).`);
+  }
+}
 for (const [name, keys, send] of CHANNELS) {
   // Von Hand gestartet, kann der Ablauf auf einzelne Kanäle beschränkt werden (Eingabe „only“, z. B. „Facebook“)
   if (env.ONLY && !env.ONLY.toLowerCase().split(/[ ,]+/).includes(name.toLowerCase())) { console.log(`${name}: diesmal nicht gewählt`); continue; }
