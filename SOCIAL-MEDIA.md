@@ -85,6 +85,10 @@ Ein kurzes Token läuft nach etwa einer Stunde ab; dann meldet der Ablauf „Ses
 Ein Seiten-Token aus einem verlängerten Token läuft nicht ab – es wird nur ungültig, wenn du das Facebook-Passwort änderst,
 dich bei der App abmeldest oder die Berechtigungen entziehst. Dann die Schritte 3–7 wiederholen.
 
+**Einfacher, aber befristet:** Hinterlegst du statt des Seiten-Tokens den **verlängerten Benutzer-Token** aus Schritt 4,
+holt sich der Ablauf den Seiten-Token selbst. Das klappt 60 Tage lang; zwei Wochen vor Ablauf steht im Protokoll ein Hinweis.
+Ob alles passt, zeigt **Run workflow → check**.
+
 ## Instagram
 
 1. Instagram-Konto in ein **professionelles Konto** (Business oder Creator) umwandeln:
