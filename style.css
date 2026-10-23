@@ -681,3 +681,8 @@ details.d-fold > summary { font-size: 15px; letter-spacing: 0; text-transform: n
 .m-table { width: 100%; border-collapse: collapse; }
 .m-table td { padding: 7px 6px; border-bottom: 1px solid var(--line); font-size: 14px; }
 .m-table .m-bar { width: 40%; }
+/* Erste Schritte */
+.onboard { margin: 0 0 16px; border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.onboard-list { list-style: none; padding: 0; margin: 10px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); gap: 8px 18px; }
+.onboard-list li { display: flex; gap: 10px; align-items: center; font-size: 14.5px; }
+.onboard-list li.ok { color: var(--muted); text-decoration: line-through; }

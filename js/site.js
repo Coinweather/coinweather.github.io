@@ -39,6 +39,8 @@ function landing(signedIn) {
       <li><strong>Signale mit Trefferquote</strong><span>Zu jedem Signal steht, wie oft vergleichbare Fälle im Plus endeten.</span></li>
       <li><strong>Großwetterlage</strong><span>Markt-Index, Fear &amp; Greed und Zyklus – wann das Modell kauft und wann es abwartet.</span></li>
       <li><strong>Portfolio und Daytrading</strong><span>Im Paket ${esc(SITE.plans.full.name)}: dein Bestand mit Wertentwicklung, Reserve-Ziel und Modell-Schritten, dazu geprüfte Handelsmuster.</span></li>
+      <li><strong>Zyklus-Kompass</strong><span>Zyklus-Risiko, Altcoin-Saison, Pi-Cycle und mehr – jeweils mit Rückblick, wie oft Bitcoin danach höher stand.</span></li>
+      <li><strong>Modell-Portfolio und Sparplan-Rechner</strong><span>Was der Portfolio-Manager gerade hält – und was ein Sparplan mit ihm gebracht hätte.</span></li>
       <li><strong>Offene Erfolgskontrolle</strong><span>Jedes Kaufsignal wird nach 7 und 30 Tagen nachgemessen – auch die schlechten.</span></li>
     </ul>
   </section>`;
@@ -119,9 +121,10 @@ export function pricingView(el, { access, user, record }) {
       ${status}
       <div class="plans">
         ${card('standard', false, 'Der Markt im Überblick.', ['Markt-Index „Jetzt kaufen?“, Fear &amp; Greed und Zyklus',
-          'Signale und Aussicht für alle 1000 Coins', 'Die stärksten Kaufsignale auf einen Blick', 'Detailansicht mit Score-Bausteinen und Rückblick'])}
+          'Signale und Aussicht für alle 1000 Coins', 'Die stärksten Kaufsignale auf einen Blick', 'Detailansicht mit Score-Bausteinen und Rückblick',
+          'Zyklus-Kompass mit Verläufen und Rückblick', 'Favoriten'])}
         ${card('full', true, 'Der Markt, dein Portfolio und Daytrading.', [`Alles aus ${esc(STD)}`, 'Portfolio mit Wertentwicklung und Vergleich zu Bitcoin',
-          'Reserve-Ziel und Modell-Schritte für dein Portfolio', 'Import und Export als Tabelle', 'Daytrading-Muster mit Einstieg, Ziel und Stopp'])}
+          'Reserve-Ziel und Modell-Schritte für dein Portfolio', 'Import und Export als Tabelle', 'Daytrading-Muster mit Einstieg, Ziel und Stopp', 'Modell-Portfolio: Bestand und Handel des Portfolio-Managers'])}
       </div>
       ${SITE.trialDays > 0 ? `<p class="hint">Neue Konten können alle Funktionen ${SITE.trialDays} Tage kostenlos testen – ohne Zahlungsdaten. Die Testphase endet von selbst.</p>` : ''}
       <p class="hint">Preise pro Monat inklusive Mehrwertsteuer. Das Abo verlängert sich jeweils um einen Monat, bis du kündigst. 14 Tage Widerrufsrecht.

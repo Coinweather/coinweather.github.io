@@ -380,6 +380,11 @@ function gauge(value, colors) {
 
 const SELL_TO_BUY = ['var(--down)', 'var(--warn)', 'var(--hold)', 'var(--mild)', 'var(--up)'];
 
+// Erste Schritte: Merker, welche Bereiche jemand schon gesehen hat (nur in diesem Browser)
+const ONBOARD_KEY = 'coinwetter-erste-schritte-aus';
+const seen = (what) => { try { return localStorage.getItem('coinwetter-gesehen-' + what) === '1'; } catch { return false; } };
+const markSeen = (what) => { try { localStorage.setItem('coinwetter-gesehen-' + what, '1'); } catch { /* egal */ } };
+
 // Teilen-Links (WhatsApp, Telegram, X, Link kopieren) – jeder geteilte Link kann neue Besucher bringen
 function shareLinks(url, msg, label = 'Teilen') {
   const enc = encodeURIComponent;
@@ -735,6 +740,7 @@ function marketView(preview = false) {
   if (preview) state.filter = 'all';
   view.innerHTML = `
     <section class="panel weather" id="weather"></section>
+    <section class="panel onboard" id="onboard" hidden></section>
     ${preview ? previewCta('Die Großwetterlage siehst du hier frei. Welche Coins gerade ein Kaufsignal haben, zeigt dein kostenloses Konto.',
       '30 Tage alle Funktionen, ohne Zahlungsdaten. Anmelden mit Google dauert 10 Sekunden.') : ''}
     <section class="hero">
@@ -980,6 +986,28 @@ function marketView(preview = false) {
       : '';
   }
 
+  // Erste Schritte nach der Anmeldung: eine kurze Liste mit Haken – verschwindet, wenn alles erledigt oder ausgeblendet ist
+  function onboard() {
+    const el = $('#onboard');
+    let hidden = false; try { hidden = localStorage.getItem(ONBOARD_KEY) === '1'; } catch { /* dann zeigen */ }
+    const d = depot.data;
+    const steps = [
+      ['☆', 'Coins mit einem Stern als Favoriten markieren', (d.watch ?? []).length > 0, '#rows'],
+      ['💼', 'Startkapital oder Coins im Portfolio eintragen', d.positions.length > 0 || d.cash > 0, '#/portfolio'],
+      ['🧭', 'Den Zyklus-Kompass ansehen', seen('compass'), '#/indikatoren'],
+      ['🧮', 'Den Sparplan-Rechner ausprobieren', seen('calc'), '#/rechner'],
+    ];
+    const done = steps.filter((x) => x[2]).length;
+    el.hidden = !depot.user || hidden || done === steps.length;
+    if (el.hidden) return;
+    el.innerHTML = `<div class="panel-top"><div><div class="label">Erste Schritte</div><strong>${done} von ${steps.length} erledigt</strong></div>
+        <button type="button" class="link-btn" id="onboard-hide">Ausblenden</button></div>
+      <ul class="onboard-list">${steps.map(([icon, text, ok, href]) => `<li class="${ok ? 'ok' : ''}"><span aria-hidden="true">${ok ? '✅' : icon}</span>
+        ${ok ? `<span>${text}</span>` : `<a href="${href.startsWith('#/') ? href : '#/'}" ${href.startsWith('#/') ? '' : 'data-scroll="' + href + '"'}>${text}</a>`}</li>`).join('')}</ul>`;
+    $('#onboard-hide').addEventListener('click', () => { try { localStorage.setItem(ONBOARD_KEY, '1'); } catch { /* nur jetzt */ } el.hidden = true; });
+    for (const a of el.querySelectorAll('[data-scroll]')) a.addEventListener('click', (e) => { e.preventDefault(); $(a.dataset.scroll)?.scrollIntoView({ behavior: 'smooth' }); });
+  }
+
   // Zyklus-Kompass als Kurzfassung – lädt einmal und verlinkt auf die ganze Seite
   let teaserDone = false;
   async function compassTeaser() {
@@ -1045,7 +1073,7 @@ function marketView(preview = false) {
     }).join('')}</div>`;
   }
 
-  return { update() { hero(); compassTeaser(); favs(); picks(); heatmap(); table(); } };
+  return { update() { hero(); onboard(); compassTeaser(); favs(); picks(); heatmap(); table(); } };
 }
 
 // ---------- Detailansicht ----------
@@ -2782,6 +2810,7 @@ function backtestTable(rows, current) {
 }
 
 function compassView() {
+  markSeen('compass');
   const open = () => !!access().plan;
   view.innerHTML = `
     <section class="panel compass-head">
@@ -2985,6 +3014,7 @@ function simulate(data, price, { mode, amount, startMs }) {
 }
 
 function calculatorView(arg) {
+  markSeen('calc');
   const params = new URLSearchParams(location.hash.split('?')[1] ?? '');
   const now = new Date();
   const monthStr = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
