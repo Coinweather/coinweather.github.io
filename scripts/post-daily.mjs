@@ -60,7 +60,7 @@ async function checkMeta() {
   if (stored?.scopes) console.log(`  Berechtigungen: ${stored.scopes.join(', ')}`);
   const meta = await metaToken();
   const used = meta.derived ? await show('Daraus geholter Seiten-Token', meta.token) : stored;
-  if (meta.derived) console.log(`  Hinweis: Der hinterlegte Benutzer-Token gilt bis ${stored.expires_at ? when(stored.expires_at) : '–'}. Bis dahin läuft alles;
+  if (meta.derived && stored?.expires_at) console.log(`  Hinweis: Der hinterlegte Benutzer-Token gilt bis ${stored.expires_at ? when(stored.expires_at) : '–'}. Bis dahin läuft alles;
   danach einen neuen Token erzeugen – oder jetzt schon den Seiten-Token (me/accounts) hinterlegen, der nie abläuft.`);
   for (const [label, id, fields] of [['Facebook-Seite', env.FACEBOOK_PAGE_ID, 'name'], ['Instagram-Konto', env.INSTAGRAM_USER_ID, 'username']]) {
     if (!id) { console.log(`${label}: nicht eingerichtet`); continue; }
