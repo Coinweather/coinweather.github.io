@@ -74,6 +74,21 @@ async function checkMeta() {
     const limit = await graph(`${env.INSTAGRAM_USER_ID}/content_publishing_limit`, { fields: 'quota_usage,config', access_token: meta.token });
     if (limit.data?.[0]) console.log(`  Instagram-Tageslimit: ${limit.data[0].quota_usage} von ${limit.data[0].config?.quota_total ?? '?'} Beiträgen in 24 h`);
   }
+  // Reichweite: Follower, Likes und Kommentare der letzten Beiträge – zeigt, ob die Beiträge überhaupt jemanden erreichen
+  const fmtDay = (t) => new Date(t).toLocaleDateString('de-CH', { timeZone: 'Europe/Zurich' });
+  if (env.INSTAGRAM_USER_ID) {
+    const acc = await graph(env.INSTAGRAM_USER_ID, { fields: 'followers_count,follows_count,media_count', access_token: meta.token });
+    if (!acc.error) console.log(`Instagram: ${acc.followers_count} Follower · ${acc.media_count} Beiträge`);
+    const media = await graph(`${env.INSTAGRAM_USER_ID}/media`, { fields: 'timestamp,like_count,comments_count', limit: '10', access_token: meta.token });
+    for (const m of media.data ?? []) console.log(`  ${fmtDay(m.timestamp)}: ${m.like_count ?? 0} Likes · ${m.comments_count ?? 0} Kommentare`);
+  }
+  if (env.FACEBOOK_PAGE_ID) {
+    const page = await graph(env.FACEBOOK_PAGE_ID, { fields: 'followers_count,fan_count', access_token: meta.token });
+    if (!page.error) console.log(`Facebook: ${page.followers_count ?? '?'} Follower · ${page.fan_count ?? '?'} Gefällt-mir`);
+    const posts = await graph(`${env.FACEBOOK_PAGE_ID}/posts`, { fields: 'created_time,reactions.summary(true).limit(0),comments.summary(true).limit(0),shares', limit: '10', access_token: meta.token });
+    if (posts.error) console.log(`  Beiträge: ${posts.error.message}`);
+    for (const m of posts.data ?? []) console.log(`  ${fmtDay(m.created_time)}: ${m.reactions?.summary?.total_count ?? 0} Reaktionen · ${m.comments?.summary?.total_count ?? 0} Kommentare · ${m.shares?.count ?? 0} geteilt`);
+  }
   if (!used?.is_valid || (used.type === 'PAGE' && used.expires_at)) process.exitCode = 1;
 }
 if (args.includes('--check')) { await checkMeta(); process.exit(); }
