@@ -35,6 +35,8 @@ if (!out) throw new Error('Zielordner fehlt');
 // ---------- App-Dateien übernehmen ----------
 await mkdir(out, { recursive: true });
 for (const f of ['index.html', 'style.css', 'og-image.jpg', '.nojekyll']) await cp(new URL(f, root), `${out}/${f}`);
+// Bestätigungsdatei der Google Search Console – muss dauerhaft erreichbar bleiben
+for (const f of await readdir(root)) if (/^google[0-9a-f]+.html$/.test(f)) await cp(new URL(f, root), `${out}/${f}`);
 await cp(new URL('js', root), `${out}/js`, { recursive: true });
 await mkdir(`${out}/werbung`, { recursive: true });
 for (const f of await readdir(new URL('werbung', root))) if (f.endsWith('.jpg')) await cp(new URL(`werbung/${f}`, root), `${out}/werbung/${f}`);
