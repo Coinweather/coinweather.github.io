@@ -4,6 +4,33 @@ Alle Texte sind zum Kopieren. Die täglichen Beiträge laufen automatisch (siehe
 hier stehen die einmaligen Beiträge zum Start. Jeder Kanal hat einen eigenen Link mit `?von=…` – so siehst du in der
 Nutzerübersicht (Admin → „Herkunft“), woher die Anmeldungen kommen. Profiltexte stehen in [SOCIAL-MEDIA.md](SOCIAL-MEDIA.md).
 
+## Neue Aufhänger (Stand 24.10.2026) – fertige Texte
+
+Seit heute gibt es drei Dinge, die sich gut teilen lassen und ohne Anmeldung funktionieren:
+**Zyklus-Kompass** (https://coinweather.github.io/#/indikatoren), **Sparplan-Rechner** (https://coinweather.github.io/#/rechner)
+und das **Krypto-Wetter-Widget** für fremde Webseiten (https://coinweather.github.io/embed/).
+
+**Reddit r/CryptoCurrency-Daily-Thread oder r/BitcoinMarkets (Kommentar, kein Beitrag):**
+> I got tired of cycle-top dashboards that show 30 indicators but never say how often they were actually right. So I backtested a few
+> (Pi Cycle, Mayer Multiple, 2-year MA, Fear & Greed) on daily BTC since 2017, split into 2018–22 and 2022–26. Combined into one 0–100
+> "cycle risk": below 20, BTC was higher a year later in 83–100 % of cases; above 80, only in about one in four. Today it's at ~32.
+> Only two cycles, so a tendency, not a law. Free here if anyone wants to poke holes in it: https://coinweather.github.io/?von=reddit#/indikatoren
+
+**Hacker News – Show HN:**
+> **Show HN: A crypto cycle compass that shows how often each indicator was right**
+> Static site + GitHub Actions. Every indicator (Pi Cycle, Mayer Multiple, 2-year MA multiplier, altcoin season) comes with a table:
+> how often was Bitcoin higher 90 days / 1 year later, split into two periods so you can see what holds. Also a DCA calculator that
+> compares a savings plan in any coin with a rules-based model portfolio (clearly labelled as an in-sample backtest).
+> https://coinweather.github.io/?von=hn#/indikatoren
+
+**X / Bluesky (Thread-Start):**
+> Most "Bitcoin top indicators" never tell you their hit rate.
+> I measured it. 🧵 (Pi Cycle, Mayer Multiple, 2-year MA – since 2017, two separate periods)
+
+**Widget an Blogger und Foren** (kurze Nachricht, nur an Seiten, die über Krypto schreiben):
+> Hi! I made a free, tiny "crypto weather" widget (market index, Fear & Greed, BTC – updates every 15 min). One line of code,
+> no tracking, no ads: https://coinweather.github.io/embed/ – feel free to use it if it fits your site.
+
 ## Diese Woche: die ersten Anmeldungen (Stand 23.10.2026)
 
 **Ausgangslage:** Instagram und Facebook haben 0 Follower – die täglichen Beiträge sieht dort praktisch niemand.
