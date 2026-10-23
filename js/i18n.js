@@ -23,8 +23,15 @@ const KEY = 'coinwetter-einstellungen', RATES_KEY = 'coinwetter-wechselkurse';
 
 const stored = (key) => { try { return JSON.parse(localStorage.getItem(key)) ?? {}; } catch { return {}; } };
 const saved = stored(KEY);
+// Sprache beim ersten Besuch: aus der Adresse (?lang=de, z. B. von den Suchmaschinen-Seiten), sonst aus dem Browser.
+// Eine einmal gewählte Sprache bleibt; ?lang= überschreibt sie und wird gespeichert.
+const urlLang = (() => { try { return new URLSearchParams(location.search).get('lang'); } catch { return null; } })();
+const browserLang = (() => {
+  try { return (navigator.languages?.length ? navigator.languages : [navigator.language]).map((l) => String(l).slice(0, 2).toLowerCase()).find((l) => LANGS[l]); } catch { return null; }
+})();
+if (LANGS[urlLang] && urlLang !== saved.lang) { try { localStorage.setItem(KEY, JSON.stringify({ ...saved, lang: urlLang })); } catch { /* nur für diesen Besuch */ } }
 export const prefs = {
-  lang: LANGS[saved.lang] ? saved.lang : 'en',
+  lang: LANGS[urlLang] ? urlLang : LANGS[saved.lang] ? saved.lang : LANGS[browserLang] ? browserLang : 'en',
   currency: CURRENCIES.includes(saved.currency) ? saved.currency : 'usd',
 };
 

@@ -685,6 +685,7 @@ function marketView(preview = false) {
       <div class="panel gauge-panel" id="g-fng"></div>
       <div class="panel" id="market-parts"></div>
     </section>
+    <p class="share-row hint" id="share-row"></p>
     <section class="panel" id="cycle"></section>
     <section class="panel" id="market-forecast" hidden></section>
     <section>
@@ -738,7 +739,26 @@ function marketView(preview = false) {
     $('.table-wrap', view).scrollIntoView({ block: 'start' });
   });
 
+  // Teilen: führt direkt in die App (kostenlose Vorschau) in der Sprache des Besuchers; Herkunft „share“ in der Nutzerübersicht
+  function shareRow() {
+    const m = state.market;
+    if (!m) return;
+    const lang = i18n.prefs.lang;
+    const url = `${location.origin}/?von=share&lang=${lang}`;
+    const msg = `${i18n.say('Das Krypto-Wetter heute')}: ${i18n.say(m.label)} (${m.value}/100)`;
+    const enc = encodeURIComponent, text = enc(`${msg} ${url}`);
+    $('#share-row').innerHTML = `<span>${'Heutigen Krypto-Wetterbericht teilen'}:</span>
+      <a href="https://wa.me/?text=${text}" target="_blank" rel="noopener">WhatsApp</a>
+      <a href="https://t.me/share/url?url=${enc(url)}&text=${enc(msg)}" target="_blank" rel="noopener">Telegram</a>
+      <a href="https://twitter.com/intent/tweet?url=${enc(url)}&text=${enc(msg)}" target="_blank" rel="noopener">X</a>
+      <button type="button" class="link-btn" id="share-copy">Link kopieren</button>`;
+    $('#share-copy').addEventListener('click', async (e) => {
+      try { await navigator.clipboard.writeText(url); e.target.textContent = 'Kopiert'; } catch { prompt('Link', url); }
+    });
+  }
+
   function hero() {
+    shareRow();
     const m = state.market;
     $('#g-market').innerHTML = m ? `<div class="label">Jetzt kaufen?</div>${gauge(m.value, SELL_TO_BUY)}
         <div class="gauge-value">${m.value}<small> / 100</small></div>${badge(m, 'big')}

@@ -1,13 +1,14 @@
 // Baut die Seite zum Veröffentlichen: die App-Dateien plus täglich neue, einzeln auffindbare Seiten für Suchmaschinen.
-// Die App selbst steckt in einer einzigen Seite mit #-Adressen – die kann Google kaum lesen. Darum gibt es zusätzlich:
+// Die App selbst steckt in einer einzigen Seite mit #-Adressen – die kann Google kaum lesen. Darum gibt es zusätzlich,
+// in allen 7 Sprachen der App (Englisch ohne Vorsilbe, die anderen unter /de/, /es/, /fr/, /it/, /pt/, /tr/):
 //   /crypto-weather-today/   der Kryptomarkt heute: Markt-Index, Fear & Greed, Zyklus, Aussicht, größte Bewegungen
 //   /fear-and-greed-index/   der Fear & Greed Index heute mit dem, was die Rückrechnung über Angst und Gier zeigt
 //   /coin/<id>/              je eine Seite für die 500 größten Coins: Kurs, Entwicklung, Großwetterlage, Signal (verdeckt)
-//   feed.xml                 RSS-Feed mit dem täglichen Bericht
 //   /coins/                  Übersicht mit Links auf alle Coin-Seiten
-//   sitemap.xml, robots.txt  damit Suchmaschinen alles finden
-// Die Seiten sind englisch (größte Suchnachfrage) und sagen klar: keine Anlageberatung. Die Signale einzelner Coins bleiben
-// wie in der App dem kostenlosen Konto vorbehalten – außer Bitcoin und Ethereum als Beispiel.
+//   sitemap.xml, robots.txt, feed.xml (RSS, englisch)
+// Jede Seite verweist auf ihre Fassungen in den anderen Sprachen (hreflang), damit Google jedem Land die passende zeigt.
+// Die Seiten sagen klar: keine Anlageberatung. Die Signale einzelner Coins bleiben wie in der App dem kostenlosen Konto
+// vorbehalten – außer Bitcoin und Ethereum als Beispiel.
 //
 // Aufruf: node scripts/seo-pages.mjs <ordner>           baut die ganze Seite in <ordner>
 //         node scripts/seo-pages.mjs --indexnow <ordner>  meldet alle Adressen aus der Sitemap an Bing & Co. (IndexNow)
@@ -24,10 +25,13 @@ const args = process.argv.slice(2);
 // ---------- IndexNow: neue und geänderte Seiten an Bing, Yandex, Seznam und Naver melden ----------
 if (args[0] === '--indexnow') {
   const xml = await readFile(`${args[1]}/sitemap.xml`, 'utf8');
-  const urlList = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-  const r = await fetch('https://api.indexnow.org/indexnow', { method: 'POST', headers: { 'content-type': 'application/json; charset=utf-8' },
-    body: JSON.stringify({ host: 'coinweather.github.io', key: INDEXNOW_KEY, keyLocation: `${SITE}/${INDEXNOW_KEY}.txt`, urlList }) });
-  console.log(`IndexNow: ${urlList.length} Adressen gemeldet – Antwort ${r.status}`);
+  const all = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  for (let i = 0; i < all.length; i += 10_000) {   // höchstens 10 000 Adressen je Meldung
+    const urlList = all.slice(i, i + 10_000);
+    const r = await fetch('https://api.indexnow.org/indexnow', { method: 'POST', headers: { 'content-type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ host: 'coinweather.github.io', key: INDEXNOW_KEY, keyLocation: `${SITE}/${INDEXNOW_KEY}.txt`, urlList }) });
+    console.log(`IndexNow: ${urlList.length} Adressen gemeldet – Antwort ${r.status}`);
+  }
   process.exit();
 }
 
@@ -38,7 +42,7 @@ if (!out) throw new Error('Zielordner fehlt');
 await mkdir(out, { recursive: true });
 for (const f of ['index.html', 'style.css', 'og-image.jpg', '.nojekyll']) await cp(new URL(f, root), `${out}/${f}`);
 // Bestätigungsdatei der Google Search Console – muss dauerhaft erreichbar bleiben
-for (const f of await readdir(root)) if (/^google[0-9a-f]+.html$/.test(f)) await cp(new URL(f, root), `${out}/${f}`);
+for (const f of await readdir(root)) if (/^google[0-9a-f]+\.html$/.test(f)) await cp(new URL(f, root), `${out}/${f}`);
 await cp(new URL('js', root), `${out}/js`, { recursive: true });
 await mkdir(`${out}/werbung`, { recursive: true });
 for (const f of await readdir(new URL('werbung', root))) if (f.endsWith('.jpg')) await cp(new URL(`werbung/${f}`, root), `${out}/werbung/${f}`);
@@ -47,28 +51,363 @@ await writeFile(`${out}/${INDEXNOW_KEY}.txt`, INDEXNOW_KEY);
 // ---------- Tagesstand ----------
 const snap = await (await fetch(`${SNAPSHOT}?t=${Date.now()}`)).json();
 const { market, fng, coins, record } = snap;
-i18n.useDictionary((await import('../js/lang/en.js')).default);
-const en = (t) => (t ? i18n.say(t) : t);
-const LABEL = { 'Kaufen': 'Buy', 'Eher kaufen': 'Lean buy', 'Halten': 'Hold', 'Eher verkaufen': 'Lean sell', 'Verkaufen': 'Sell' };
-const ZONE = { deep: 'deep in the cycle', low: 'lower third of the cycle', mid: 'middle of the cycle', high: 'near the high' };
-const MOOD = (v) => (v < 25 ? 'extreme fear' : v < 45 ? 'fear' : v <= 55 ? 'neutral' : v <= 75 ? 'greed' : 'extreme greed');
 const SAMPLES = ['bitcoin', 'ethereum'];
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
-const num = (v, d = 0) => v.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
-const usd = (v) => (!isNum(v) ? '–' : `$${v >= 1 ? num(v, v >= 1000 ? 0 : 2) : v.toPrecision(3)}`);
-const big = (v) => (!isNum(v) ? '–' : v >= 1e12 ? `$${num(v / 1e12, 2)} trillion` : v >= 1e9 ? `$${num(v / 1e9, 1)} billion` : `$${num(v / 1e6, 0)} million`);
-const pct = (v) => (!isNum(v) ? '–' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${num(Math.abs(v), 1)} %`);
 const tone = (v) => (!isNum(v) ? '' : v > 0 ? 'up' : v < 0 ? 'down' : '');
-const day = new Date(snap.time).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Zurich' });
+const slug = (id) => String(id).toLowerCase().replace(/[^a-z0-9-]/g, '');
 const iso = new Date(snap.time).toISOString();
-const label = LABEL[market.label] ?? market.label;
-const app = (hash = '') => `/?von=seo${hash}`;
-const btcUp7 = market.forecast?.btc?.short?.up, btcUp30 = market.forecast?.btc?.medium?.up;
-const altUp7 = market.forecast?.alt?.short?.up, altUp30 = market.forecast?.alt?.medium?.up;
+const btcUp7 = market.forecast?.btc?.short?.up, btcUp30 = market.forecast?.btc?.medium?.up, altUp7 = market.forecast?.alt?.short?.up;
 const buys = coins.filter((c) => c.analysis?.signal === 'buy').length;
 const rated = coins.filter((c) => c.analysis?.signal && c.analysis.signal !== 'none').length;
-const slug = (id) => String(id).toLowerCase().replace(/[^a-z0-9-]/g, '');
+const btc = coins.find((c) => c.id === 'bitcoin');
+const avg7 = market.regime?.fng?.avg7;
+const movers = coins.filter((c) => c.market_cap_rank <= 100 && c.analysis?.signal !== 'none' && !c.analysis?.stable && isNum(c.price_change_percentage_24h_in_currency))
+  .sort((a, b) => b.price_change_percentage_24h_in_currency - a.price_change_percentage_24h_in_currency);
+const top = coins.filter((c) => isNum(c.market_cap_rank) && c.market_cap_rank <= 500).sort((a, b) => a.market_cap_rank - b.market_cap_rank);
+const ch = (c, k) => c?.[`price_change_percentage_${k}_in_currency`];
+
+// ---------- Texte je Sprache ----------
+const TX = {
+  en: {
+    open: 'Open the app', today: 'Crypto market today', fngNav: 'Fear & Greed Index', all: 'All coins', risk: 'Risk notice', legal: 'Legal notice', privacy: 'Privacy',
+    foot: (d) => `Not financial advice. Coinweather is an information service. Prices cannot be predicted reliably; probabilities are based on past prices and can be wrong. Crypto assets can fall sharply – up to a total loss. Updated ${d}.`,
+    offer: 'Free account: the signal and outlook for 1,000 coins, portfolio check and an open track record – 30 days of all features, no payment details.',
+    start: 'Start free', noSignup: 'See today’s market – no signup',
+    idx: 'Market index', fng: 'Fear & Greed', ago7: (v) => `7 days ago ${v}`, cyc: 'Cycle (12 months)', belowAth: 'below Bitcoin’s all-time high', sig: 'Buy signals', ofRated: (n) => `of ${n} rated coins`,
+    label: { 'Kaufen': 'Buy', 'Eher kaufen': 'Lean buy', 'Halten': 'Hold', 'Eher verkaufen': 'Lean sell', 'Verkaufen': 'Sell' },
+    zone: { deep: 'deep in the cycle', low: 'lower third of the cycle', mid: 'middle of the cycle', high: 'near the high' },
+    mood: ['extreme fear', 'fear', 'neutral', 'greed', 'extreme greed'],
+    odds: (a, b) => `After comparable market days since 2018, Bitcoin was higher 7 days later in ${a} of 100 cases${isNum(b) ? ` and 30 days later in ${b} of 100` : ''}.`,
+    tTitle: (d, l, v) => `Crypto market today (${d}): Fear & Greed, market index and outlook`,
+    tDesc: (v, l, f, m, p) => `Is now a good time to buy crypto? Today’s crypto weather: market index ${v}/100 (${l}), Fear & Greed ${f} (${m}), Bitcoin ${p}. Updated daily. Not financial advice.`,
+    tH1: (l, v) => `Crypto market today: ${l} (${v}/100)`, tSub: (d) => `Crypto weather report for ${d} – updated every day.`,
+    buyQ: 'Is now a good time to buy crypto?',
+    tPara: (v, l, f, m, odds, alt) => `Nobody can know that for sure. What the data says today: Coinweather’s market index stands at <strong>${v} out of 100 – “${l}”</strong>. It combines Bitcoin’s market phase, market breadth and news sentiment and looks at the next few weeks. The Fear &amp; Greed index is at <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `For the average coin it was ${alt} of 100 after 7 days.` : ''} These are tendencies from past data, not promises.`,
+    btcH: 'Bitcoin today', btcPara: (p, d1, d7, ath) => `Bitcoin trades at <strong>${p}</strong> (${d1} in 24 hours, ${d7} in 7 days) and is ${ath} % below its all-time high.`, btcLink: 'Bitcoin page →',
+    movH: 'Top movers of the 100 largest coins (24 hours)', obs: 'Observations, not recommendations.', gain: 'Gainers', lose: 'Losers', price: 'Price', h24: '24 h', d7h: '7 days',
+    recH: 'Open track record', recPara: (since, avg, up, n, b, mkt) => `Every buy signal of the site is re-measured. Since ${since}: after 7 days on average <strong>${avg}</strong>, ${up} of ${n} in profit (Bitcoin over the same period ${b}${mkt ? `, the average top-100 coin ${mkt}` : ''}). Since 24 October 2026 buy signals are limited to the 100 largest coins – the size range the model was tested on. Including the bad results – that is the point.`,
+    tOffer: 'Which coins have a buy signal today?',
+    cTitle: (n, s, d) => `${n} (${s}) price today and outlook – ${d}`,
+    cDesc: (n, p, d1, d7, v, l, f) => `${n} is at ${p} (${d1} in 24h, ${d7} in 7 days). Crypto market index ${v}/100 (${l}), Fear & Greed ${f}. Not financial advice.`,
+    cH1: (n, s) => `${n} (${s}) today`, cSub: (d) => `Price, trend and crypto weather for ${d} – updated every day.`, rank: 'Rank',
+    cPara: (n, p, d1, d7, r, cap, ath, athP) => `${n} trades at <strong>${p}</strong>, ${d1} in the last 24 hours and ${d7} over 7 days. It is number ${r} by market capitalisation (${cap})${ath ? ` and ${ath} % below its all-time high of ${athP}` : ''}.`,
+    period: 'Period', change: 'Change', periods: ['24 hours', '7 days', '30 days', '200 days', '1 year'],
+    cBuyQ: (n) => `Is now a good time to buy ${n}?`,
+    cPara2: (v, l, f, m, odds) => `Nobody can know that for sure. What the data says today: the overall crypto market index is <strong>${v}/100 (“${l}”)</strong> and the Fear &amp; Greed index is at ${f} (${m}). ${odds}`,
+    stable: (n) => `${n} is a stablecoin – it is meant to keep its value, so Coinweather gives it no buy or sell signal.`,
+    sample: (n, l, h, r) => `Coinweather’s signal for ${n} today: <strong>${l}</strong>${h ? `, holding period ${h}` : ''}${r ? `, risk ${r}` : ''}.`,
+    locked: (n) => `Coinweather rates ${n} every 15 minutes. The current signal, holding period and risk are shown in a free account.`,
+    offAll: 'See the signal for all 1,000 coins', offCoin: (n) => `See the signal for ${n}`, mToday: 'Market today', fullRep: 'Full crypto weather report →', similar: 'Similar by market cap',
+    big: (v, fmt) => (v >= 1e12 ? `${fmt(v / 1e12, 2)} trillion` : v >= 1e9 ? `${fmt(v / 1e9, 1)} billion` : `${fmt(v / 1e6, 0)} million`),
+    fTitle: (v, m, d) => `Crypto Fear and Greed Index today: ${v} (${m}) – ${d}`,
+    fDesc: (v, m, w) => `The crypto Fear & Greed Index is at ${v} today (${m})${isNum(w) ? `, ${w} a week ago` : ''}. What fear and greed meant for prices since 2018 – updated daily. Not financial advice.`,
+    fH1: (v, m) => `Crypto Fear &amp; Greed Index today: ${v} – ${m}`, fSub: (d) => `Updated ${d}. Source: alternative.me.`,
+    fToday: 'Today', f7: '7 days ago', f30: '30 days ago', fAvg: '7-day average',
+    fWhatH: 'What is the Fear &amp; Greed Index?',
+    fWhat: 'The index measures the mood of the crypto market from 0 (extreme fear) to 100 (extreme greed), based on volatility, momentum, trading volume, social media and Bitcoin dominance. Below 25 is extreme fear, 25–45 fear, 45–55 neutral, 55–75 greed and above 75 extreme greed.',
+    fHistH: 'What did fear and greed mean for prices since 2018?',
+    fHist: 'Coinweather tested the daily index values since 2018 against what prices did afterwards, in two separate periods (2018–22 and 2022–26):',
+    fLi: ['<strong>Extreme greed was a warning:</strong> when the 7-day average was between 75 and 85, the median coin was higher 30 days later in only 20–33 % of cases (median about −20 %). Coinweather gives no buy signals in that zone.',
+      '<strong>Long fear in a deep market was an opportunity – for Bitcoin:</strong> after long periods of fear (at least 54 of 60 days below 45) with Bitcoin at least 40 % below its all-time high, Bitcoin was higher one year later in 84–100 % of cases. For the average altcoin this did not hold.',
+      '<strong>On its own the index was no reliable timing signal</strong> – “buy fear, sell greed” as a simple rule did worse than following the market trend.'],
+    fNow: (v, m, a) => `Today’s reading: <strong>${v} (${m})</strong>${a ? `, 7-day average ${a}` : ''}.`, brakeOn: 'The greed brake is active.', brakeOff: 'The greed brake is not active.',
+    fIdx: (v, l) => `Coinweather’s overall market index stands at <strong>${v}/100 (“${l}”)</strong>.`, fOffer: 'See how fear and greed affect each of 1,000 coins',
+    lTitle: (d) => `Crypto prices today: the 500 largest coins – ${d}`,
+    lDesc: (v, l) => `Prices, 24-hour and 7-day changes of the 500 largest cryptocurrencies, plus today’s crypto weather: market index ${v}/100 (${l}). Updated daily.`,
+    lH1: 'The 500 largest coins today', lSub: (d, v, l) => `Updated ${d}. Market index today: ${v}/100 – ${l}.`, coin: 'Coin', lOffer: 'Which of these coins have a buy signal today?',
+  },
+  de: {
+    open: 'App öffnen', today: 'Kryptomarkt heute', fngNav: 'Fear & Greed Index', all: 'Alle Coins', risk: 'Risikohinweis', legal: 'Impressum', privacy: 'Datenschutz',
+    foot: (d) => `Keine Anlageberatung. Coinweather ist ein Informationsdienst. Kurse lassen sich nicht sicher vorhersagen; die Wahrscheinlichkeiten beruhen auf vergangenen Kursen und können falsch liegen. Kryptowerte können stark fallen – bis zum Totalverlust. Stand ${d}.`,
+    offer: 'Kostenloses Konto: Signal und Aussicht für 1000 Coins, Portfolio-Check und eine offene Erfolgskontrolle – 30 Tage alle Funktionen, ohne Zahlungsdaten.',
+    start: 'Kostenlos starten', noSignup: 'Markt heute ansehen – ohne Anmeldung',
+    idx: 'Markt-Index', fng: 'Fear & Greed', ago7: (v) => `vor 7 Tagen ${v}`, cyc: 'Zyklus (12 Monate)', belowAth: 'unter dem Allzeithoch von Bitcoin', sig: 'Kaufsignale', ofRated: (n) => `von ${n} bewerteten Coins`,
+    label: { 'Kaufen': 'Kaufen', 'Eher kaufen': 'Eher kaufen', 'Halten': 'Halten', 'Eher verkaufen': 'Eher verkaufen', 'Verkaufen': 'Verkaufen' },
+    zone: { deep: 'tief im Zyklus', low: 'unteres Drittel des Zyklus', mid: 'Mitte des Zyklus', high: 'nahe am Hoch' },
+    mood: ['extreme Angst', 'Angst', 'neutral', 'Gier', 'extreme Gier'],
+    odds: (a, b) => `Nach vergleichbaren Markttagen seit 2018 stand Bitcoin 7 Tage später in ${a} von 100 Fällen höher${isNum(b) ? `, 30 Tage später in ${b} von 100` : ''}.`,
+    tTitle: (d) => `Kryptomarkt heute (${d}): Fear & Greed, Markt-Index und Aussicht`,
+    tDesc: (v, l, f, m, p) => `Ist jetzt ein guter Zeitpunkt für Krypto? Das Krypto-Wetter heute: Markt-Index ${v}/100 (${l}), Fear & Greed ${f} (${m}), Bitcoin ${p}. Täglich aktuell. Keine Anlageberatung.`,
+    tH1: (l, v) => `Kryptomarkt heute: ${l} (${v}/100)`, tSub: (d) => `Krypto-Wetterbericht vom ${d} – täglich aktualisiert.`,
+    buyQ: 'Ist jetzt ein guter Zeitpunkt, Krypto zu kaufen?',
+    tPara: (v, l, f, m, odds, alt) => `Sicher wissen kann das niemand. Was die Daten heute sagen: Der Markt-Index von Coinweather steht bei <strong>${v} von 100 – „${l}“</strong>. Er verbindet die Marktphase von Bitcoin, die Marktbreite und die Nachrichtenlage und blickt auf die nächsten Wochen. Der Fear-&amp;-Greed-Index steht bei <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `Beim mittleren Coin waren es nach 7 Tagen ${alt} von 100.` : ''} Das sind Tendenzen aus vergangenen Daten, keine Versprechen.`,
+    btcH: 'Bitcoin heute', btcPara: (p, d1, d7, ath) => `Bitcoin steht bei <strong>${p}</strong> (${d1} in 24 Stunden, ${d7} in 7 Tagen) und ${ath} % unter seinem Allzeithoch.`, btcLink: 'Zur Bitcoin-Seite →',
+    movH: 'Größte Bewegungen der 100 größten Coins (24 Stunden)', obs: 'Beobachtungen, keine Empfehlungen.', gain: 'Gewinner', lose: 'Verlierer', price: 'Kurs', h24: '24 h', d7h: '7 Tage',
+    recH: 'Offene Erfolgskontrolle', recPara: (since, avg, up, n, b, mkt) => `Jedes Kaufsignal der Seite wird nachgemessen. Seit ${since}: nach 7 Tagen im Schnitt <strong>${avg}</strong>, ${up} von ${n} im Plus (Bitcoin im selben Zeitraum ${b}${mkt ? `, der Durchschnitt der Top 100 ${mkt}` : ''}). Seit dem 24. Oktober 2026 gibt es Kaufsignale nur für die 100 größten Coins – an solchen ist das Modell geprüft. Auch schlechte Ergebnisse stehen hier – genau darum geht es.`,
+    tOffer: 'Welche Coins haben heute ein Kaufsignal?',
+    cTitle: (n, s, d) => `${n} (${s}) Kurs heute und Aussicht – ${d}`,
+    cDesc: (n, p, d1, d7, v, l, f) => `${n} steht bei ${p} (${d1} in 24 h, ${d7} in 7 Tagen). Krypto-Markt-Index ${v}/100 (${l}), Fear & Greed ${f}. Keine Anlageberatung.`,
+    cH1: (n, s) => `${n} (${s}) heute`, cSub: (d) => `Kurs, Entwicklung und Krypto-Wetter vom ${d} – täglich aktualisiert.`, rank: 'Rang',
+    cPara: (n, p, d1, d7, r, cap, ath, athP) => `${n} steht bei <strong>${p}</strong>, ${d1} in den letzten 24 Stunden und ${d7} über 7 Tage. Nach Marktwert ist der Coin die Nummer ${r} (${cap})${ath ? ` und liegt ${ath} % unter seinem Allzeithoch von ${athP}` : ''}.`,
+    period: 'Zeitraum', change: 'Veränderung', periods: ['24 Stunden', '7 Tage', '30 Tage', '200 Tage', '1 Jahr'],
+    cBuyQ: (n) => `Ist jetzt ein guter Zeitpunkt, ${n} zu kaufen?`,
+    cPara2: (v, l, f, m, odds) => `Sicher wissen kann das niemand. Was die Daten heute sagen: Der Markt-Index für den ganzen Kryptomarkt steht bei <strong>${v}/100 („${l}“)</strong>, der Fear-&amp;-Greed-Index bei ${f} (${m}). ${odds}`,
+    stable: (n) => `${n} ist ein Stablecoin – er soll seinen Wert halten, deshalb gibt Coinweather kein Kauf- oder Verkaufssignal.`,
+    sample: (n, l, h, r) => `Das Signal von Coinweather für ${n} heute: <strong>${l}</strong>${h ? `, Haltedauer ${h}` : ''}${r ? `, Risiko ${r}` : ''}.`,
+    locked: (n) => `Coinweather bewertet ${n} alle 15 Minuten. Das aktuelle Signal, die Haltedauer und das Risiko siehst du mit einem kostenlosen Konto.`,
+    offAll: 'Das Signal für alle 1000 Coins ansehen', offCoin: (n) => `Das Signal für ${n} ansehen`, mToday: 'Der Markt heute', fullRep: 'Zum ganzen Krypto-Wetterbericht →', similar: 'Ähnlich nach Marktwert',
+    big: (v, fmt) => (v >= 1e12 ? `${fmt(v / 1e12, 2)} Billionen` : v >= 1e9 ? `${fmt(v / 1e9, 1)} Milliarden` : `${fmt(v / 1e6, 0)} Millionen`),
+    fTitle: (v, m, d) => `Fear and Greed Index heute: ${v} (${m}) – ${d}`,
+    fDesc: (v, m, w) => `Der Krypto-Fear-&-Greed-Index steht heute bei ${v} (${m})${isNum(w) ? `, vor einer Woche bei ${w}` : ''}. Was Angst und Gier seit 2018 für die Kurse bedeuteten – täglich aktuell. Keine Anlageberatung.`,
+    fH1: (v, m) => `Krypto Fear &amp; Greed Index heute: ${v} – ${m}`, fSub: (d) => `Stand ${d}. Quelle: alternative.me.`,
+    fToday: 'Heute', f7: 'Vor 7 Tagen', f30: 'Vor 30 Tagen', fAvg: '7-Tage-Schnitt',
+    fWhatH: 'Was ist der Fear &amp; Greed Index?',
+    fWhat: 'Der Index misst die Stimmung am Kryptomarkt von 0 (extreme Angst) bis 100 (extreme Gier) – aus Schwankung, Momentum, Handelsvolumen, sozialen Medien und Bitcoin-Dominanz. Unter 25 gilt als extreme Angst, 25–45 Angst, 45–55 neutral, 55–75 Gier und über 75 extreme Gier.',
+    fHistH: 'Was bedeuteten Angst und Gier seit 2018 für die Kurse?',
+    fHist: 'Coinweather hat die Tageswerte seit 2018 mit dem verglichen, was die Kurse danach taten, in zwei getrennten Zeiträumen (2018–22 und 2022–26):',
+    fLi: ['<strong>Extreme Gier war eine Warnung:</strong> Lag der 7-Tage-Schnitt zwischen 75 und 85, stand der mittlere Coin 30 Tage später nur in 20–33 % der Fälle höher (im Mittel etwa −20 %). Coinweather gibt in dieser Zone keine Kaufsignale.',
+      '<strong>Lange Angst in einem tiefen Markt war eine Gelegenheit – für Bitcoin:</strong> Nach langer Angst (mindestens 54 von 60 Tagen unter 45) und mit Bitcoin mindestens 40 % unter dem Allzeithoch stand Bitcoin ein Jahr später in 84–100 % der Fälle höher. Für den mittleren Altcoin galt das nicht.',
+      '<strong>Allein war der Index kein verlässliches Signal</strong> – „bei Angst kaufen, bei Gier verkaufen“ als einfache Regel schnitt schlechter ab, als dem Markttrend zu folgen.'],
+    fNow: (v, m, a) => `Heute: <strong>${v} (${m})</strong>${a ? `, 7-Tage-Schnitt ${a}` : ''}.`, brakeOn: 'Die Gier-Bremse ist aktiv.', brakeOff: 'Die Gier-Bremse ist nicht aktiv.',
+    fIdx: (v, l) => `Der Markt-Index von Coinweather steht bei <strong>${v}/100 („${l}“)</strong>.`, fOffer: 'Sieh, wie Angst und Gier auf jeden der 1000 Coins wirken',
+    lTitle: (d) => `Kryptokurse heute: die 500 größten Coins – ${d}`,
+    lDesc: (v, l) => `Kurse und Veränderungen über 24 Stunden und 7 Tage der 500 größten Kryptowährungen, dazu das Krypto-Wetter: Markt-Index ${v}/100 (${l}). Täglich aktuell.`,
+    lH1: 'Die 500 größten Coins heute', lSub: (d, v, l) => `Stand ${d}. Markt-Index heute: ${v}/100 – ${l}.`, coin: 'Coin', lOffer: 'Welche dieser Coins haben heute ein Kaufsignal?',
+  },
+  es: {
+    open: 'Abrir la app', today: 'Mercado cripto hoy', fngNav: 'Índice Fear & Greed', all: 'Todas las monedas', risk: 'Aviso de riesgo', legal: 'Aviso legal', privacy: 'Privacidad',
+    foot: (d) => `No es asesoramiento financiero. Coinweather es un servicio informativo. Los precios no se pueden predecir con seguridad; las probabilidades se basan en precios pasados y pueden fallar. Las criptomonedas pueden caer con fuerza, hasta la pérdida total. Actualizado el ${d}.`,
+    offer: 'Cuenta gratuita: señal y perspectiva de 1000 monedas, revisión de cartera y un historial abierto, 30 días con todas las funciones, sin datos de pago.',
+    start: 'Empezar gratis', noSignup: 'Ver el mercado de hoy, sin registro',
+    idx: 'Índice de mercado', fng: 'Fear & Greed', ago7: (v) => `hace 7 días ${v}`, cyc: 'Ciclo (12 meses)', belowAth: 'por debajo del máximo histórico de Bitcoin', sig: 'Señales de compra', ofRated: (n) => `de ${n} monedas evaluadas`,
+    label: { 'Kaufen': 'Comprar', 'Eher kaufen': 'Más bien comprar', 'Halten': 'Mantener', 'Eher verkaufen': 'Más bien vender', 'Verkaufen': 'Vender' },
+    zone: { deep: 'en lo profundo del ciclo', low: 'tercio inferior del ciclo', mid: 'mitad del ciclo', high: 'cerca del máximo' },
+    mood: ['miedo extremo', 'miedo', 'neutral', 'codicia', 'codicia extrema'],
+    odds: (a, b) => `Tras días de mercado comparables desde 2018, Bitcoin estaba más alto 7 días después en ${a} de 100 casos${isNum(b) ? ` y 30 días después en ${b} de 100` : ''}.`,
+    tTitle: (d) => `Mercado cripto hoy (${d}): Fear & Greed, índice de mercado y perspectiva`,
+    tDesc: (v, l, f, m, p) => `¿Es buen momento para comprar cripto? El tiempo cripto de hoy: índice de mercado ${v}/100 (${l}), Fear & Greed ${f} (${m}), Bitcoin ${p}. Actualizado a diario. No es asesoramiento financiero.`,
+    tH1: (l, v) => `Mercado cripto hoy: ${l} (${v}/100)`, tSub: (d) => `Parte del tiempo cripto del ${d}, actualizado cada día.`,
+    buyQ: '¿Es buen momento para comprar cripto?',
+    tPara: (v, l, f, m, odds, alt) => `Nadie puede saberlo con certeza. Lo que dicen hoy los datos: el índice de mercado de Coinweather está en <strong>${v} de 100, «${l}»</strong>. Combina la fase de mercado de Bitcoin, la amplitud del mercado y el tono de las noticias, y mira las próximas semanas. El índice Fear &amp; Greed está en <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `Para la moneda media fueron ${alt} de 100 tras 7 días.` : ''} Son tendencias de datos pasados, no promesas.`,
+    btcH: 'Bitcoin hoy', btcPara: (p, d1, d7, ath) => `Bitcoin cotiza a <strong>${p}</strong> (${d1} en 24 horas, ${d7} en 7 días) y está un ${ath} % por debajo de su máximo histórico.`, btcLink: 'Página de Bitcoin →',
+    movH: 'Mayores movimientos de las 100 monedas más grandes (24 horas)', obs: 'Observaciones, no recomendaciones.', gain: 'Ganadoras', lose: 'Perdedoras', price: 'Precio', h24: '24 h', d7h: '7 días',
+    recH: 'Historial abierto', recPara: (since, avg, up, n, b, mkt) => `Cada señal de compra del sitio se vuelve a medir. Desde el ${since}: tras 7 días de media <strong>${avg}</strong>, ${up} de ${n} en positivo (Bitcoin en el mismo periodo ${b}${mkt ? `, la media del top 100 ${mkt}` : ''}). Desde el 24 de octubre de 2026 solo hay señales de compra para las 100 monedas más grandes, con las que se probó el modelo. También con los malos resultados: de eso se trata.`,
+    tOffer: '¿Qué monedas tienen hoy una señal de compra?',
+    cTitle: (n, s, d) => `${n} (${s}) precio hoy y perspectiva – ${d}`,
+    cDesc: (n, p, d1, d7, v, l, f) => `${n} está en ${p} (${d1} en 24 h, ${d7} en 7 días). Índice del mercado cripto ${v}/100 (${l}), Fear & Greed ${f}. No es asesoramiento financiero.`,
+    cH1: (n, s) => `${n} (${s}) hoy`, cSub: (d) => `Precio, tendencia y tiempo cripto del ${d}, actualizado cada día.`, rank: 'Puesto',
+    cPara: (n, p, d1, d7, r, cap, ath, athP) => `${n} cotiza a <strong>${p}</strong>, ${d1} en las últimas 24 horas y ${d7} en 7 días. Es la número ${r} por capitalización (${cap})${ath ? ` y está un ${ath} % por debajo de su máximo histórico de ${athP}` : ''}.`,
+    period: 'Periodo', change: 'Variación', periods: ['24 horas', '7 días', '30 días', '200 días', '1 año'],
+    cBuyQ: (n) => `¿Es buen momento para comprar ${n}?`,
+    cPara2: (v, l, f, m, odds) => `Nadie puede saberlo con certeza. Lo que dicen hoy los datos: el índice del mercado cripto está en <strong>${v}/100 («${l}»)</strong> y el índice Fear &amp; Greed en ${f} (${m}). ${odds}`,
+    stable: (n) => `${n} es una stablecoin: debe mantener su valor, por eso Coinweather no le da señal de compra ni de venta.`,
+    sample: (n, l, h, r) => `La señal de Coinweather para ${n} hoy: <strong>${l}</strong>${h ? `, plazo ${h}` : ''}${r ? `, riesgo ${r}` : ''}.`,
+    locked: (n) => `Coinweather evalúa ${n} cada 15 minutos. La señal actual, el plazo y el riesgo se ven con una cuenta gratuita.`,
+    offAll: 'Ver la señal de las 1000 monedas', offCoin: (n) => `Ver la señal de ${n}`, mToday: 'El mercado hoy', fullRep: 'Parte completo del tiempo cripto →', similar: 'Similares por capitalización',
+    big: (v, fmt) => (v >= 1e12 ? `${fmt(v / 1e12, 2)} billones` : v >= 1e9 ? `${fmt(v / 1e9, 1)} mil millones` : `${fmt(v / 1e6, 0)} millones`),
+    fTitle: (v, m, d) => `Índice Fear and Greed cripto hoy: ${v} (${m}) – ${d}`,
+    fDesc: (v, m, w) => `El índice cripto Fear & Greed está hoy en ${v} (${m})${isNum(w) ? `, hace una semana en ${w}` : ''}. Qué significaron el miedo y la codicia para los precios desde 2018, actualizado a diario. No es asesoramiento financiero.`,
+    fH1: (v, m) => `Índice cripto Fear &amp; Greed hoy: ${v} – ${m}`, fSub: (d) => `Actualizado el ${d}. Fuente: alternative.me.`,
+    fToday: 'Hoy', f7: 'Hace 7 días', f30: 'Hace 30 días', fAvg: 'Media de 7 días',
+    fWhatH: '¿Qué es el índice Fear &amp; Greed?',
+    fWhat: 'El índice mide el ánimo del mercado cripto de 0 (miedo extremo) a 100 (codicia extrema), a partir de volatilidad, impulso, volumen, redes sociales y dominancia de Bitcoin. Por debajo de 25 es miedo extremo, 25–45 miedo, 45–55 neutral, 55–75 codicia y por encima de 75 codicia extrema.',
+    fHistH: '¿Qué significaron el miedo y la codicia para los precios desde 2018?',
+    fHist: 'Coinweather comparó los valores diarios desde 2018 con lo que hicieron después los precios, en dos periodos separados (2018–22 y 2022–26):',
+    fLi: ['<strong>La codicia extrema fue una advertencia:</strong> con una media de 7 días entre 75 y 85, la moneda media estaba más alta 30 días después solo en el 20–33 % de los casos (mediana de cerca de −20 %). Coinweather no da señales de compra en esa zona.',
+      '<strong>El miedo largo en un mercado hundido fue una oportunidad, para Bitcoin:</strong> tras largos periodos de miedo (al menos 54 de 60 días por debajo de 45) con Bitcoin al menos un 40 % bajo su máximo, Bitcoin estaba más alto un año después en el 84–100 % de los casos. Para la altcoin media no fue así.',
+      '<strong>Por sí solo, el índice no fue una señal fiable</strong>: «comprar con miedo, vender con codicia» como regla simple funcionó peor que seguir la tendencia del mercado.'],
+    fNow: (v, m, a) => `Hoy: <strong>${v} (${m})</strong>${a ? `, media de 7 días ${a}` : ''}.`, brakeOn: 'El freno de codicia está activo.', brakeOff: 'El freno de codicia no está activo.',
+    fIdx: (v, l) => `El índice de mercado de Coinweather está en <strong>${v}/100 («${l}»)</strong>.`, fOffer: 'Mira cómo afectan el miedo y la codicia a cada una de las 1000 monedas',
+    lTitle: (d) => `Precios cripto hoy: las 500 monedas más grandes – ${d}`,
+    lDesc: (v, l) => `Precios y variaciones de 24 horas y 7 días de las 500 criptomonedas más grandes, más el tiempo cripto de hoy: índice de mercado ${v}/100 (${l}). Actualizado a diario.`,
+    lH1: 'Las 500 monedas más grandes hoy', lSub: (d, v, l) => `Actualizado el ${d}. Índice de mercado hoy: ${v}/100 – ${l}.`, coin: 'Moneda', lOffer: '¿Cuáles de estas monedas tienen hoy una señal de compra?',
+  },
+  fr: {
+    open: 'Ouvrir l’app', today: 'Marché crypto aujourd’hui', fngNav: 'Indice Fear & Greed', all: 'Toutes les cryptos', risk: 'Avertissement sur les risques', legal: 'Mentions légales', privacy: 'Confidentialité',
+    foot: (d) => `Pas un conseil en investissement. Coinweather est un service d’information. Les cours ne peuvent pas être prédits de façon sûre ; les probabilités reposent sur des cours passés et peuvent se tromper. Les cryptos peuvent chuter fortement, jusqu’à la perte totale. Mis à jour le ${d}.`,
+    offer: 'Compte gratuit : signal et perspectives pour 1000 cryptos, bilan de portefeuille et suivi public – 30 jours avec toutes les fonctions, sans données de paiement.',
+    start: 'Commencer gratuitement', noSignup: 'Voir le marché du jour – sans inscription',
+    idx: 'Indice de marché', fng: 'Fear & Greed', ago7: (v) => `il y a 7 jours ${v}`, cyc: 'Cycle (12 mois)', belowAth: 'sous le record de Bitcoin', sig: 'Signaux d’achat', ofRated: (n) => `sur ${n} cryptos évaluées`,
+    label: { 'Kaufen': 'Acheter', 'Eher kaufen': 'Plutôt acheter', 'Halten': 'Conserver', 'Eher verkaufen': 'Plutôt vendre', 'Verkaufen': 'Vendre' },
+    zone: { deep: 'au creux du cycle', low: 'tiers inférieur du cycle', mid: 'milieu du cycle', high: 'près du sommet' },
+    mood: ['peur extrême', 'peur', 'neutre', 'avidité', 'avidité extrême'],
+    odds: (a, b) => `Après des jours de marché comparables depuis 2018, le Bitcoin était plus haut 7 jours plus tard dans ${a} cas sur 100${isNum(b) ? ` et 30 jours plus tard dans ${b} sur 100` : ''}.`,
+    tTitle: (d) => `Marché crypto aujourd’hui (${d}) : Fear & Greed, indice de marché et perspectives`,
+    tDesc: (v, l, f, m, p) => `Est-ce le bon moment pour acheter des cryptos ? La météo crypto du jour : indice de marché ${v}/100 (${l}), Fear & Greed ${f} (${m}), Bitcoin ${p}. Mis à jour chaque jour. Pas un conseil en investissement.`,
+    tH1: (l, v) => `Marché crypto aujourd’hui : ${l} (${v}/100)`, tSub: (d) => `Bulletin météo crypto du ${d} – mis à jour chaque jour.`,
+    buyQ: 'Est-ce le bon moment pour acheter des cryptos ?',
+    tPara: (v, l, f, m, odds, alt) => `Personne ne peut le savoir avec certitude. Ce que disent les données aujourd’hui : l’indice de marché de Coinweather est à <strong>${v} sur 100 – « ${l} »</strong>. Il combine la phase de marché du Bitcoin, l’étendue du marché et le ton des actualités, et regarde les prochaines semaines. L’indice Fear &amp; Greed est à <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `Pour la crypto moyenne, c’était ${alt} sur 100 après 7 jours.` : ''} Ce sont des tendances issues de données passées, pas des promesses.`,
+    btcH: 'Bitcoin aujourd’hui', btcPara: (p, d1, d7, ath) => `Le Bitcoin s’échange à <strong>${p}</strong> (${d1} sur 24 heures, ${d7} sur 7 jours) et se situe ${ath} % sous son record.`, btcLink: 'Page Bitcoin →',
+    movH: 'Plus forts mouvements des 100 plus grandes cryptos (24 heures)', obs: 'Des observations, pas des recommandations.', gain: 'Hausses', lose: 'Baisses', price: 'Cours', h24: '24 h', d7h: '7 jours',
+    recH: 'Suivi public', recPara: (since, avg, up, n, b, mkt) => `Chaque signal d’achat du site est re-mesuré. Depuis le ${since} : après 7 jours en moyenne <strong>${avg}</strong>, ${up} sur ${n} en hausse (Bitcoin sur la même période ${b}${mkt ? `, la moyenne du top 100 ${mkt}` : ''}). Depuis le 24 octobre 2026, les signaux d’achat ne concernent que les 100 plus grandes cryptos, celles sur lesquelles le modèle a été testé. Les mauvais résultats y figurent aussi – c’est tout l’intérêt.`,
+    tOffer: 'Quelles cryptos ont un signal d’achat aujourd’hui ?',
+    cTitle: (n, s, d) => `${n} (${s}) cours aujourd’hui et perspectives – ${d}`,
+    cDesc: (n, p, d1, d7, v, l, f) => `${n} est à ${p} (${d1} sur 24 h, ${d7} sur 7 jours). Indice du marché crypto ${v}/100 (${l}), Fear & Greed ${f}. Pas un conseil en investissement.`,
+    cH1: (n, s) => `${n} (${s}) aujourd’hui`, cSub: (d) => `Cours, tendance et météo crypto du ${d} – mis à jour chaque jour.`, rank: 'Rang',
+    cPara: (n, p, d1, d7, r, cap, ath, athP) => `${n} s’échange à <strong>${p}</strong>, ${d1} sur les dernières 24 heures et ${d7} sur 7 jours. C’est la numéro ${r} par capitalisation (${cap})${ath ? ` et elle se situe ${ath} % sous son record de ${athP}` : ''}.`,
+    period: 'Période', change: 'Variation', periods: ['24 heures', '7 jours', '30 jours', '200 jours', '1 an'],
+    cBuyQ: (n) => `Est-ce le bon moment pour acheter ${n} ?`,
+    cPara2: (v, l, f, m, odds) => `Personne ne peut le savoir avec certitude. Ce que disent les données aujourd’hui : l’indice du marché crypto est à <strong>${v}/100 (« ${l} »)</strong> et l’indice Fear &amp; Greed à ${f} (${m}). ${odds}`,
+    stable: (n) => `${n} est un stablecoin : il doit garder sa valeur, Coinweather ne lui donne donc ni signal d’achat ni signal de vente.`,
+    sample: (n, l, h, r) => `Le signal de Coinweather pour ${n} aujourd’hui : <strong>${l}</strong>${h ? `, durée ${h}` : ''}${r ? `, risque ${r}` : ''}.`,
+    locked: (n) => `Coinweather évalue ${n} toutes les 15 minutes. Le signal actuel, la durée et le risque sont visibles avec un compte gratuit.`,
+    offAll: 'Voir le signal des 1000 cryptos', offCoin: (n) => `Voir le signal de ${n}`, mToday: 'Le marché aujourd’hui', fullRep: 'Bulletin météo crypto complet →', similar: 'Proches par capitalisation',
+    big: (v, fmt) => (v >= 1e12 ? `${fmt(v / 1e12, 2)} billions` : v >= 1e9 ? `${fmt(v / 1e9, 1)} milliards` : `${fmt(v / 1e6, 0)} millions`),
+    fTitle: (v, m, d) => `Indice crypto Fear and Greed aujourd’hui : ${v} (${m}) – ${d}`,
+    fDesc: (v, m, w) => `L’indice crypto Fear & Greed est aujourd’hui à ${v} (${m})${isNum(w) ? `, il y a une semaine à ${w}` : ''}. Ce que la peur et l’avidité ont signifié pour les cours depuis 2018 – mis à jour chaque jour. Pas un conseil en investissement.`,
+    fH1: (v, m) => `Indice crypto Fear &amp; Greed aujourd’hui : ${v} – ${m}`, fSub: (d) => `Mis à jour le ${d}. Source : alternative.me.`,
+    fToday: 'Aujourd’hui', f7: 'Il y a 7 jours', f30: 'Il y a 30 jours', fAvg: 'Moyenne sur 7 jours',
+    fWhatH: 'Qu’est-ce que l’indice Fear &amp; Greed ?',
+    fWhat: 'L’indice mesure l’humeur du marché crypto de 0 (peur extrême) à 100 (avidité extrême), à partir de la volatilité, du momentum, du volume, des réseaux sociaux et de la dominance du Bitcoin. Sous 25 : peur extrême, 25–45 peur, 45–55 neutre, 55–75 avidité, au-dessus de 75 avidité extrême.',
+    fHistH: 'Qu’ont signifié la peur et l’avidité pour les cours depuis 2018 ?',
+    fHist: 'Coinweather a comparé les valeurs quotidiennes depuis 2018 avec l’évolution des cours ensuite, sur deux périodes distinctes (2018–22 et 2022–26) :',
+    fLi: ['<strong>L’avidité extrême était un avertissement :</strong> avec une moyenne sur 7 jours entre 75 et 85, la crypto médiane n’était plus haute 30 jours plus tard que dans 20–33 % des cas (médiane d’environ −20 %). Coinweather ne donne pas de signal d’achat dans cette zone.',
+      '<strong>Une longue peur dans un marché au plus bas était une opportunité – pour le Bitcoin :</strong> après de longues périodes de peur (au moins 54 jours sur 60 sous 45) avec le Bitcoin au moins 40 % sous son record, le Bitcoin était plus haut un an plus tard dans 84–100 % des cas. Pas pour l’altcoin moyen.',
+      '<strong>Seul, l’indice n’était pas un signal fiable</strong> – « acheter la peur, vendre l’avidité » comme règle simple a fait moins bien que suivre la tendance du marché.'],
+    fNow: (v, m, a) => `Aujourd’hui : <strong>${v} (${m})</strong>${a ? `, moyenne sur 7 jours ${a}` : ''}.`, brakeOn: 'Le frein d’avidité est actif.', brakeOff: 'Le frein d’avidité n’est pas actif.',
+    fIdx: (v, l) => `L’indice de marché de Coinweather est à <strong>${v}/100 (« ${l} »)</strong>.`, fOffer: 'Voir comment la peur et l’avidité agissent sur chacune des 1000 cryptos',
+    lTitle: (d) => `Cours crypto aujourd’hui : les 500 plus grandes cryptos – ${d}`,
+    lDesc: (v, l) => `Cours et variations sur 24 heures et 7 jours des 500 plus grandes cryptomonnaies, plus la météo crypto du jour : indice de marché ${v}/100 (${l}). Mis à jour chaque jour.`,
+    lH1: 'Les 500 plus grandes cryptos aujourd’hui', lSub: (d, v, l) => `Mis à jour le ${d}. Indice de marché du jour : ${v}/100 – ${l}.`, coin: 'Crypto', lOffer: 'Lesquelles de ces cryptos ont un signal d’achat aujourd’hui ?',
+  },
+  it: {
+    open: 'Apri l’app', today: 'Mercato crypto oggi', fngNav: 'Indice Fear & Greed', all: 'Tutti i coin', risk: 'Avvertenza sui rischi', legal: 'Note legali', privacy: 'Privacy',
+    foot: (d) => `Non è una consulenza finanziaria. Coinweather è un servizio informativo. I prezzi non si possono prevedere con certezza; le probabilità si basano su prezzi passati e possono sbagliare. Le crypto possono crollare, fino alla perdita totale. Aggiornato il ${d}.`,
+    offer: 'Account gratuito: segnale e prospettive per 1000 coin, controllo del portafoglio e track record pubblico – 30 giorni con tutte le funzioni, senza dati di pagamento.',
+    start: 'Inizia gratis', noSignup: 'Vedi il mercato di oggi – senza registrazione',
+    idx: 'Indice di mercato', fng: 'Fear & Greed', ago7: (v) => `7 giorni fa ${v}`, cyc: 'Ciclo (12 mesi)', belowAth: 'sotto il massimo storico di Bitcoin', sig: 'Segnali di acquisto', ofRated: (n) => `su ${n} coin valutati`,
+    label: { 'Kaufen': 'Comprare', 'Eher kaufen': 'Piuttosto comprare', 'Halten': 'Mantenere', 'Eher verkaufen': 'Piuttosto vendere', 'Verkaufen': 'Vendere' },
+    zone: { deep: 'in fondo al ciclo', low: 'terzo inferiore del ciclo', mid: 'metà del ciclo', high: 'vicino al massimo' },
+    mood: ['paura estrema', 'paura', 'neutrale', 'avidità', 'avidità estrema'],
+    odds: (a, b) => `Dopo giorni di mercato simili dal 2018, Bitcoin era più alto 7 giorni dopo in ${a} casi su 100${isNum(b) ? ` e 30 giorni dopo in ${b} su 100` : ''}.`,
+    tTitle: (d) => `Mercato crypto oggi (${d}): Fear & Greed, indice di mercato e prospettive`,
+    tDesc: (v, l, f, m, p) => `È un buon momento per comprare crypto? Il meteo crypto di oggi: indice di mercato ${v}/100 (${l}), Fear & Greed ${f} (${m}), Bitcoin ${p}. Aggiornato ogni giorno. Non è una consulenza finanziaria.`,
+    tH1: (l, v) => `Mercato crypto oggi: ${l} (${v}/100)`, tSub: (d) => `Bollettino meteo crypto del ${d} – aggiornato ogni giorno.`,
+    buyQ: 'È un buon momento per comprare crypto?',
+    tPara: (v, l, f, m, odds, alt) => `Nessuno può saperlo con certezza. Cosa dicono oggi i dati: l’indice di mercato di Coinweather è a <strong>${v} su 100 – «${l}»</strong>. Combina la fase di mercato di Bitcoin, l’ampiezza del mercato e il tono delle notizie e guarda alle prossime settimane. L’indice Fear &amp; Greed è a <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `Per il coin medio erano ${alt} su 100 dopo 7 giorni.` : ''} Sono tendenze dai dati passati, non promesse.`,
+    btcH: 'Bitcoin oggi', btcPara: (p, d1, d7, ath) => `Bitcoin quota <strong>${p}</strong> (${d1} in 24 ore, ${d7} in 7 giorni) ed è del ${ath} % sotto il suo massimo storico.`, btcLink: 'Pagina di Bitcoin →',
+    movH: 'Maggiori movimenti dei 100 coin più grandi (24 ore)', obs: 'Osservazioni, non raccomandazioni.', gain: 'In rialzo', lose: 'In ribasso', price: 'Prezzo', h24: '24 h', d7h: '7 giorni',
+    recH: 'Track record pubblico', recPara: (since, avg, up, n, b, mkt) => `Ogni segnale di acquisto del sito viene rimisurato. Dal ${since}: dopo 7 giorni in media <strong>${avg}</strong>, ${up} su ${n} in positivo (Bitcoin nello stesso periodo ${b}${mkt ? `, la media della top 100 ${mkt}` : ''}). Dal 24 ottobre 2026 i segnali di acquisto valgono solo per i 100 coin più grandi, quelli su cui il modello è stato testato. Anche i risultati negativi restano qui: è proprio questo il punto.`,
+    tOffer: 'Quali coin hanno oggi un segnale di acquisto?',
+    cTitle: (n, s, d) => `${n} (${s}) prezzo oggi e prospettive – ${d}`,
+    cDesc: (n, p, d1, d7, v, l, f) => `${n} è a ${p} (${d1} in 24 h, ${d7} in 7 giorni). Indice del mercato crypto ${v}/100 (${l}), Fear & Greed ${f}. Non è una consulenza finanziaria.`,
+    cH1: (n, s) => `${n} (${s}) oggi`, cSub: (d) => `Prezzo, andamento e meteo crypto del ${d} – aggiornato ogni giorno.`, rank: 'Posizione',
+    cPara: (n, p, d1, d7, r, cap, ath, athP) => `${n} quota <strong>${p}</strong>, ${d1} nelle ultime 24 ore e ${d7} in 7 giorni. È il numero ${r} per capitalizzazione (${cap})${ath ? ` ed è del ${ath} % sotto il suo massimo storico di ${athP}` : ''}.`,
+    period: 'Periodo', change: 'Variazione', periods: ['24 ore', '7 giorni', '30 giorni', '200 giorni', '1 anno'],
+    cBuyQ: (n) => `È un buon momento per comprare ${n}?`,
+    cPara2: (v, l, f, m, odds) => `Nessuno può saperlo con certezza. Cosa dicono oggi i dati: l’indice del mercato crypto è a <strong>${v}/100 («${l}»)</strong> e l’indice Fear &amp; Greed a ${f} (${m}). ${odds}`,
+    stable: (n) => `${n} è una stablecoin: deve mantenere il suo valore, quindi Coinweather non le dà segnali di acquisto o vendita.`,
+    sample: (n, l, h, r) => `Il segnale di Coinweather per ${n} oggi: <strong>${l}</strong>${h ? `, durata ${h}` : ''}${r ? `, rischio ${r}` : ''}.`,
+    locked: (n) => `Coinweather valuta ${n} ogni 15 minuti. Il segnale attuale, la durata e il rischio si vedono con un account gratuito.`,
+    offAll: 'Vedi il segnale di tutti i 1000 coin', offCoin: (n) => `Vedi il segnale di ${n}`, mToday: 'Il mercato oggi', fullRep: 'Bollettino meteo crypto completo →', similar: 'Simili per capitalizzazione',
+    big: (v, fmt) => (v >= 1e12 ? `${fmt(v / 1e12, 2)} mila miliardi` : v >= 1e9 ? `${fmt(v / 1e9, 1)} miliardi` : `${fmt(v / 1e6, 0)} milioni`),
+    fTitle: (v, m, d) => `Indice crypto Fear and Greed oggi: ${v} (${m}) – ${d}`,
+    fDesc: (v, m, w) => `L’indice crypto Fear & Greed è oggi a ${v} (${m})${isNum(w) ? `, una settimana fa a ${w}` : ''}. Cosa hanno significato paura e avidità per i prezzi dal 2018 – aggiornato ogni giorno. Non è una consulenza finanziaria.`,
+    fH1: (v, m) => `Indice crypto Fear &amp; Greed oggi: ${v} – ${m}`, fSub: (d) => `Aggiornato il ${d}. Fonte: alternative.me.`,
+    fToday: 'Oggi', f7: '7 giorni fa', f30: '30 giorni fa', fAvg: 'Media a 7 giorni',
+    fWhatH: 'Che cos’è l’indice Fear &amp; Greed?',
+    fWhat: 'L’indice misura l’umore del mercato crypto da 0 (paura estrema) a 100 (avidità estrema), in base a volatilità, momentum, volumi, social media e dominanza di Bitcoin. Sotto 25 è paura estrema, 25–45 paura, 45–55 neutrale, 55–75 avidità e sopra 75 avidità estrema.',
+    fHistH: 'Cosa hanno significato paura e avidità per i prezzi dal 2018?',
+    fHist: 'Coinweather ha confrontato i valori giornalieri dal 2018 con l’andamento successivo dei prezzi, in due periodi separati (2018–22 e 2022–26):',
+    fLi: ['<strong>L’avidità estrema era un segnale d’allarme:</strong> con una media a 7 giorni tra 75 e 85, il coin mediano era più alto 30 giorni dopo solo nel 20–33 % dei casi (mediana di circa −20 %). In quella zona Coinweather non dà segnali di acquisto.',
+      '<strong>Una lunga paura in un mercato molto basso era un’occasione – per Bitcoin:</strong> dopo lunghi periodi di paura (almeno 54 giorni su 60 sotto 45) con Bitcoin almeno il 40 % sotto il massimo, Bitcoin era più alto un anno dopo nell’84–100 % dei casi. Per l’altcoin medio non è stato così.',
+      '<strong>Da solo l’indice non era un segnale affidabile</strong>: «comprare con la paura, vendere con l’avidità» come regola semplice ha reso meno che seguire il trend del mercato.'],
+    fNow: (v, m, a) => `Oggi: <strong>${v} (${m})</strong>${a ? `, media a 7 giorni ${a}` : ''}.`, brakeOn: 'Il freno all’avidità è attivo.', brakeOff: 'Il freno all’avidità non è attivo.',
+    fIdx: (v, l) => `L’indice di mercato di Coinweather è a <strong>${v}/100 («${l}»)</strong>.`, fOffer: 'Guarda come paura e avidità agiscono su ciascuno dei 1000 coin',
+    lTitle: (d) => `Prezzi crypto oggi: i 500 coin più grandi – ${d}`,
+    lDesc: (v, l) => `Prezzi e variazioni a 24 ore e 7 giorni delle 500 criptovalute più grandi, più il meteo crypto di oggi: indice di mercato ${v}/100 (${l}). Aggiornato ogni giorno.`,
+    lH1: 'I 500 coin più grandi oggi', lSub: (d, v, l) => `Aggiornato il ${d}. Indice di mercato oggi: ${v}/100 – ${l}.`, coin: 'Coin', lOffer: 'Quali di questi coin hanno oggi un segnale di acquisto?',
+  },
+  pt: {
+    open: 'Abrir o app', today: 'Mercado cripto hoje', fngNav: 'Índice Fear & Greed', all: 'Todas as moedas', risk: 'Aviso de risco', legal: 'Aviso legal', privacy: 'Privacidade',
+    foot: (d) => `Não é recomendação de investimento. O Coinweather é um serviço informativo. Os preços não podem ser previstos com segurança; as probabilidades se baseiam em preços passados e podem errar. Criptoativos podem cair muito, até a perda total. Atualizado em ${d}.`,
+    offer: 'Conta gratuita: sinal e perspectiva de 1000 moedas, checagem da carteira e um histórico aberto – 30 dias com todos os recursos, sem dados de pagamento.',
+    start: 'Começar grátis', noSignup: 'Ver o mercado de hoje – sem cadastro',
+    idx: 'Índice de mercado', fng: 'Fear & Greed', ago7: (v) => `há 7 dias ${v}`, cyc: 'Ciclo (12 meses)', belowAth: 'abaixo da máxima histórica do Bitcoin', sig: 'Sinais de compra', ofRated: (n) => `de ${n} moedas avaliadas`,
+    label: { 'Kaufen': 'Comprar', 'Eher kaufen': 'Tendência de compra', 'Halten': 'Manter', 'Eher verkaufen': 'Tendência de venda', 'Verkaufen': 'Vender' },
+    zone: { deep: 'no fundo do ciclo', low: 'terço inferior do ciclo', mid: 'meio do ciclo', high: 'perto da máxima' },
+    mood: ['medo extremo', 'medo', 'neutro', 'ganância', 'ganância extrema'],
+    odds: (a, b) => `Depois de dias de mercado parecidos desde 2018, o Bitcoin estava mais alto 7 dias depois em ${a} de 100 casos${isNum(b) ? ` e 30 dias depois em ${b} de 100` : ''}.`,
+    tTitle: (d) => `Mercado cripto hoje (${d}): Fear & Greed, índice de mercado e perspectiva`,
+    tDesc: (v, l, f, m, p) => `É um bom momento para comprar cripto? A previsão cripto de hoje: índice de mercado ${v}/100 (${l}), Fear & Greed ${f} (${m}), Bitcoin ${p}. Atualizado diariamente. Não é recomendação de investimento.`,
+    tH1: (l, v) => `Mercado cripto hoje: ${l} (${v}/100)`, tSub: (d) => `Previsão do tempo cripto de ${d} – atualizada todos os dias.`,
+    buyQ: 'É um bom momento para comprar cripto?',
+    tPara: (v, l, f, m, odds, alt) => `Ninguém pode saber com certeza. O que os dados dizem hoje: o índice de mercado do Coinweather está em <strong>${v} de 100 – “${l}”</strong>. Ele combina a fase de mercado do Bitcoin, a amplitude do mercado e o tom das notícias e olha para as próximas semanas. O índice Fear &amp; Greed está em <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `Para a moeda média foram ${alt} de 100 após 7 dias.` : ''} São tendências de dados passados, não promessas.`,
+    btcH: 'Bitcoin hoje', btcPara: (p, d1, d7, ath) => `O Bitcoin está cotado a <strong>${p}</strong> (${d1} em 24 horas, ${d7} em 7 dias) e ${ath} % abaixo da sua máxima histórica.`, btcLink: 'Página do Bitcoin →',
+    movH: 'Maiores movimentos das 100 maiores moedas (24 horas)', obs: 'Observações, não recomendações.', gain: 'Em alta', lose: 'Em baixa', price: 'Preço', h24: '24 h', d7h: '7 dias',
+    recH: 'Histórico aberto', recPara: (since, avg, up, n, b, mkt) => `Cada sinal de compra do site é medido de novo. Desde ${since}: após 7 dias em média <strong>${avg}</strong>, ${up} de ${n} no positivo (Bitcoin no mesmo período ${b}${mkt ? `, a média do top 100 ${mkt}` : ''}). Desde 24 de outubro de 2026 só há sinais de compra para as 100 maiores moedas, nas quais o modelo foi testado. Os resultados ruins também ficam aqui – é esse o objetivo.`,
+    tOffer: 'Quais moedas têm sinal de compra hoje?',
+    cTitle: (n, s, d) => `${n} (${s}) preço hoje e perspectiva – ${d}`,
+    cDesc: (n, p, d1, d7, v, l, f) => `${n} está em ${p} (${d1} em 24 h, ${d7} em 7 dias). Índice do mercado cripto ${v}/100 (${l}), Fear & Greed ${f}. Não é recomendação de investimento.`,
+    cH1: (n, s) => `${n} (${s}) hoje`, cSub: (d) => `Preço, tendência e previsão cripto de ${d} – atualizado todos os dias.`, rank: 'Posição',
+    cPara: (n, p, d1, d7, r, cap, ath, athP) => `${n} está cotada a <strong>${p}</strong>, ${d1} nas últimas 24 horas e ${d7} em 7 dias. É a número ${r} em capitalização (${cap})${ath ? ` e está ${ath} % abaixo da sua máxima histórica de ${athP}` : ''}.`,
+    period: 'Período', change: 'Variação', periods: ['24 horas', '7 dias', '30 dias', '200 dias', '1 ano'],
+    cBuyQ: (n) => `É um bom momento para comprar ${n}?`,
+    cPara2: (v, l, f, m, odds) => `Ninguém pode saber com certeza. O que os dados dizem hoje: o índice do mercado cripto está em <strong>${v}/100 (“${l}”)</strong> e o índice Fear &amp; Greed em ${f} (${m}). ${odds}`,
+    stable: (n) => `${n} é uma stablecoin – deve manter seu valor, por isso o Coinweather não dá sinal de compra nem de venda.`,
+    sample: (n, l, h, r) => `O sinal do Coinweather para ${n} hoje: <strong>${l}</strong>${h ? `, prazo ${h}` : ''}${r ? `, risco ${r}` : ''}.`,
+    locked: (n) => `O Coinweather avalia ${n} a cada 15 minutos. O sinal atual, o prazo e o risco aparecem com uma conta gratuita.`,
+    offAll: 'Ver o sinal das 1000 moedas', offCoin: (n) => `Ver o sinal de ${n}`, mToday: 'O mercado hoje', fullRep: 'Previsão cripto completa →', similar: 'Parecidas por capitalização',
+    big: (v, fmt) => (v >= 1e12 ? `${fmt(v / 1e12, 2)} trilhões` : v >= 1e9 ? `${fmt(v / 1e9, 1)} bilhões` : `${fmt(v / 1e6, 0)} milhões`),
+    fTitle: (v, m, d) => `Índice Fear and Greed cripto hoje: ${v} (${m}) – ${d}`,
+    fDesc: (v, m, w) => `O índice cripto Fear & Greed está hoje em ${v} (${m})${isNum(w) ? `, há uma semana em ${w}` : ''}. O que medo e ganância significaram para os preços desde 2018 – atualizado diariamente. Não é recomendação de investimento.`,
+    fH1: (v, m) => `Índice cripto Fear &amp; Greed hoje: ${v} – ${m}`, fSub: (d) => `Atualizado em ${d}. Fonte: alternative.me.`,
+    fToday: 'Hoje', f7: 'Há 7 dias', f30: 'Há 30 dias', fAvg: 'Média de 7 dias',
+    fWhatH: 'O que é o índice Fear &amp; Greed?',
+    fWhat: 'O índice mede o humor do mercado cripto de 0 (medo extremo) a 100 (ganância extrema), com base em volatilidade, momentum, volume, redes sociais e dominância do Bitcoin. Abaixo de 25 é medo extremo, 25–45 medo, 45–55 neutro, 55–75 ganância e acima de 75 ganância extrema.',
+    fHistH: 'O que medo e ganância significaram para os preços desde 2018?',
+    fHist: 'O Coinweather comparou os valores diários desde 2018 com o que os preços fizeram depois, em dois períodos separados (2018–22 e 2022–26):',
+    fLi: ['<strong>A ganância extrema foi um alerta:</strong> com a média de 7 dias entre 75 e 85, a moeda mediana estava mais alta 30 dias depois em apenas 20–33 % dos casos (mediana de cerca de −20 %). O Coinweather não dá sinais de compra nessa zona.',
+      '<strong>Medo longo num mercado no fundo foi uma oportunidade – para o Bitcoin:</strong> depois de longos períodos de medo (pelo menos 54 de 60 dias abaixo de 45) com o Bitcoin pelo menos 40 % abaixo da máxima, o Bitcoin estava mais alto um ano depois em 84–100 % dos casos. Para a altcoin média isso não valeu.',
+      '<strong>Sozinho, o índice não foi um sinal confiável</strong> – “comprar no medo, vender na ganância” como regra simples foi pior do que seguir a tendência do mercado.'],
+    fNow: (v, m, a) => `Hoje: <strong>${v} (${m})</strong>${a ? `, média de 7 dias ${a}` : ''}.`, brakeOn: 'O freio de ganância está ativo.', brakeOff: 'O freio de ganância não está ativo.',
+    fIdx: (v, l) => `O índice de mercado do Coinweather está em <strong>${v}/100 (“${l}”)</strong>.`, fOffer: 'Veja como medo e ganância afetam cada uma das 1000 moedas',
+    lTitle: (d) => `Preços cripto hoje: as 500 maiores moedas – ${d}`,
+    lDesc: (v, l) => `Preços e variações de 24 horas e 7 dias das 500 maiores criptomoedas, mais a previsão cripto de hoje: índice de mercado ${v}/100 (${l}). Atualizado diariamente.`,
+    lH1: 'As 500 maiores moedas hoje', lSub: (d, v, l) => `Atualizado em ${d}. Índice de mercado hoje: ${v}/100 – ${l}.`, coin: 'Moeda', lOffer: 'Quais dessas moedas têm sinal de compra hoje?',
+  },
+  tr: {
+    open: 'Uygulamayı aç', today: 'Bugün kripto piyasası', fngNav: 'Korku ve Açgözlülük Endeksi', all: 'Tüm coinler', risk: 'Risk uyarısı', legal: 'Künye', privacy: 'Gizlilik',
+    foot: (d) => `Yatırım tavsiyesi değildir. Coinweather bir bilgi hizmetidir. Fiyatlar kesin olarak tahmin edilemez; olasılıklar geçmiş fiyatlara dayanır ve yanılabilir. Kripto varlıklar sert düşebilir – tamamen değer kaybına kadar. Güncelleme: ${d}.`,
+    offer: 'Ücretsiz hesap: 1000 coin için sinyal ve görünüm, portföy kontrolü ve açık performans kaydı – 30 gün tüm özellikler, ödeme bilgisi olmadan.',
+    start: 'Ücretsiz başla', noSignup: 'Bugünkü piyasayı gör – kayıt olmadan',
+    idx: 'Piyasa endeksi', fng: 'Korku ve Açgözlülük', ago7: (v) => `7 gün önce ${v}`, cyc: 'Döngü (12 ay)', belowAth: 'Bitcoin’in zirvesinin altında', sig: 'Alım sinyalleri', ofRated: (n) => `değerlendirilen ${n} coinden`,
+    label: { 'Kaufen': 'Al', 'Eher kaufen': 'Almaya yakın', 'Halten': 'Tut', 'Eher verkaufen': 'Satmaya yakın', 'Verkaufen': 'Sat' },
+    zone: { deep: 'döngünün dibinde', low: 'döngünün alt üçte biri', mid: 'döngünün ortası', high: 'zirveye yakın' },
+    mood: ['aşırı korku', 'korku', 'nötr', 'açgözlülük', 'aşırı açgözlülük'],
+    odds: (a, b) => `2018’den bu yana benzer piyasa günlerinden sonra Bitcoin 7 gün sonra 100 vakanın ${a} tanesinde daha yüksekti${isNum(b) ? `, 30 gün sonra 100 vakanın ${b} tanesinde` : ''}.`,
+    tTitle: (d) => `Bugün kripto piyasası (${d}): Korku ve Açgözlülük, piyasa endeksi ve görünüm`,
+    tDesc: (v, l, f, m, p) => `Kripto almak için iyi bir zaman mı? Bugünün kripto hava durumu: piyasa endeksi ${v}/100 (${l}), Korku ve Açgözlülük ${f} (${m}), Bitcoin ${p}. Her gün güncellenir. Yatırım tavsiyesi değildir.`,
+    tH1: (l, v) => `Bugün kripto piyasası: ${l} (${v}/100)`, tSub: (d) => `${d} tarihli kripto hava durumu – her gün güncellenir.`,
+    buyQ: 'Kripto almak için iyi bir zaman mı?',
+    tPara: (v, l, f, m, odds, alt) => `Bunu kimse kesin olarak bilemez. Verilerin bugün söyledikleri: Coinweather piyasa endeksi <strong>100 üzerinden ${v} – “${l}”</strong>. Bitcoin’in piyasa evresini, piyasa genişliğini ve haber tonunu birleştirir ve önümüzdeki haftalara bakar. Korku ve Açgözlülük Endeksi <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `Ortalama coin için 7 gün sonra 100 vakanın ${alt} tanesiydi.` : ''} Bunlar geçmiş verilerden eğilimlerdir, vaat değildir.`,
+    btcH: 'Bugün Bitcoin', btcPara: (p, d1, d7, ath) => `Bitcoin <strong>${p}</strong> seviyesinde (24 saatte ${d1}, 7 günde ${d7}) ve tüm zamanların zirvesinin %${ath} altında.`, btcLink: 'Bitcoin sayfası →',
+    movH: 'En büyük 100 coinin en büyük hareketleri (24 saat)', obs: 'Gözlemdir, tavsiye değildir.', gain: 'Yükselenler', lose: 'Düşenler', price: 'Fiyat', h24: '24 sa', d7h: '7 gün',
+    recH: 'Açık performans kaydı', recPara: (since, avg, up, n, b, mkt) => `Sitenin her alım sinyali yeniden ölçülür. ${since} tarihinden beri: 7 gün sonra ortalama <strong>${avg}</strong>, ${n} sinyalin ${up} tanesi artıda (aynı dönemde Bitcoin ${b}${mkt ? `, ilk 100 ortalaması ${mkt}` : ''}). 24 Ekim 2026’dan beri alım sinyalleri yalnızca modelin test edildiği en büyük 100 coin için verilir. Kötü sonuçlar da burada – asıl mesele bu.`,
+    tOffer: 'Bugün hangi coinlerin alım sinyali var?',
+    cTitle: (n, s, d) => `${n} (${s}) bugün fiyat ve görünüm – ${d}`,
+    cDesc: (n, p, d1, d7, v, l, f) => `${n} ${p} seviyesinde (24 saatte ${d1}, 7 günde ${d7}). Kripto piyasa endeksi ${v}/100 (${l}), Korku ve Açgözlülük ${f}. Yatırım tavsiyesi değildir.`,
+    cH1: (n, s) => `Bugün ${n} (${s})`, cSub: (d) => `${d} tarihli fiyat, eğilim ve kripto hava durumu – her gün güncellenir.`, rank: 'Sıra',
+    cPara: (n, p, d1, d7, r, cap, ath, athP) => `${n} <strong>${p}</strong> seviyesinde; son 24 saatte ${d1}, 7 günde ${d7}. Piyasa değerine göre ${r}. sırada (${cap})${ath ? ` ve ${athP} olan zirvesinin %${ath} altında` : ''}.`,
+    period: 'Dönem', change: 'Değişim', periods: ['24 saat', '7 gün', '30 gün', '200 gün', '1 yıl'],
+    cBuyQ: (n) => `${n} almak için iyi bir zaman mı?`,
+    cPara2: (v, l, f, m, odds) => `Bunu kimse kesin olarak bilemez. Verilerin bugün söyledikleri: genel kripto piyasa endeksi <strong>${v}/100 (“${l}”)</strong>, Korku ve Açgözlülük Endeksi ${f} (${m}). ${odds}`,
+    stable: (n) => `${n} bir stablecoin – değerini korumak için tasarlanmıştır, bu yüzden Coinweather alım ya da satım sinyali vermez.`,
+    sample: (n, l, h, r) => `Coinweather’ın bugün ${n} için sinyali: <strong>${l}</strong>${h ? `, tutma süresi ${h}` : ''}${r ? `, risk ${r}` : ''}.`,
+    locked: (n) => `Coinweather ${n} coinini 15 dakikada bir değerlendirir. Güncel sinyal, tutma süresi ve risk ücretsiz bir hesapla görünür.`,
+    offAll: '1000 coinin hepsinin sinyalini gör', offCoin: (n) => `${n} sinyalini gör`, mToday: 'Bugün piyasa', fullRep: 'Tam kripto hava durumu →', similar: 'Piyasa değerine göre benzerleri',
+    big: (v, fmt) => (v >= 1e12 ? `${fmt(v / 1e12, 2)} trilyon` : v >= 1e9 ? `${fmt(v / 1e9, 1)} milyar` : `${fmt(v / 1e6, 0)} milyon`),
+    fTitle: (v, m, d) => `Bugün kripto Korku ve Açgözlülük Endeksi: ${v} (${m}) – ${d}`,
+    fDesc: (v, m, w) => `Kripto Korku ve Açgözlülük Endeksi bugün ${v} (${m})${isNum(w) ? `, bir hafta önce ${w}` : ''}. Korku ve açgözlülüğün 2018’den beri fiyatlar için anlamı – her gün güncellenir. Yatırım tavsiyesi değildir.`,
+    fH1: (v, m) => `Bugün kripto Korku ve Açgözlülük Endeksi: ${v} – ${m}`, fSub: (d) => `Güncelleme: ${d}. Kaynak: alternative.me.`,
+    fToday: 'Bugün', f7: '7 gün önce', f30: '30 gün önce', fAvg: '7 günlük ortalama',
+    fWhatH: 'Korku ve Açgözlülük Endeksi nedir?',
+    fWhat: 'Endeks, kripto piyasasının ruh halini 0 (aşırı korku) ile 100 (aşırı açgözlülük) arasında ölçer; oynaklık, momentum, işlem hacmi, sosyal medya ve Bitcoin hakimiyetine dayanır. 25’in altı aşırı korku, 25–45 korku, 45–55 nötr, 55–75 açgözlülük, 75’in üstü aşırı açgözlülüktür.',
+    fHistH: 'Korku ve açgözlülük 2018’den beri fiyatlar için ne anlama geldi?',
+    fHist: 'Coinweather 2018’den beri günlük değerleri sonrasında fiyatların ne yaptığıyla iki ayrı dönemde (2018–22 ve 2022–26) karşılaştırdı:',
+    fLi: ['<strong>Aşırı açgözlülük bir uyarıydı:</strong> 7 günlük ortalama 75 ile 85 arasındayken ortanca coin 30 gün sonra vakaların yalnızca %20–33’ünde daha yüksekti (ortanca yaklaşık −%20). Coinweather bu bölgede alım sinyali vermez.',
+      '<strong>Dipteki bir piyasada uzun korku bir fırsattı – Bitcoin için:</strong> uzun korku dönemlerinden sonra (60 günün en az 54’ünde 45’in altında) ve Bitcoin zirvesinin en az %40 altındayken, Bitcoin bir yıl sonra vakaların %84–100’ünde daha yüksekti. Ortalama altcoin için bu geçerli olmadı.',
+      '<strong>Endeks tek başına güvenilir bir sinyal değildi</strong> – basit bir kural olarak “korkuda al, açgözlülükte sat” piyasa trendini izlemekten daha kötü sonuç verdi.'],
+    fNow: (v, m, a) => `Bugün: <strong>${v} (${m})</strong>${a ? `, 7 günlük ortalama ${a}` : ''}.`, brakeOn: 'Açgözlülük freni etkin.', brakeOff: 'Açgözlülük freni etkin değil.',
+    fIdx: (v, l) => `Coinweather piyasa endeksi <strong>${v}/100 (“${l}”)</strong>.`, fOffer: 'Korku ve açgözlülüğün 1000 coinin her birini nasıl etkilediğini gör',
+    lTitle: (d) => `Bugün kripto fiyatları: en büyük 500 coin – ${d}`,
+    lDesc: (v, l) => `En büyük 500 kripto paranın fiyatları, 24 saatlik ve 7 günlük değişimleri ile bugünkü kripto hava durumu: piyasa endeksi ${v}/100 (${l}). Her gün güncellenir.`,
+    lH1: 'Bugün en büyük 500 coin', lSub: (d, v, l) => `Güncelleme: ${d}. Bugünkü piyasa endeksi: ${v}/100 – ${l}.`, coin: 'Coin', lOffer: 'Bu coinlerden hangilerinin bugün alım sinyali var?',
+  },
+};
+const LANG_ORDER = ['en', 'de', 'es', 'fr', 'it', 'pt', 'tr'];
+const prefix = (lang) => (lang === 'en' ? '' : `/${lang}`);
 
 // ---------- Rahmen ----------
 const CSS = `:root{--bg:#0b0f17;--panel:#121826;--line:#263042;--text:#e8ecf3;--muted:#9aa4b2;--accent:#f7931a;--up:#3ecf8e;--down:#ef5b5b}
@@ -82,140 +421,139 @@ header .btn{padding:7px 14px;font-size:14px}
 h2{margin:30px 0 8px;font-size:22px}.muted{color:var(--muted)}.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:14px 0}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.stat .v{font-size:24px;font-weight:800}.stat .l{color:var(--muted);font-size:13px}
 .up{color:var(--up)}.down{color:var(--down)}table{width:100%;border-collapse:collapse}td,th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}
-td.n,th.n{text-align:right}.cta{border-color:var(--accent)}.links{columns:3 160px;padding-left:18px}footer{border-top:1px solid var(--line);margin-top:40px;padding:18px 0 40px;font-size:13.5px}`;
-const page = ({ path, title, description, body }) => `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title)}</title><meta name="description" content="${esc(description)}">
-<link rel="canonical" href="${SITE}${path}"><meta name="theme-color" content="#0b0f17">
-<meta property="og:type" content="article"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}">
-<meta property="og:url" content="${SITE}${path}"><meta property="og:image" content="${SITE}/og-image.jpg"><meta name="twitter:card" content="summary_large_image">
+td.n,th.n{text-align:right}.cta{border-color:var(--accent)}.links{columns:3 160px;padding-left:18px}footer{border-top:1px solid var(--line);margin-top:40px;padding:18px 0 40px;font-size:13.5px}
+.langs a{margin-right:10px}.share a{margin-right:12px;font-weight:700;text-decoration:none}`;
+
+// ---------- Seiten einer Sprache ----------
+const pages = [];   // { lang, key, path, html }
+for (const lang of LANG_ORDER) {
+  const L = TX[lang], pre = prefix(lang);
+  const locale = i18n.LANGS[lang][1];
+  i18n.useDictionary(lang === 'de' ? {} : (await import(`../js/lang/${lang}.js`)).default);
+  const say = (t) => (t && lang !== 'de' ? i18n.say(t) : t);
+  const num = (v, d = 0) => v.toLocaleString(locale, { maximumFractionDigits: d, minimumFractionDigits: d });
+  const usd = (v) => (!isNum(v) ? '–' : new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD', maximumFractionDigits: v >= 1000 ? 0 : v >= 1 ? 2 : 6, minimumFractionDigits: v >= 1000 ? 0 : v >= 1 ? 2 : 2, maximumSignificantDigits: v < 1 ? 4 : undefined }).format(v));
+  const pct = (v) => (!isNum(v) ? '–' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${num(Math.abs(v), 1)} %`);
+  const day = new Date(snap.time).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Zurich' });
+  const label = L.label[market.label] ?? market.label;
+  const mood = (v) => L.mood[v < 25 ? 0 : v < 45 ? 1 : v <= 55 ? 2 : v <= 75 ? 3 : 4];
+  const app = (hash = '') => `/?von=seo${lang === 'en' ? '' : `-${lang}`}&lang=${lang}${hash}`;
+  const odds = isNum(btcUp7) ? L.odds(btcUp7, btcUp30) : '';
+  const fngV = fng?.value ?? '–', fngM = fng ? mood(fng.value) : '–';
+  const add = (key, path, title, description, body) => pages.push({ lang, key, path: `${pre}${path}`, title, description, body, day, L, app });
+  const offer = (text) => `<section class="panel cta"><strong>${text}</strong><p class="muted">${L.offer}</p>
+    <p><a class="btn" href="${app('#/konto')}">${L.start}</a> <a class="btn ghost" href="${app()}">${L.noSignup}</a></p></section>`;
+  const stats = () => `<div class="grid">
+    <div class="panel stat"><div class="l">${L.idx}</div><div class="v">${market.value}/100</div><div>${esc(label)}</div></div>
+    ${fng ? `<div class="panel stat"><div class="l">${esc(L.fng)}</div><div class="v">${fng.value}</div><div>${mood(fng.value)}${isNum(fng.week) ? ` · ${L.ago7(fng.week)}` : ''}</div></div>` : ''}
+    ${market.cycle ? `<div class="panel stat"><div class="l">${L.cyc}</div><div class="v">${num(-market.cycle.dd, 0)} %</div><div>${L.belowAth} · ${L.zone[market.cycle.zone] ?? ''}</div></div>` : ''}
+    <div class="panel stat"><div class="l">${L.sig}</div><div class="v">${buys}</div><div>${L.ofRated(rated)}</div></div></div>`;
+  const rows = (list) => list.map((c) => `<tr><td><a href="${pre}/coin/${slug(c.id)}/">${esc(c.name)}</a> <span class="muted">${esc(c.symbol.toUpperCase())}</span></td>
+    <td class="n">${usd(c.current_price)}</td><td class="n ${tone(ch(c, '24h'))}">${pct(ch(c, '24h'))}</td></tr>`).join('');
+
+  // Kryptomarkt heute
+  add('today', '/crypto-weather-today/', L.tTitle(day, label, market.value), L.tDesc(market.value, label, fngV, fngM, usd(btc?.current_price)),
+    `<h1>${esc(L.tH1(label, market.value))}</h1><p class="muted">${esc(L.tSub(day))}</p>${stats()}
+    <h2>${L.buyQ}</h2><p>${L.tPara(market.value, esc(label), fngV, fngM, odds, altUp7)}</p>
+    <h2>${L.btcH}</h2><p>${L.btcPara(usd(btc?.current_price), pct(ch(btc, '24h')), pct(ch(btc, '7d')), num(Math.abs(btc?.ath_change_percentage ?? 0), 0))} <a href="${pre}/coin/bitcoin/">${L.btcLink}</a></p>
+    <h2>${L.movH}</h2><p class="muted">${L.obs}</p>
+    <div class="panel"><table><tr><th>${L.gain}</th><th class="n">${L.price}</th><th class="n">${L.h24}</th></tr>${rows(movers.slice(0, 5))}</table></div>
+    <div class="panel"><table><tr><th>${L.lose}</th><th class="n">${L.price}</th><th class="n">${L.h24}</th></tr>${rows(movers.slice(-5).reverse())}</table></div>
+    ${record?.d7 ? `<h2>${L.recH}</h2><p>${L.recPara(new Date(record.since * 86_400_000).toLocaleDateString(locale), pct(record.d7.avg), record.d7.up, record.d7.n, pct(record.d7.btc), isNum(record.d7.mkt) ? pct(record.d7.mkt) : null)}</p>` : ''}
+    ${offer(L.tOffer)}`);
+
+  // Coin-Seiten
+  for (const [i, c] of top.entries()) {
+    const a = c.analysis ?? {}, sym = c.symbol.toUpperCase(), name = esc(c.name);
+    const sample = SAMPLES.includes(c.id);
+    const near = top.slice(Math.max(0, i - 6), i + 7).filter((x) => x.id !== c.id);
+    const signal = a.stable ? L.stable(name)
+      : sample ? L.sample(name, esc(L.label[a.label] ?? a.label), a.horizon ? esc(say(a.horizon)) : '', a.risk?.label ? esc(say(a.risk.label)) : '')
+      : L.locked(name);
+    add(`coin:${c.id}`, `/coin/${slug(c.id)}/`, L.cTitle(c.name, sym, day), L.cDesc(c.name, usd(c.current_price), pct(ch(c, '24h')), pct(ch(c, '7d')), market.value, label, fngV),
+      `<h1>${esc(L.cH1(c.name, sym))}</h1><p class="muted">${esc(L.cSub(day))}</p>
+      <div class="grid"><div class="panel stat"><div class="l">${L.price}</div><div class="v">${usd(c.current_price)}</div></div>
+        <div class="panel stat"><div class="l">${L.periods[0]}</div><div class="v ${tone(ch(c, '24h'))}">${pct(ch(c, '24h'))}</div></div>
+        <div class="panel stat"><div class="l">${L.periods[1]}</div><div class="v ${tone(ch(c, '7d'))}">${pct(ch(c, '7d'))}</div></div>
+        <div class="panel stat"><div class="l">${L.rank}</div><div class="v">#${c.market_cap_rank}</div></div></div>
+      <p>${L.cPara(name, usd(c.current_price), pct(ch(c, '24h')), pct(ch(c, '7d')), c.market_cap_rank, isNum(c.market_cap) ? `${L.big(c.market_cap, num)} USD` : '–',
+        isNum(c.ath_change_percentage) ? num(Math.abs(c.ath_change_percentage), 0) : null, usd(c.ath))}</p>
+      <div class="panel"><table><tr><th>${L.period}</th><th class="n">${L.change}</th></tr>
+        ${['24h', '7d', '30d', '200d', '1y'].map((k, j) => `<tr><td>${L.periods[j]}</td><td class="n ${tone(ch(c, k))}">${pct(ch(c, k))}</td></tr>`).join('')}</table></div>
+      <h2>${esc(L.cBuyQ(c.name))}</h2><p>${L.cPara2(market.value, esc(label), fngV, fngM, odds)}</p><p>${signal}</p>
+      ${offer(sample ? L.offAll : L.offCoin(name))}
+      <h2>${L.mToday}</h2>${stats()}<p><a href="${pre}/crypto-weather-today/">${L.fullRep}</a></p>
+      <h2>${L.similar}</h2><ul class="links">${near.map((x) => `<li><a href="${pre}/coin/${slug(x.id)}/">${esc(x.name)} (${esc(x.symbol.toUpperCase())})</a></li>`).join('')}</ul>`);
+  }
+
+  // Fear & Greed Index
+  if (fng) {
+    add('fng', '/fear-and-greed-index/', L.fTitle(fng.value, mood(fng.value), day), L.fDesc(fng.value, mood(fng.value), fng.week),
+      `<h1>${L.fH1(fng.value, mood(fng.value))}</h1><p class="muted">${esc(L.fSub(day))}</p>
+      <div class="grid"><div class="panel stat"><div class="l">${L.fToday}</div><div class="v">${fng.value}</div><div>${mood(fng.value)}</div></div>
+        ${isNum(fng.week) ? `<div class="panel stat"><div class="l">${L.f7}</div><div class="v">${fng.week}</div><div>${mood(fng.week)}</div></div>` : ''}
+        ${isNum(fng.month) ? `<div class="panel stat"><div class="l">${L.f30}</div><div class="v">${fng.month}</div><div>${mood(fng.month)}</div></div>` : ''}
+        ${isNum(avg7) ? `<div class="panel stat"><div class="l">${L.fAvg}</div><div class="v">${num(avg7, 0)}</div><div>${mood(avg7)}</div></div>` : ''}</div>
+      <h2>${L.fWhatH}</h2><p>${L.fWhat}</p>
+      <h2>${L.fHistH}</h2><p>${L.fHist}</p><ul>${L.fLi.map((x) => `<li>${x}</li>`).join('')}</ul>
+      <p>${L.fNow(fng.value, mood(fng.value), isNum(avg7) ? num(avg7, 0) : null)} ${isNum(avg7) && avg7 >= 75 && avg7 < 85 ? L.brakeOn : L.brakeOff}
+      ${L.fIdx(market.value, esc(label))} <a href="${pre}/crypto-weather-today/">${L.fullRep}</a></p>
+      ${offer(L.fOffer)}`);
+  }
+
+  // Übersicht
+  add('coins', '/coins/', L.lTitle(day), L.lDesc(market.value, label),
+    `<h1>${L.lH1}</h1><p class="muted">${esc(L.lSub(day, market.value, label))} <a href="${pre}/crypto-weather-today/">${L.fullRep}</a></p>
+    <div class="panel"><table><tr><th>#</th><th>${L.coin}</th><th class="n">${L.price}</th><th class="n">${L.h24}</th><th class="n">${L.d7h}</th></tr>
+    ${top.map((c) => `<tr><td>${c.market_cap_rank}</td><td><a href="${pre}/coin/${slug(c.id)}/">${esc(c.name)}</a> <span class="muted">${esc(c.symbol.toUpperCase())}</span></td>
+      <td class="n">${usd(c.current_price)}</td><td class="n ${tone(ch(c, '24h'))}">${pct(ch(c, '24h'))}</td><td class="n ${tone(ch(c, '7d'))}">${pct(ch(c, '7d'))}</td></tr>`).join('')}</table></div>
+    ${offer(L.lOffer)}`);
+}
+
+// ---------- Schreiben: jede Seite mit Verweisen auf ihre anderen Sprachen ----------
+const byKey = new Map();
+for (const p of pages) { if (!byKey.has(p.key)) byKey.set(p.key, []); byKey.get(p.key).push(p); }
+const LANG_NAME = Object.fromEntries(LANG_ORDER.map((l) => [l, i18n.LANGS[l][0]]));
+for (const p of pages) {
+  const { L, lang, app } = p, pre = prefix(lang);
+  const twins = byKey.get(p.key);
+  const alternates = twins.map((t) => `<link rel="alternate" hreflang="${t.lang}" href="${SITE}${t.path}">`).join('')
+    + `<link rel="alternate" hreflang="x-default" href="${SITE}${twins.find((t) => t.lang === 'en').path}">`;
+  const share = encodeURIComponent(`${SITE}${p.path}`), shareText = encodeURIComponent(p.title);
+  const html = `<!doctype html>
+<html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(p.title)}</title><meta name="description" content="${esc(p.description)}">
+<link rel="canonical" href="${SITE}${p.path}">${alternates}<meta name="theme-color" content="#0b0f17">
+<meta property="og:type" content="article"><meta property="og:title" content="${esc(p.title)}"><meta property="og:description" content="${esc(p.description)}">
+<meta property="og:url" content="${SITE}${p.path}"><meta property="og:image" content="${SITE}/og-image.jpg"><meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%23f7931a%27/%3E%3C/svg%3E">
 <style>${CSS}</style></head>
-<body><header><div class="wrap"><a class="brand" href="/">☁️ Coinweather</a><a class="btn" href="${app()}">Open the app</a></div></header>
-<main class="wrap">${body}</main>
-<footer><div class="wrap"><p><a href="/crypto-weather-today/">Crypto market today</a> · <a href="/fear-and-greed-index/">Fear &amp; Greed Index</a> · <a href="/coins/">All coins</a> · <a href="/#/risiko">Risk notice</a> ·
-<a href="/#/impressum">Legal notice</a> · <a href="/#/datenschutz">Privacy</a></p>
-<p class="muted">Not financial advice. Coinweather is an information service. Prices cannot be predicted reliably; probabilities are based on past
-prices and can be wrong. Crypto assets can fall sharply – up to a total loss. Updated ${esc(day)}. Data: CoinGecko, Binance, Gate.io, alternative.me.</p></div></footer>
+<body><header><div class="wrap"><a class="brand" href="${app()}">☁️ Coinweather</a><a class="btn" href="${app()}">${L.open}</a></div></header>
+<main class="wrap">${p.body}
+<p class="share muted">↗ <a href="https://wa.me/?text=${shareText}%20${share}" rel="noopener" target="_blank">WhatsApp</a><a href="https://t.me/share/url?url=${share}&text=${shareText}" rel="noopener" target="_blank">Telegram</a><a href="https://twitter.com/intent/tweet?url=${share}&text=${shareText}" rel="noopener" target="_blank">X</a><a href="https://www.facebook.com/sharer/sharer.php?u=${share}" rel="noopener" target="_blank">Facebook</a></p></main>
+<footer><div class="wrap"><p><a href="${pre}/crypto-weather-today/">${L.today}</a> · <a href="${pre}/fear-and-greed-index/">${esc(L.fngNav)}</a> · <a href="${pre}/coins/">${L.all}</a> ·
+<a href="/?lang=${lang}#/risiko">${L.risk}</a> · <a href="/?lang=${lang}#/impressum">${L.legal}</a> · <a href="/?lang=${lang}#/datenschutz">${L.privacy}</a></p>
+<p class="langs">${twins.map((t) => `<a href="${t.path}" hreflang="${t.lang}"${t.lang === lang ? ' aria-current="page"' : ''}>${LANG_NAME[t.lang]}</a>`).join('')}</p>
+<p class="muted">${L.foot(esc(p.day))} Data: CoinGecko, Binance, Gate.io, alternative.me.</p></div></footer>
 </body></html>`;
-const offer = (text) => `<section class="panel cta"><strong>${text}</strong>
-  <p class="muted">Free account: the signal and outlook for 1,000 coins, portfolio check and an open track record – 30 days of all features, no payment details.</p>
-  <p><a class="btn" href="${app('#/konto')}">Start free</a> <a class="btn ghost" href="${app()}">See today’s market – no signup</a></p></section>`;
-const marketStats = () => `<div class="grid">
-  <div class="panel stat"><div class="l">Market index</div><div class="v">${market.value}/100</div><div>${esc(label)}</div></div>
-  ${fng ? `<div class="panel stat"><div class="l">Fear &amp; Greed</div><div class="v">${fng.value}</div><div>${MOOD(fng.value)}${isNum(fng.week) ? ` · 7 days ago ${fng.week}` : ''}</div></div>` : ''}
-  ${market.cycle ? `<div class="panel stat"><div class="l">Cycle (12 months)</div><div class="v">${num(-market.cycle.dd, 0)} %</div><div>below Bitcoin’s all-time high · ${ZONE[market.cycle.zone] ?? ''}</div></div>` : ''}
-  <div class="panel stat"><div class="l">Buy signals</div><div class="v">${buys}</div><div>of ${rated} rated coins</div></div></div>`;
-const odds = isNum(btcUp7) ? `After comparable market days since 2018, Bitcoin was higher 7 days later in ${btcUp7} of 100 cases${isNum(btcUp30) ? ` and 30 days later in ${btcUp30} of 100` : ''}.` : '';
-
-// ---------- Kryptomarkt heute ----------
-const movers = coins.filter((c) => c.market_cap_rank <= 100 && c.analysis?.signal !== 'none' && !c.analysis?.stable && isNum(c.price_change_percentage_24h_in_currency))
-  .sort((a, b) => b.price_change_percentage_24h_in_currency - a.price_change_percentage_24h_in_currency);
-const moverRows = (list) => list.map((c) => `<tr><td><a href="/coin/${slug(c.id)}/">${esc(c.name)}</a> <span class="muted">${esc(c.symbol.toUpperCase())}</span></td>
-  <td class="n">${usd(c.current_price)}</td><td class="n ${tone(c.price_change_percentage_24h_in_currency)}">${pct(c.price_change_percentage_24h_in_currency)}</td></tr>`).join('');
-const btc = coins.find((c) => c.id === 'bitcoin');
-const pages = [];
-pages.push({ path: '/crypto-weather-today/', title: `Crypto market today (${day}): Fear & Greed, market index and outlook`,
-  description: `Is now a good time to buy crypto? Today’s crypto weather: market index ${market.value}/100 (${label}), Fear & Greed ${fng?.value ?? '–'} (${fng ? MOOD(fng.value) : '–'}), Bitcoin ${usd(btc?.current_price)}. Updated daily. Not financial advice.`,
-  body: `<h1>Crypto market today: ${esc(label)} (${market.value}/100)</h1><p class="muted">Crypto weather report for ${esc(day)} – updated every day.</p>
-  ${marketStats()}
-  <h2>Is now a good time to buy crypto?</h2>
-  <p>Nobody can know that for sure. What the data says today: Coinweather’s market index stands at <strong>${market.value} out of 100 – “${esc(label)}”</strong>.
-  It combines Bitcoin’s market phase, market breadth and news sentiment and looks at the next few weeks. The Fear &amp; Greed index is at
-  <strong>${fng?.value ?? '–'}</strong> (${fng ? MOOD(fng.value) : '–'}). ${odds} ${isNum(altUp7) ? `For the average coin it was ${altUp7} of 100 after 7 days.` : ''}
-  These are tendencies from past data, not promises.</p>
-  <h2>Bitcoin today</h2><p>Bitcoin trades at <strong>${usd(btc?.current_price)}</strong> (${pct(btc?.price_change_percentage_24h_in_currency)} in 24 hours,
-  ${pct(btc?.price_change_percentage_7d_in_currency)} in 7 days) and is ${num(Math.abs(btc?.ath_change_percentage ?? 0), 0)} % below its all-time high.
-  <a href="/coin/bitcoin/">Bitcoin page →</a></p>
-  <h2>Top movers of the 100 largest coins (24 hours)</h2><p class="muted">Observations, not recommendations.</p>
-  <div class="panel"><table><tr><th>Gainers</th><th class="n">Price</th><th class="n">24 h</th></tr>${moverRows(movers.slice(0, 5))}</table></div>
-  <div class="panel"><table><tr><th>Losers</th><th class="n">Price</th><th class="n">24 h</th></tr>${moverRows(movers.slice(-5).reverse())}</table></div>
-  ${record?.d7 ? `<h2>Open track record</h2><p>Every buy signal of the site is re-measured. Since ${new Date(record.since * 86_400_000).toLocaleDateString('en-US')}:
-  after 7 days on average <strong>${pct(record.d7.avg)}</strong>, ${record.d7.up} of ${record.d7.n} in profit (Bitcoin over the same period ${pct(record.d7.btc)}${isNum(record.d7.mkt) ? `, the average top-100 coin ${pct(record.d7.mkt)}` : ''}).
-  Since 24 October 2026 buy signals are limited to the 100 largest coins – the size range the model was tested on.
-  Including the bad results – that is the point.</p>` : ''}
-  ${offer('Which coins have a buy signal today?')}` });
-
-// ---------- Coin-Seiten ----------
-const top = coins.filter((c) => isNum(c.market_cap_rank) && c.market_cap_rank <= 500).sort((a, b) => a.market_cap_rank - b.market_cap_rank);
-for (const [i, c] of top.entries()) {
-  const a = c.analysis ?? {}, sym = c.symbol.toUpperCase(), name = c.name;
-  const sample = SAMPLES.includes(c.id);
-  const near = top.slice(Math.max(0, i - 6), i + 7).filter((x) => x.id !== c.id);
-  const signal = a.stable ? `${esc(name)} is a stablecoin – it is meant to keep its value, so Coinweather gives it no buy or sell signal.`
-    : sample ? `Coinweather’s signal for ${esc(name)} today: <strong>${esc(LABEL[a.label] ?? a.label)}</strong>${a.horizon ? `, holding period ${esc(en(a.horizon))}` : ''}${a.risk?.label ? `, risk ${esc(en(a.risk.label))}` : ''}.`
-    : `Coinweather rates ${esc(name)} every 15 minutes. The current signal, holding period and risk are shown in a free account.`;
-  pages.push({ path: `/coin/${slug(c.id)}/`, title: `${name} (${sym}) price today and outlook – ${day}`,
-    description: `${name} is at ${usd(c.current_price)} (${pct(c.price_change_percentage_24h_in_currency)} in 24h, ${pct(c.price_change_percentage_7d_in_currency)} in 7 days). Crypto market index ${market.value}/100 (${label}), Fear & Greed ${fng?.value ?? '–'}. Not financial advice.`,
-    body: `<h1>${esc(name)} (${esc(sym)}) today</h1><p class="muted">Price, trend and crypto weather for ${esc(day)} – updated every day.</p>
-    <div class="grid"><div class="panel stat"><div class="l">Price</div><div class="v">${usd(c.current_price)}</div></div>
-      <div class="panel stat"><div class="l">24 hours</div><div class="v ${tone(c.price_change_percentage_24h_in_currency)}">${pct(c.price_change_percentage_24h_in_currency)}</div></div>
-      <div class="panel stat"><div class="l">7 days</div><div class="v ${tone(c.price_change_percentage_7d_in_currency)}">${pct(c.price_change_percentage_7d_in_currency)}</div></div>
-      <div class="panel stat"><div class="l">Rank</div><div class="v">#${c.market_cap_rank}</div></div></div>
-    <p>${esc(name)} trades at <strong>${usd(c.current_price)}</strong>, ${pct(c.price_change_percentage_24h_in_currency)} in the last 24 hours and
-    ${pct(c.price_change_percentage_7d_in_currency)} over 7 days. It is number ${c.market_cap_rank} by market capitalisation (${big(c.market_cap)})
-    ${isNum(c.ath_change_percentage) ? `and ${num(Math.abs(c.ath_change_percentage), 0)} % below its all-time high of ${usd(c.ath)}` : ''}.</p>
-    <div class="panel"><table><tr><th>Period</th><th class="n">Change</th></tr>
-      ${[['24 hours', c.price_change_percentage_24h_in_currency], ['7 days', c.price_change_percentage_7d_in_currency], ['30 days', c.price_change_percentage_30d_in_currency],
-        ['200 days', c.price_change_percentage_200d_in_currency], ['1 year', c.price_change_percentage_1y_in_currency]]
-        .map(([l, v]) => `<tr><td>${l}</td><td class="n ${tone(v)}">${pct(v)}</td></tr>`).join('')}</table></div>
-    <h2>Is now a good time to buy ${esc(name)}?</h2>
-    <p>Nobody can know that for sure. What the data says today: the overall crypto market index is <strong>${market.value}/100 (“${esc(label)}”)</strong> and the
-    Fear &amp; Greed index is at ${fng?.value ?? '–'} (${fng ? MOOD(fng.value) : '–'}). ${odds}</p><p>${signal}</p>
-    ${sample ? offer(`See the signal for all 1,000 coins`) : offer(`See the signal for ${esc(name)}`)}
-    <h2>Market today</h2>${marketStats()}<p><a href="/crypto-weather-today/">Full crypto weather report →</a></p>
-    <h2>Similar by market cap</h2><ul class="links">${near.map((x) => `<li><a href="/coin/${slug(x.id)}/">${esc(x.name)} (${esc(x.symbol.toUpperCase())})</a></li>`).join('')}</ul>` });
-}
-
-// ---------- Fear & Greed Index ----------
-const avg7 = market.regime?.fng?.avg7;
-if (fng) pages.push({ path: '/fear-and-greed-index/', title: `Crypto Fear and Greed Index today: ${fng.value} (${MOOD(fng.value)}) – ${day}`,
-  description: `The crypto Fear & Greed Index is at ${fng.value} today (${MOOD(fng.value)}), ${isNum(fng.week) ? `${fng.week} a week ago` : ''}. What fear and greed meant for prices since 2018 – updated daily. Not financial advice.`,
-  body: `<h1>Crypto Fear &amp; Greed Index today: ${fng.value} – ${MOOD(fng.value)}</h1><p class="muted">Updated ${esc(day)}. Source: alternative.me.</p>
-  <div class="grid"><div class="panel stat"><div class="l">Today</div><div class="v">${fng.value}</div><div>${MOOD(fng.value)}</div></div>
-    ${isNum(fng.week) ? `<div class="panel stat"><div class="l">7 days ago</div><div class="v">${fng.week}</div><div>${MOOD(fng.week)}</div></div>` : ''}
-    ${isNum(fng.month) ? `<div class="panel stat"><div class="l">30 days ago</div><div class="v">${fng.month}</div><div>${MOOD(fng.month)}</div></div>` : ''}
-    ${isNum(avg7) ? `<div class="panel stat"><div class="l">7-day average</div><div class="v">${num(avg7, 0)}</div><div>${MOOD(avg7)}</div></div>` : ''}</div>
-  <h2>What is the Fear &amp; Greed Index?</h2>
-  <p>The index measures the mood of the crypto market from 0 (extreme fear) to 100 (extreme greed), based on volatility, momentum, trading volume,
-  social media and Bitcoin dominance. Below 25 is extreme fear, 25–45 fear, 45–55 neutral, 55–75 greed and above 75 extreme greed.</p>
-  <h2>What did fear and greed mean for prices since 2018?</h2>
-  <p>Coinweather tested the daily index values since 2018 against what prices did afterwards, in two separate periods (2018–22 and 2022–26):</p>
-  <ul><li><strong>Extreme greed was a warning:</strong> when the 7-day average was between 75 and 85, the median coin was higher 30 days later in only 20–33 % of cases
-    (median about −20 %). Coinweather gives no buy signals in that zone.</li>
-  <li><strong>Long fear in a deep market was an opportunity – for Bitcoin:</strong> after long periods of fear (at least 54 of 60 days below 45) with Bitcoin
-    at least 40 % below its all-time high, Bitcoin was higher one year later in 84–100 % of cases. For the average altcoin this did not hold.</li>
-  <li><strong>On its own the index was no reliable timing signal</strong> – “buy fear, sell greed” as a simple rule did worse than following the market trend.</li></ul>
-  <p>Today’s reading: <strong>${fng.value} (${MOOD(fng.value)})</strong>${isNum(avg7) ? `, 7-day average ${num(avg7, 0)}` : ''}. ${isNum(avg7) && avg7 >= 75 && avg7 < 85 ? 'The greed brake is active.' : 'The greed brake is not active.'}
-  Coinweather’s overall market index stands at <strong>${market.value}/100 (“${esc(label)}”)</strong>. <a href="/crypto-weather-today/">Full crypto weather report →</a></p>
-  ${offer('See how fear and greed affect each of 1,000 coins')}` });
-
-// ---------- Übersicht ----------
-pages.push({ path: '/coins/', title: `Crypto prices today: the 500 largest coins – ${day}`,
-  description: `Prices, 24-hour and 7-day changes of the 500 largest cryptocurrencies, plus today’s crypto weather: market index ${market.value}/100 (${label}). Updated daily.`,
-  body: `<h1>The 500 largest coins today</h1><p class="muted">Updated ${esc(day)}. Market index today: ${market.value}/100 – ${esc(label)}.
-  <a href="/crypto-weather-today/">Crypto weather report →</a></p>
-  <div class="panel"><table><tr><th>#</th><th>Coin</th><th class="n">Price</th><th class="n">24 h</th><th class="n">7 days</th></tr>
-  ${top.map((c) => `<tr><td>${c.market_cap_rank}</td><td><a href="/coin/${slug(c.id)}/">${esc(c.name)}</a> <span class="muted">${esc(c.symbol.toUpperCase())}</span></td>
-    <td class="n">${usd(c.current_price)}</td><td class="n ${tone(c.price_change_percentage_24h_in_currency)}">${pct(c.price_change_percentage_24h_in_currency)}</td>
-    <td class="n ${tone(c.price_change_percentage_7d_in_currency)}">${pct(c.price_change_percentage_7d_in_currency)}</td></tr>`).join('')}</table></div>
-  ${offer('Which of these coins have a buy signal today?')}` });
-
-for (const p of pages) {
   await mkdir(`${out}${p.path}`, { recursive: true });
-  await writeFile(`${out}${p.path}index.html`, page(p));
+  await writeFile(`${out}${p.path}index.html`, html);
 }
+
 const urls = ['/', ...pages.map((p) => p.path)];
 await writeFile(`${out}/sitemap.xml`, `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${
   urls.map((u) => `<url><loc>${SITE}${u}</loc><lastmod>${iso}</lastmod><changefreq>daily</changefreq></url>`).join('\n')}\n</urlset>\n`);
-// RSS-Feed: ein Eintrag je Tag mit dem Wetterbericht – Feed-Leser sammeln die Einträge selbst
-const reportDesc = `Market index ${market.value}/100 (${label}), Fear & Greed ${fng?.value ?? '–'} (${fng ? MOOD(fng.value) : '–'}), Bitcoin ${usd(btc?.current_price)} (${pct(btc?.price_change_percentage_24h_in_currency)} in 24 h). ${odds} Not financial advice.`;
+// RSS-Feed (englisch): ein Eintrag je Tag mit dem Wetterbericht – Feed-Leser sammeln die Einträge selbst
+const E = TX.en, enLabel = E.label[market.label] ?? market.label;
+const enMood = fng ? E.mood[fng.value < 25 ? 0 : fng.value < 45 ? 1 : fng.value <= 55 ? 2 : fng.value <= 75 ? 3 : 4] : '–';
+const enDay = new Date(snap.time).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Zurich' });
+const reportDesc = `Market index ${market.value}/100 (${enLabel}), Fear & Greed ${fng?.value ?? '–'} (${enMood}), Bitcoin $${Math.round(btc?.current_price ?? 0).toLocaleString('en-US')}. ${isNum(btcUp7) ? E.odds(btcUp7, btcUp30) : ''} Not financial advice.`;
 await writeFile(`${out}/feed.xml`, `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Coinweather – daily crypto weather report</title><link>${SITE}/</link>
 <atom:link href="${SITE}/feed.xml" rel="self" type="application/rss+xml"/><description>Is now a good time to buy crypto? A daily weather report for the crypto market. Not financial advice.</description><language>en</language>
-<item><title>${esc(`Crypto weather ${day}: ${label} (${market.value}/100), Fear & Greed ${fng?.value ?? '–'}`)}</title><link>${SITE}/crypto-weather-today/</link>
+<item><title>${esc(`Crypto weather ${enDay}: ${enLabel} (${market.value}/100), Fear & Greed ${fng?.value ?? '–'}`)}</title><link>${SITE}/crypto-weather-today/</link>
 <guid isPermaLink="false">coinweather-${iso.slice(0, 10)}</guid><pubDate>${new Date(snap.time).toUTCString()}</pubDate><description>${esc(reportDesc)}</description></item>
 </channel></rss>
 `);
 await writeFile(`${out}/robots.txt`, `User-agent: *\nAllow: /\nSitemap: ${SITE}/sitemap.xml\n`);
-console.log(`${pages.length} Seiten für Suchmaschinen gebaut (${day})`);
+console.log(`${pages.length} Seiten für Suchmaschinen gebaut in ${LANG_ORDER.length} Sprachen`);

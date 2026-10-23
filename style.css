@@ -561,3 +561,8 @@ html.i18n-wait body { visibility: hidden; }
 .pick.locked .lock-icon { font-size: 22px; width: 32px; text-align: center; }
 .blur { filter: blur(7px); user-select: none; }
 .lock-cell { opacity: .55; font-size: 13px; }
+
+/* Teilen-Zeile unter dem Markt-Index */
+.share-row { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin: 4px 0 14px; }
+.share-row a, .share-row .link-btn { font-weight: 700; }
+.share-row .link-btn { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; font-weight: 700; }
