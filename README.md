@@ -14,6 +14,12 @@ Live-Kurse der Top 1000 Kryptowährungen mit Prognose-Score, Kauf-/Verkaufssigna
 - **Als App installierbar** (manifest.webmanifest, sw.js – der Service Worker lädt immer zuerst aus dem Netz).
 - **Suchmaschinen-Seiten** in 7 Sprachen (scripts/seo-pages.mjs): Kryptomarkt heute, Fear & Greed, 500 Coins, Sparpläne der 40 größten Coins.
 
+- **Zyklus-Kompass** (`#/indikatoren`, scripts/indices.mjs): Zyklus-Risiko (eigener Index aus Mayer-Multiple, 2-Jahres-MA, Pi-Cycle, Abstand zum Hoch, Fear & Greed), Altcoin-Saison-Index, Pi-Cycle-Top, Mayer-Multiple, 2-Jahres-MA-Multiplikator, Volatilität, Bitcoin-Dominanz – je mit Rückblick (Bitcoin 90 Tage / 1 Jahr später, getrennt 2018–22 und 2022–26). Werte frei, Verläufe und Rückblicke mit Paket.
+  Ergebnis der Prüfung: Zyklus-Risiko unter 20 → ein Jahr später in 83–100 % der Fälle höher (Median +40 % / +121 %), über 80 → in 25 % (Median −19 %).
+- **Modell-Portfolio** (`#/modell`, scripts/model-curve.mjs): die Regeln des Portfolio-Managers wöchentlich an den 84 geprüften Coins seit 2018, 0,25 % Gebühr; rund +70 % pro Jahr bei −42 % größtem Rückgang (Bitcoin +25 %). In-Sample-Rückrechnung – steht so auf der Seite. Bestand und Handel im Paket Komplett. Der Sparplan-Rechner vergleicht damit.
+- **Markt-Heatmap**, **Coin-Vergleich** (`#/vergleich/a,b`), **Widget** zum Einbetten (widget.html, Anleitung /embed/), **Erste Schritte** für neue Konten.
+- **Schnellstart:** lite.json (150 größte Coins, rund 130 KB) vor snapshot.json (rund 850 KB).
+
 Mit kostenlosem Konto zusätzlich: alle Signale, **Favoriten** (Stern an jedem Coin, im Konto gespeichert), Portfolio.
 
 ## Lokal starten
