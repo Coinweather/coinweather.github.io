@@ -45,5 +45,6 @@ jobs:
       - name: Seiten an Suchmaschinen melden
         continue-on-error: true
         run: |
+          sleep 60   # bis die neue Fassung überall ausgeliefert wird
           mkdir -p _site && curl -sf https://coinweather.github.io/sitemap.xml -o _site/sitemap.xml
           node scripts/seo-pages.mjs --indexnow _site
