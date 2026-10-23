@@ -85,6 +85,9 @@ async function checkMeta() {
   if (env.FACEBOOK_PAGE_ID) {
     const page = await graph(env.FACEBOOK_PAGE_ID, { fields: 'followers_count,fan_count', access_token: meta.token });
     if (!page.error) console.log(`Facebook: ${page.followers_count ?? '?'} Follower · ${page.fan_count ?? '?'} Gefällt-mir`);
+    const reels = await graph(`${env.FACEBOOK_PAGE_ID}/video_reels`, { fields: 'created_time,permalink_url,status', limit: '5', access_token: meta.token });
+    if (reels.error) console.log(`  Reels: ${reels.error.message}`);
+    for (const v of reels.data ?? []) console.log(`  Facebook-Reel: ${new Date(v.created_time).toLocaleString('de-CH', { timeZone: 'Europe/Zurich' })} · Video ${v.status?.video_status ?? '?'} · Veröffentlichung ${v.status?.publishing_phase?.status ?? '?'}${v.status?.processing_phase?.error?.message ? ` · Fehler: ${v.status.processing_phase.error.message}` : ''} · ${v.permalink_url ? `https://www.facebook.com${v.permalink_url}` : ''}`);
     const posts = await graph(`${env.FACEBOOK_PAGE_ID}/posts`, { fields: 'created_time,reactions.summary(true).limit(0),comments.summary(true).limit(0),shares', limit: '10', access_token: meta.token });
     if (posts.error) console.log(`  Beiträge: ${posts.error.message}`);
     for (const m of posts.data ?? []) console.log(`  ${fmtDay(m.created_time)}: ${m.reactions?.summary?.total_count ?? 0} Reaktionen · ${m.comments?.summary?.total_count ?? 0} Kommentare · ${m.shares?.count ?? 0} geteilt`);
@@ -497,8 +500,10 @@ async function instagramReel(jpgs) {
         if (i >= 60) throw new Error('Verarbeiten: nach 5 Minuten nicht fertig');
         await sleep(5000);
       }
-      await call(token, 'Veröffentlichen', `${ig}/media_publish`, { creation_id: id }, 'POST');
-      return `gepostet (Reel, ${way}${errors.length ? ` – vorher: ${errors.join(' / ')}` : ''})`;
+      const done = await call(token, 'Veröffentlichen', `${ig}/media_publish`, { creation_id: id }, 'POST');
+      const link = (await call(token, 'Kontrolle', done.id, { fields: 'permalink' }).catch(() => ({}))).permalink;
+      if (!link) throw new Error('Kontrolle: Reel nach dem Veröffentlichen nicht auffindbar');
+      return `online: ${link} (${way}${errors.length ? ` – vorher: ${errors.join(' / ')}` : ''})`;
     } catch (err) { errors.push(`${way}: ${err.message}`); }
   }
   throw new Error(errors.join(' / '));
@@ -516,7 +521,17 @@ async function facebookReel(jpgs) {
   const start = await call('Anlegen', { upload_phase: 'start' });
   await rupload(start.upload_url ?? `https://rupload.facebook.com/video-upload/v21.0/${start.video_id}`, token, video);
   await call('Veröffentlichen', { upload_phase: 'finish', video_id: start.video_id, video_state: 'PUBLISHED', description: text.facebook });
-  return 'gepostet (Reel)';
+  // Facebook bestätigt das Veröffentlichen sofort, verarbeitet das Video aber erst danach – erst „fertig“ zählt
+  for (let i = 0; ; i++) {
+    const v = await (await fetch(`${GRAPH}/${start.video_id}?${new URLSearchParams({ fields: 'status,permalink_url', access_token: token })}`)).json();
+    const st = v.status ?? {};
+    if (st.video_status === 'error' || st.processing_phase?.status === 'error' || st.publishing_phase?.status === 'error') {
+      throw new Error(`Verarbeiten: ${st.processing_phase?.error?.message ?? st.publishing_phase?.errors?.[0]?.message ?? 'von Facebook abgelehnt'}`);
+    }
+    if (st.video_status === 'ready' && st.publishing_phase?.status === 'complete') return `online: https://www.facebook.com${v.permalink_url ?? `/reel/${start.video_id}`}`;
+    if (i >= 60) throw new Error(`nach 5 Minuten nicht online (Video ${st.video_status ?? '?'}, Veröffentlichung ${st.publishing_phase?.status ?? '?'})`);
+    await sleep(5000);
+  }
 }
 
 // ---------- Kanäle ----------
@@ -587,7 +602,11 @@ async function facebook(jpgs) {
     const form = new URLSearchParams({ message: text.facebook, access_token: token });
     ids.forEach((id, i) => form.append(`attached_media[${i}]`, JSON.stringify({ media_fbid: id })));
     album = await (await fetch(`${GRAPH}/${env.FACEBOOK_PAGE_ID}/feed`, { method: 'POST', body: form })).json();
-    if (album.id) return `gepostet (${ids.length} Bilder)`;
+    if (album.id) {
+      const post = await (await fetch(`${GRAPH}/${album.id}?${new URLSearchParams({ fields: 'permalink_url,is_published', access_token: token })}`)).json();
+      if (post.is_published === false) throw new Error('Kontrolle: Album angelegt, aber nicht veröffentlicht');
+      return `online: ${post.permalink_url ?? `https://www.facebook.com/${album.id}`} (${ids.length} Bilder)`;
+    }
   } catch (err) {
     // Ein abgelaufener Token betrifft auch das Einzelbild – dann gleich mit der eigentlichen Meldung abbrechen
     if (/access token|session/i.test(err.message)) throw err;
@@ -638,7 +657,13 @@ async function instagram() {
     }
     throw new Error(`${step}: nach 5 Minuten noch nicht verarbeitet`);
   };
-  const latest = async () => (await call('Kontrolle', `${ig}/media`, { fields: 'timestamp', limit: '1' })).data?.[0];
+  const latest = async () => (await call('Kontrolle', `${ig}/media`, { fields: 'timestamp,permalink', limit: '1' })).data?.[0];
+  // Nach dem Veröffentlichen nachsehen, ob der Beitrag wirklich im Profil steht
+  const online = async (what) => {
+    const last = await latest();
+    if (!last || Date.parse(last.timestamp) < started - 60_000) throw new Error('Kontrolle: Beitrag nach dem Veröffentlichen nicht im Profil');
+    return `online: ${last.permalink} (${what})`;
+  };
   const publish = (id) => retry(async () => {
     try { await call('Veröffentlichen', `${ig}/media_publish`, { creation_id: id }, 'POST'); }
     catch (err) {
@@ -654,7 +679,7 @@ async function instagram() {
     await ready('Hauptbild', id);
     await publish(id);
   };
-  if (urls.length === 1) { await single(); return 'gepostet'; }
+  if (urls.length === 1) { await single(); return online('Bild'); }
   try {
     const children = [];
     for (const [i, url] of urls.entries()) children.push(await create(`Bild ${i + 1}`, { image_url: url, is_carousel_item: 'true' }));
@@ -662,14 +687,14 @@ async function instagram() {
     const post = await create('Karussell', { media_type: 'CAROUSEL', children: children.join(','), caption: text.instagram });
     await ready('Karussell', post);
     await publish(post);
-    return `gepostet (Karussell mit ${urls.length} Bildern)`;
+    return await online(`Karussell mit ${urls.length} Bildern`);
   } catch (err) {
     // Ist der Beitrag trotz Fehler erschienen, nicht noch einmal posten
     const last = await latest().catch(() => null);
-    if (last && Date.parse(last.timestamp) >= started - 60_000) return `gepostet (Meldung unterwegs: ${err.message})`;
+    if (last && Date.parse(last.timestamp) >= started - 60_000) return `online: ${last.permalink} (Meldung unterwegs: ${err.message})`;
     console.log(`Instagram: Karussell ging nicht (${err.message}) – versuche das Hauptbild allein`);
     await single();
-    return 'gepostet (nur Hauptbild)';
+    return online('nur Hauptbild');
   }
 }
 
