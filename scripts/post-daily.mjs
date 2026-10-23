@@ -223,17 +223,29 @@ const moodIcon = (v) => (v < 25 ? '😱' : v < 45 ? '😨' : v <= 55 ? '😐' : 
 const bar = (v) => '▰'.repeat(Math.round(v / 10)) + '▱'.repeat(10 - Math.round(v / 10));
 const fngLine = (shortWeek) => fng ? `${moodIcon(fng.value)} ${XT.fng}: ${fng.value} (${mood(fng.value)})${Number.isFinite(fng.week) && fng.week !== fng.value && !hook.includes('→') ? ` · ${shortWeek} ${fng.week}` : ''}` : null;
 const btcLine = btc ? `₿ Bitcoin: $${fmt(btc.current_price)} (${signed(btc.price_change_percentage_24h_in_currency ?? 0)})` : null;
+// Zyklus-Kompass (beim Veröffentlichen der Seite berechnet): Zyklus-Risiko und Altcoin-Saison als zusätzliche Zeile
+const compass = await fetch(`${SITE}data/indices.json?t=${Date.now()}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+const compassLine = (() => {
+  if (!compass?.risk) return null;
+  const v = compass.risk.value, s = compass.altseason?.value;
+  const lab = { en: ['deep', 'cheap', 'neutral', 'heated', 'overheated'], de: ['tief', 'günstig', 'neutral', 'erhitzt', 'überhitzt'] }[lang][v < 20 ? 0 : v < 40 ? 1 : v < 60 ? 2 : v < 80 ? 3 : 4];
+  return lang === 'de' ? `🧭 Zyklus-Risiko: ${v}/100 (${lab})${Number.isFinite(s) ? ` · Altcoin-Saison: ${s}/100` : ''}`
+    : `🧭 Cycle risk: ${v}/100 (${lab})${Number.isFinite(s) ? ` · Altcoin season: ${s}/100` : ''}`;
+})();
+
 function richX() {
-  const parts = (withBar, withTop, withTags) => [
+  const parts = (withBar, withTop, withTags, withCompass = false) => [
     `${R.icon} ${hook}`, '',
     `📊 ${XT.index}: ${market.value}/100 · ${R.label}`,
     withBar ? bar(market.value) : null,
     fngLine(XT.week),
     btcLine,
+    withCompass ? compassLine : null,
     withTop && gainer ? `🚀 ${XT.top}: ${gainer.symbol.toUpperCase()} ${signed(gainer.price_change_percentage_24h_in_currency)}` : null,
     '', XT.vote, XT.foot, withTags ? H.tagsShort : null,
   ].filter((l) => l !== null).join('\n');
-  return [parts(true, true, true), parts(true, true, false), parts(false, true, false), parts(false, false, false)].find((t) => xLength(t) <= 280) ?? parts(false, false, false);
+  return [parts(true, true, true, true), parts(true, true, false, true), parts(false, true, false, true), parts(true, true, true), parts(true, true, false), parts(false, true, false), parts(false, false, false)]
+    .find((t) => xLength(t) <= 280) ?? parts(false, false, false);
 }
 
 // ---------- Facebook und Instagram: ausführlich, mit Einordnung, Abstimmung per Kommentar und klarem Angebot ----------
@@ -273,6 +285,7 @@ function rich(channel, reel = false) {
     btcLine,
     market.cycle ? `🔁 ${M.cycle}: ${T.zone[market.cycle.zone] ?? market.cycle.label}` : null,
     `🎯 ${M.signals(buys, rated)}`,
+    compassLine,
     ...(evening ? ['', ...moves] : moves),
     ...(odds ? ['', odds] : []),
     ...(reel ? [] : ['', M.more[channel]]),

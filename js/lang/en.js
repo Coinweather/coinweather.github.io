@@ -785,6 +785,7 @@ export default {
   "jetzt #": "now #",
   "Jetzt kaufen?": "Buy now?",
   "Kapital aus einer schwachen in eine deutlich stärkere Position umschichten": "Shift capital from a weak into a clearly stronger position",
+  "Kästchen für deine Webseite": "Widget for your website",
   "Kaufen": "Buy",
   "Käufer klar im Vorteil": "buyers clearly in control",
   "Kaufpreis je Coin (USD": "Purchase price per coin (USD",

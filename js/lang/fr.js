@@ -787,6 +787,7 @@ export default {
   "jetzt #": "actuellement #",
   "Jetzt kaufen?": "Acheter maintenant ?",
   "Kapital aus einer schwachen in eine deutlich stärkere Position umschichten": "Déplacer du capital d’une position faible vers une position nettement plus forte",
+  "Kästchen für deine Webseite": "Widget pour ton site",
   "Kaufen": "Acheter",
   "Käufer klar im Vorteil": "les acheteurs dominent nettement",
   "Kaufpreis je Coin (USD": "Prix d’achat par crypto (USD",

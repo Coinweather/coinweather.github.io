@@ -1,0 +1,50 @@
+<!doctype html>
+<!-- Einbettbares Krypto-Wetter für fremde Webseiten: <iframe src="https://coinweather.github.io/widget.html?lang=de" ...>
+     Lädt die kleine Schnellstart-Datei (lite.json), zeigt Wetterlage, Markt-Index, Fear & Greed und Bitcoin und verlinkt auf Coinweather. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coinweather – crypto weather widget</title><meta name="robots" content="noindex">
+<style>
+  :root { --bg: #0b0f17; --panel: #121826; --line: #263042; --text: #e8ecf3; --muted: #9aa4b2; --accent: #f7931a; --up: #3ecf8e; --down: #ef5b5b; }
+  :root.light { --bg: #ffffff; --panel: #f6f7fb; --line: #e3e7ef; --text: #141a26; --muted: #5b6575; --up: #12864a; --down: #c53b3b; }
+  * { box-sizing: border-box; } html, body { margin: 0; height: 100%; }
+  body { font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); }
+  a.card { display: flex; gap: 12px; align-items: center; height: 100%; padding: 12px 14px; color: inherit; text-decoration: none; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+  .sky { font-size: 40px; line-height: 1; }
+  .main { flex: 1; min-width: 0; }
+  .t { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .h { font-size: 19px; font-weight: 800; margin: 2px 0; }
+  .s { color: var(--muted); font-size: 12.5px; } .s b { color: var(--text); }
+  .up { color: var(--up); } .down { color: var(--down); }
+  .by { font-size: 11px; color: var(--muted); margin-top: 4px; } .by b { color: var(--accent); }
+</style></head>
+<body><a class="card" id="card" target="_blank" rel="noopener" href="https://coinweather.github.io/?von=widget"><span class="sky" id="sky">☁️</span>
+  <div class="main"><div class="t" id="t">Crypto weather</div><div class="h" id="h">…</div><div class="s" id="s"></div><div class="by" id="by">by <b>Coinweather</b></div></div></a>
+<script>
+  const q = new URLSearchParams(location.search);
+  const T = {
+    en: ['Crypto weather today', ['Stormy', 'Rainy', 'Cloudy', 'Partly cloudy', 'Sunny'], 'Market index', 'Fear & Greed', { 'Kaufen': 'Buy', 'Eher kaufen': 'Lean buy', 'Halten': 'Hold', 'Eher verkaufen': 'Lean sell', 'Verkaufen': 'Sell' }, 'by', 'en-US'],
+    de: ['Das Krypto-Wetter heute', ['Stürmisch', 'Regnerisch', 'Bewölkt', 'Heiter bis wolkig', 'Sonnig'], 'Markt-Index', 'Fear & Greed', { 'Kaufen': 'Kaufen', 'Eher kaufen': 'Eher kaufen', 'Halten': 'Halten', 'Eher verkaufen': 'Eher verkaufen', 'Verkaufen': 'Verkaufen' }, 'von', 'de-CH'],
+    es: ['El tiempo cripto hoy', ['Tormentoso', 'Lluvioso', 'Nublado', 'Parcialmente nublado', 'Soleado'], 'Índice de mercado', 'Fear & Greed', { 'Kaufen': 'Comprar', 'Eher kaufen': 'Más bien comprar', 'Halten': 'Mantener', 'Eher verkaufen': 'Más bien vender', 'Verkaufen': 'Vender' }, 'por', 'es-ES'],
+    fr: ['La météo crypto du jour', ['Orageux', 'Pluvieux', 'Nuageux', 'Éclaircies', 'Ensoleillé'], 'Indice de marché', 'Fear & Greed', { 'Kaufen': 'Acheter', 'Eher kaufen': 'Plutôt acheter', 'Halten': 'Conserver', 'Eher verkaufen': 'Plutôt vendre', 'Verkaufen': 'Vendre' }, 'par', 'fr-FR'],
+    it: ['Il meteo crypto di oggi', ['Tempestoso', 'Piovoso', 'Nuvoloso', 'Poco nuvoloso', 'Soleggiato'], 'Indice di mercato', 'Fear & Greed', { 'Kaufen': 'Comprare', 'Eher kaufen': 'Piuttosto comprare', 'Halten': 'Mantenere', 'Eher verkaufen': 'Piuttosto vendere', 'Verkaufen': 'Vendere' }, 'di', 'it-IT'],
+    pt: ['A previsão cripto de hoje', ['Tempestuoso', 'Chuvoso', 'Nublado', 'Parcialmente nublado', 'Ensolarado'], 'Índice de mercado', 'Fear & Greed', { 'Kaufen': 'Comprar', 'Eher kaufen': 'Tendência de compra', 'Halten': 'Manter', 'Eher verkaufen': 'Tendência de venda', 'Verkaufen': 'Vender' }, 'por', 'pt-BR'],
+    tr: ['Bugünün kripto hava durumu', ['Fırtınalı', 'Yağmurlu', 'Bulutlu', 'Parçalı bulutlu', 'Güneşli'], 'Piyasa endeksi', 'Korku ve Açgözlülük', { 'Kaufen': 'Al', 'Eher kaufen': 'Almaya yakın', 'Halten': 'Tut', 'Eher verkaufen': 'Satmaya yakın', 'Verkaufen': 'Sat' }, '', 'tr-TR'],
+  };
+  const lang = T[q.get('lang')] ? q.get('lang') : 'en', L = T[lang];
+  if (q.get('theme') === 'light') document.documentElement.classList.add('light');
+  document.documentElement.lang = lang;
+  // Herkunft: die einbettende Seite, sonst „widget“ – erscheint in der Nutzerübersicht von Coinweather
+  let from = 'widget';
+  try { if (document.referrer) from = 'widget-' + new URL(document.referrer).hostname.replace(/^www\./, '').replace(/[^a-z0-9-]/gi, '-').slice(0, 20); } catch {}
+  document.getElementById('card').href = `https://coinweather.github.io/?von=${from}&lang=${lang}`;
+  document.getElementById('t').textContent = L[0];
+  document.getElementById('by').innerHTML = `${L[5]} <b>Coinweather</b>`;
+  fetch('https://raw.githubusercontent.com/Coinweather/coinweather.github.io/data/lite.json?t=' + Math.floor(Date.now() / 900000)).then((r) => r.json()).then((s) => {
+    const v = s.market.value, k = v < 30 ? 0 : v < 45 ? 1 : v < 55 ? 2 : v < 70 ? 3 : 4;
+    const btc = s.coins.find((c) => c.id === 'bitcoin'), d = btc?.price_change_percentage_24h_in_currency ?? 0;
+    const num = (x, f) => x.toLocaleString(L[6], f);
+    document.getElementById('sky').textContent = ['⛈️', '🌧️', '☁️', '🌤️', '☀️'][k];
+    document.getElementById('h').textContent = `${L[1][k]} · ${L[4][s.market.label] ?? s.market.label}`;
+    document.getElementById('s').innerHTML = `${L[2]} <b>${v}/100</b> · ${L[3]} <b>${s.fng?.value ?? '–'}</b><br>Bitcoin <b>$${num(btc.current_price, { maximumFractionDigits: 0 })}</b> <span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${num(Math.abs(d), { maximumFractionDigits: 1, minimumFractionDigits: 1 })} %</span>`;
+  }).catch(() => { document.getElementById('h').textContent = 'Coinweather'; });
+</script></body></html>

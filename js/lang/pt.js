@@ -787,6 +787,7 @@ export default {
   "jetzt #": "agora #",
   "Jetzt kaufen?": "Comprar agora?",
   "Kapital aus einer schwachen in eine deutlich stärkere Position umschichten": "Mover capital de uma posição fraca para outra claramente mais forte",
+  "Kästchen für deine Webseite": "Widget para o seu site",
   "Kaufen": "Comprar",
   "Käufer klar im Vorteil": "compradores claramente no controle",
   "Kaufpreis je Coin (USD": "Preço de compra por moeda (USD",

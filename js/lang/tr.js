@@ -787,6 +787,7 @@ export default {
   "jetzt #": "şu anda #",
   "Jetzt kaufen?": "Şimdi alınır mı?",
   "Kapital aus einer schwachen in eine deutlich stärkere Position umschichten": "Sermayeyi zayıf bir pozisyondan belirgin biçimde daha güçlü birine kaydır",
+  "Kästchen für deine Webseite": "Web siten için widget",
   "Kaufen": "Al",
   "Käufer klar im Vorteil": "alıcılar açıkça baskın",
   "Kaufpreis je Coin (USD": "Coin başına alış fiyatı (USD",

@@ -5,6 +5,7 @@
 //   /fear-and-greed-index/   der Fear & Greed Index heute mit dem, was die Rückrechnung über Angst und Gier zeigt
 //   /coin/<id>/              je eine Seite für die 500 größten Coins: Kurs, Entwicklung, Großwetterlage, Signal (verdeckt)
 //   /coins/                  Übersicht mit Links auf alle Coin-Seiten
+//   /bitcoin-cycle-risk/, /altcoin-season-index/, /pi-cycle-top/, /mayer-multiple/   Indikatoren aus dem Zyklus-Kompass
 //   /savings-plan/<id>/      Sparplan-Rückblick für die 40 größten Coins (100 $ pro Monat, 1000 $ einmalig) und eine Übersicht
 //   sitemap.xml, robots.txt, feed.xml (RSS, englisch)
 // Jede Seite verweist auf ihre Fassungen in den anderen Sprachen (hreflang), damit Google jedem Land die passende zeigt.
@@ -41,7 +42,7 @@ if (!out) throw new Error('Zielordner fehlt');
 
 // ---------- App-Dateien übernehmen ----------
 await mkdir(out, { recursive: true });
-for (const f of ['index.html', 'style.css', 'og-image.jpg', '.nojekyll', 'manifest.webmanifest', 'sw.js']) await cp(new URL(f, root), `${out}/${f}`);
+for (const f of ['index.html', 'style.css', 'og-image.jpg', '.nojekyll', 'manifest.webmanifest', 'sw.js', 'widget.html']) await cp(new URL(f, root), `${out}/${f}`);
 await cp(new URL('icons', root), `${out}/icons`, { recursive: true });
 // Bestätigungsdatei der Google Search Console – muss dauerhaft erreichbar bleiben
 for (const f of await readdir(root)) if (/^google[0-9a-f]+\.html$/.test(f)) await cp(new URL(f, root), `${out}/${f}`);
@@ -517,6 +518,133 @@ const TX = {
     lH1: 'Bugün en büyük 500 coin', lSub: (d, v, l) => `Güncelleme: ${d}. Bugünkü piyasa endeksi: ${v}/100 – ${l}.`, coin: 'Coin', lOffer: 'Bu coinlerden hangilerinin bugün alım sinyali var?',
   },
 };
+// ---------- Indikator-Seiten (Zyklus-Kompass) ----------
+const IX = {
+  en: { nav: 'Cycle Compass', label: { Tief: 'deep', Günstig: 'cheap', Neutral: 'neutral', Erhitzt: 'heated', Überhitzt: 'overheated' },
+    season: (v) => (v >= 75 ? 'altcoin season' : v <= 25 ? 'Bitcoin season' : 'transition'),
+    riskT: (v, l, d) => `Bitcoin cycle risk today: ${v}/100 (${l}) – ${d}`, riskD: (v, l) => `Coinweather’s cycle risk index combines Mayer Multiple, 2-year MA, Pi Cycle, distance to the all-time high and Fear & Greed: today ${v}/100 (${l}). With an honest backtest. Not financial advice.`,
+    riskH: (v, l) => `Bitcoin cycle risk today: ${v}/100 – ${l}`, riskP: 'Our own index from 0 (deep, cheap) to 100 (overheated): the average of five well-known cycle components. Tested on Bitcoin daily prices since 2017, separately for 2018–22 and 2022–26.',
+    riskBt: (a, b) => `After readings like today, Bitcoin was higher one year later in ${a} (2018–22) and ${b} (2022–26) of cases.`,
+    parts: { mayer: 'Mayer Multiple', twoYear: '2-year average', pi: 'Pi Cycle', ath: 'Closeness to all-time high', fng: 'Fear & Greed (30 days)' }, partsH: 'Components (0 = deep, 100 = overheated)',
+    seasonT: (v, l, d) => `Altcoin Season Index today: ${v}/100 (${l}) – ${d}`, seasonD: (v, n) => `${v} % of the ${n} largest coins beat Bitcoin over the last 90 days. Updated daily – with the leading and lagging coins. Not financial advice.`,
+    seasonH: (v, l) => `Altcoin Season Index today: ${v}/100 – ${l}`, seasonP: (v, n, b) => `${v} % of the ${n} largest coins (without Bitcoin and stablecoins) did better than Bitcoin over the last 90 days – Bitcoin itself changed by ${b}. From 75 on it’s called altcoin season, up to 25 Bitcoin season.`,
+    lead: 'Leading over 90 days', lag: 'Lagging over 90 days',
+    piT: (v, d) => `Pi Cycle Top indicator today: ${v} % – ${d}`, piD: (v) => `Bitcoin’s 111-day average stands at ${v} % of twice the 350-day average. At 100 % they cross – historically close to cycle tops. Updated daily.`,
+    piH: (v) => `Pi Cycle Top indicator today: ${v} %`, piP: (a, b, v) => `The 111-day average (${a}) stands at ${v} % of twice the 350-day average (${b}). When they cross (100 %), it marked the top in the past – most recently in April 2021. ${v >= 95 ? 'The signal is close.' : 'There is no signal at the moment.'}`,
+    mayerT: (v, d) => `Mayer Multiple today: ${v} – ${d}`, mayerD: (v) => `Bitcoin’s Mayer Multiple (price / 200-day average) is ${v} today. Below 0.8 was historically cheap, above 2.4 overheated. Updated daily.`,
+    mayerH: (v) => `Bitcoin Mayer Multiple today: ${v}`, mayerP: (v, s) => `Price divided by the 200-day average (${s}): ${v}. Below 0.8 Bitcoin was historically considered cheap, above 2.4 overheated.`,
+    full: 'See the full history and how often Bitcoin was higher afterwards – in the Cycle Compass', fullBtn: 'Open the Cycle Compass', also: 'More cycle indicators',
+    note: 'Indicators describe past cycles – no guarantee for the next one. Not financial advice.' },
+  de: { nav: 'Zyklus-Kompass', label: { Tief: 'tief', Günstig: 'günstig', Neutral: 'neutral', Erhitzt: 'erhitzt', Überhitzt: 'überhitzt' },
+    season: (v) => (v >= 75 ? 'Altcoin-Saison' : v <= 25 ? 'Bitcoin-Saison' : 'Übergang'),
+    riskT: (v, l, d) => `Bitcoin Zyklus-Risiko heute: ${v}/100 (${l}) – ${d}`, riskD: (v, l) => `Der Zyklus-Risiko-Index von Coinweather bündelt Mayer-Multiple, 2-Jahres-Schnitt, Pi-Cycle, Abstand zum Allzeithoch und Fear & Greed: heute ${v}/100 (${l}). Mit ehrlichem Rückblick. Keine Anlageberatung.`,
+    riskH: (v, l) => `Bitcoin Zyklus-Risiko heute: ${v}/100 – ${l}`, riskP: 'Unser eigener Index von 0 (tief, günstig) bis 100 (überhitzt): der Mittelwert aus fünf bekannten Zyklus-Bausteinen. Geprüft an Bitcoin-Tageskursen seit 2017, getrennt für 2018–22 und 2022–26.',
+    riskBt: (a, b) => `Nach Ständen wie heute stand Bitcoin ein Jahr später in ${a} (2018–22) bzw. ${b} (2022–26) der Fälle höher.`,
+    parts: { mayer: 'Mayer-Multiple', twoYear: '2-Jahres-Schnitt', pi: 'Pi-Cycle', ath: 'Nähe zum Allzeithoch', fng: 'Fear & Greed (30 Tage)' }, partsH: 'Bausteine (0 = tief, 100 = überhitzt)',
+    seasonT: (v, l, d) => `Altcoin-Saison-Index heute: ${v}/100 (${l}) – ${d}`, seasonD: (v, n) => `${v} % der ${n} größten Coins haben Bitcoin in den letzten 90 Tagen geschlagen. Täglich aktuell – mit den stärksten und schwächsten Coins. Keine Anlageberatung.`,
+    seasonH: (v, l) => `Altcoin-Saison-Index heute: ${v}/100 – ${l}`, seasonP: (v, n, b) => `${v} % der ${n} größten Coins (ohne Bitcoin und Stablecoins) liefen in den letzten 90 Tagen besser als Bitcoin – Bitcoin selbst veränderte sich um ${b}. Ab 75 spricht man von Altcoin-Saison, bis 25 von Bitcoin-Saison.`,
+    lead: 'Vorne über 90 Tage', lag: 'Hinten über 90 Tage',
+    piT: (v, d) => `Pi-Cycle-Top-Indikator heute: ${v} % – ${d}`, piD: (v) => `Der 111-Tage-Schnitt von Bitcoin steht bei ${v} % des doppelten 350-Tage-Schnitts. Bei 100 % kreuzen sie – historisch nahe an Zyklus-Hochs. Täglich aktuell.`,
+    piH: (v) => `Pi-Cycle-Top-Indikator heute: ${v} %`, piP: (a, b, v) => `Der 111-Tage-Schnitt (${a}) steht bei ${v} % des doppelten 350-Tage-Schnitts (${b}). Kreuzten sie sich (100 %), markierte das früher das Hoch – zuletzt im April 2021. ${v >= 95 ? 'Das Signal ist nahe.' : 'Derzeit gibt es kein Signal.'}`,
+    mayerT: (v, d) => `Mayer-Multiple heute: ${v} – ${d}`, mayerD: (v) => `Das Mayer-Multiple von Bitcoin (Kurs / 200-Tage-Schnitt) liegt heute bei ${v}. Unter 0,8 war historisch günstig, über 2,4 überhitzt. Täglich aktuell.`,
+    mayerH: (v) => `Bitcoin Mayer-Multiple heute: ${v}`, mayerP: (v, s) => `Kurs geteilt durch den 200-Tage-Schnitt (${s}): ${v}. Unter 0,8 galt Bitcoin historisch als günstig, über 2,4 als überhitzt.`,
+    full: 'Den ganzen Verlauf und wie oft Bitcoin danach höher stand, siehst du im Zyklus-Kompass', fullBtn: 'Zum Zyklus-Kompass', also: 'Weitere Zyklus-Indikatoren',
+    note: 'Indikatoren beschreiben vergangene Zyklen – keine Garantie für den nächsten. Keine Anlageberatung.' },
+  es: { nav: 'Brújula del ciclo', label: { Tief: 'bajo', Günstig: 'barato', Neutral: 'neutral', Erhitzt: 'recalentado', Überhitzt: 'sobrecalentado' },
+    season: (v) => (v >= 75 ? 'temporada de altcoins' : v <= 25 ? 'temporada de Bitcoin' : 'transición'),
+    riskT: (v, l, d) => `Riesgo del ciclo de Bitcoin hoy: ${v}/100 (${l}) – ${d}`, riskD: (v, l) => `El índice de riesgo del ciclo de Coinweather combina el múltiplo de Mayer, la media de 2 años, el Pi Cycle, la distancia al máximo y el Fear & Greed: hoy ${v}/100 (${l}). Con retrospectiva honesta. No es asesoramiento financiero.`,
+    riskH: (v, l) => `Riesgo del ciclo de Bitcoin hoy: ${v}/100 – ${l}`, riskP: 'Nuestro propio índice de 0 (bajo, barato) a 100 (sobrecalentado): la media de cinco componentes de ciclo conocidos. Probado con precios diarios de Bitcoin desde 2017, por separado para 2018–22 y 2022–26.',
+    riskBt: (a, b) => `Tras niveles como el de hoy, Bitcoin estaba más alto un año después en el ${a} (2018–22) y el ${b} (2022–26) de los casos.`,
+    parts: { mayer: 'Múltiplo de Mayer', twoYear: 'Media de 2 años', pi: 'Pi Cycle', ath: 'Cercanía al máximo histórico', fng: 'Fear & Greed (30 días)' }, partsH: 'Componentes (0 = bajo, 100 = sobrecalentado)',
+    seasonT: (v, l, d) => `Índice de temporada de altcoins hoy: ${v}/100 (${l}) – ${d}`, seasonD: (v, n) => `El ${v} % de las ${n} monedas más grandes superó a Bitcoin en los últimos 90 días. Actualizado a diario, con las monedas más fuertes y más débiles. No es asesoramiento financiero.`,
+    seasonH: (v, l) => `Índice de temporada de altcoins hoy: ${v}/100 – ${l}`, seasonP: (v, n, b) => `El ${v} % de las ${n} monedas más grandes (sin Bitcoin ni stablecoins) rindió mejor que Bitcoin en los últimos 90 días; Bitcoin cambió un ${b}. Desde 75 se habla de temporada de altcoins, hasta 25 de temporada de Bitcoin.`,
+    lead: 'Delante en 90 días', lag: 'Detrás en 90 días',
+    piT: (v, d) => `Indicador Pi Cycle Top hoy: ${v} % – ${d}`, piD: (v) => `La media de 111 días de Bitcoin está en el ${v} % del doble de la media de 350 días. Al 100 % se cruzan, históricamente cerca de los máximos del ciclo. Actualizado a diario.`,
+    piH: (v) => `Indicador Pi Cycle Top hoy: ${v} %`, piP: (a, b, v) => `La media de 111 días (${a}) está en el ${v} % del doble de la media de 350 días (${b}). Cuando se cruzaron (100 %), marcaron el máximo en el pasado, la última vez en abril de 2021. ${v >= 95 ? 'La señal está cerca.' : 'Ahora mismo no hay señal.'}`,
+    mayerT: (v, d) => `Múltiplo de Mayer hoy: ${v} – ${d}`, mayerD: (v) => `El múltiplo de Mayer de Bitcoin (precio / media de 200 días) es hoy ${v}. Por debajo de 0,8 fue históricamente barato, por encima de 2,4 sobrecalentado. Actualizado a diario.`,
+    mayerH: (v) => `Múltiplo de Mayer de Bitcoin hoy: ${v}`, mayerP: (v, s) => `Precio dividido por la media de 200 días (${s}): ${v}. Por debajo de 0,8 Bitcoin se consideraba históricamente barato, por encima de 2,4 sobrecalentado.`,
+    full: 'El historial completo y cuántas veces Bitcoin estuvo más alto después, en la Brújula del ciclo', fullBtn: 'Abrir la Brújula del ciclo', also: 'Más indicadores de ciclo',
+    note: 'Los indicadores describen ciclos pasados, sin garantía para el próximo. No es asesoramiento financiero.' },
+  fr: { nav: 'Boussole du cycle', label: { Tief: 'bas', Günstig: 'bon marché', Neutral: 'neutre', Erhitzt: 'échauffé', Überhitzt: 'surchauffé' },
+    season: (v) => (v >= 75 ? 'saison des altcoins' : v <= 25 ? 'saison du Bitcoin' : 'transition'),
+    riskT: (v, l, d) => `Risque de cycle du Bitcoin aujourd’hui : ${v}/100 (${l}) – ${d}`, riskD: (v, l) => `L’indice de risque de cycle de Coinweather combine Mayer Multiple, moyenne sur 2 ans, Pi Cycle, distance au record et Fear & Greed : aujourd’hui ${v}/100 (${l}). Avec un bilan honnête. Pas un conseil en investissement.`,
+    riskH: (v, l) => `Risque de cycle du Bitcoin aujourd’hui : ${v}/100 – ${l}`, riskP: 'Notre propre indice de 0 (bas, bon marché) à 100 (surchauffé) : la moyenne de cinq composantes de cycle connues. Testé sur les cours quotidiens du Bitcoin depuis 2017, séparément pour 2018–22 et 2022–26.',
+    riskBt: (a, b) => `Après des niveaux comme aujourd’hui, Bitcoin était plus haut un an plus tard dans ${a} (2018–22) et ${b} (2022–26) des cas.`,
+    parts: { mayer: 'Multiple de Mayer', twoYear: 'Moyenne sur 2 ans', pi: 'Pi Cycle', ath: 'Proximité du record', fng: 'Fear & Greed (30 jours)' }, partsH: 'Composantes (0 = bas, 100 = surchauffé)',
+    seasonT: (v, l, d) => `Indice de saison des altcoins aujourd’hui : ${v}/100 (${l}) – ${d}`, seasonD: (v, n) => `${v} % des ${n} plus grandes cryptos ont battu Bitcoin sur les 90 derniers jours. Mis à jour chaque jour, avec les cryptos en tête et en queue. Pas un conseil en investissement.`,
+    seasonH: (v, l) => `Indice de saison des altcoins aujourd’hui : ${v}/100 – ${l}`, seasonP: (v, n, b) => `${v} % des ${n} plus grandes cryptos (hors Bitcoin et stablecoins) ont fait mieux que Bitcoin sur 90 jours – Bitcoin lui-même a varié de ${b}. À partir de 75 on parle de saison des altcoins, jusqu’à 25 de saison du Bitcoin.`,
+    lead: 'En tête sur 90 jours', lag: 'En queue sur 90 jours',
+    piT: (v, d) => `Indicateur Pi Cycle Top aujourd’hui : ${v} % – ${d}`, piD: (v) => `La moyenne sur 111 jours du Bitcoin est à ${v} % du double de la moyenne sur 350 jours. À 100 % elles se croisent – historiquement près des sommets de cycle. Mis à jour chaque jour.`,
+    piH: (v) => `Indicateur Pi Cycle Top aujourd’hui : ${v} %`, piP: (a, b, v) => `La moyenne sur 111 jours (${a}) est à ${v} % du double de la moyenne sur 350 jours (${b}). Leur croisement (100 %) a marqué le sommet par le passé – la dernière fois en avril 2021. ${v >= 95 ? 'Le signal est proche.' : 'Pas de signal pour le moment.'}`,
+    mayerT: (v, d) => `Multiple de Mayer aujourd’hui : ${v} – ${d}`, mayerD: (v) => `Le Multiple de Mayer du Bitcoin (cours / moyenne sur 200 jours) est de ${v} aujourd’hui. Sous 0,8 c’était historiquement bon marché, au-dessus de 2,4 surchauffé. Mis à jour chaque jour.`,
+    mayerH: (v) => `Multiple de Mayer du Bitcoin aujourd’hui : ${v}`, mayerP: (v, s) => `Cours divisé par la moyenne sur 200 jours (${s}) : ${v}. Sous 0,8 Bitcoin était historiquement jugé bon marché, au-dessus de 2,4 surchauffé.`,
+    full: 'L’historique complet et la fréquence à laquelle Bitcoin était plus haut ensuite, dans la Boussole du cycle', fullBtn: 'Ouvrir la Boussole du cycle', also: 'Autres indicateurs de cycle',
+    note: 'Les indicateurs décrivent des cycles passés – aucune garantie pour le prochain. Pas un conseil en investissement.' },
+  it: { nav: 'Bussola del ciclo', label: { Tief: 'basso', Günstig: 'conveniente', Neutral: 'neutrale', Erhitzt: 'surriscaldato', Überhitzt: 'molto surriscaldato' },
+    season: (v) => (v >= 75 ? 'stagione delle altcoin' : v <= 25 ? 'stagione di Bitcoin' : 'transizione'),
+    riskT: (v, l, d) => `Rischio di ciclo di Bitcoin oggi: ${v}/100 (${l}) – ${d}`, riskD: (v, l) => `L’indice di rischio di ciclo di Coinweather combina multiplo di Mayer, media a 2 anni, Pi Cycle, distanza dal massimo e Fear & Greed: oggi ${v}/100 (${l}). Con retrospettiva onesta. Non è una consulenza finanziaria.`,
+    riskH: (v, l) => `Rischio di ciclo di Bitcoin oggi: ${v}/100 – ${l}`, riskP: 'Il nostro indice da 0 (basso, conveniente) a 100 (surriscaldato): la media di cinque componenti di ciclo note. Testato sui prezzi giornalieri di Bitcoin dal 2017, separatamente per 2018–22 e 2022–26.',
+    riskBt: (a, b) => `Dopo livelli come oggi, Bitcoin era più alto un anno dopo nel ${a} (2018–22) e nel ${b} (2022–26) dei casi.`,
+    parts: { mayer: 'Multiplo di Mayer', twoYear: 'Media a 2 anni', pi: 'Pi Cycle', ath: 'Vicinanza al massimo storico', fng: 'Fear & Greed (30 giorni)' }, partsH: 'Componenti (0 = basso, 100 = surriscaldato)',
+    seasonT: (v, l, d) => `Indice della stagione delle altcoin oggi: ${v}/100 (${l}) – ${d}`, seasonD: (v, n) => `Il ${v} % dei ${n} coin più grandi ha battuto Bitcoin negli ultimi 90 giorni. Aggiornato ogni giorno, con i coin in testa e in coda. Non è una consulenza finanziaria.`,
+    seasonH: (v, l) => `Indice della stagione delle altcoin oggi: ${v}/100 – ${l}`, seasonP: (v, n, b) => `Il ${v} % dei ${n} coin più grandi (senza Bitcoin e stablecoin) è andato meglio di Bitcoin negli ultimi 90 giorni; Bitcoin è variato del ${b}. Da 75 si parla di stagione delle altcoin, fino a 25 di stagione di Bitcoin.`,
+    lead: 'In testa su 90 giorni', lag: 'In coda su 90 giorni',
+    piT: (v, d) => `Indicatore Pi Cycle Top oggi: ${v} % – ${d}`, piD: (v) => `La media a 111 giorni di Bitcoin è al ${v} % del doppio della media a 350 giorni. Al 100 % si incrociano, storicamente vicino ai massimi di ciclo. Aggiornato ogni giorno.`,
+    piH: (v) => `Indicatore Pi Cycle Top oggi: ${v} %`, piP: (a, b, v) => `La media a 111 giorni (${a}) è al ${v} % del doppio della media a 350 giorni (${b}). Quando si sono incrociate (100 %), hanno segnato il massimo in passato, l’ultima volta ad aprile 2021. ${v >= 95 ? 'Il segnale è vicino.' : 'Al momento non c’è alcun segnale.'}`,
+    mayerT: (v, d) => `Multiplo di Mayer oggi: ${v} – ${d}`, mayerD: (v) => `Il multiplo di Mayer di Bitcoin (prezzo / media a 200 giorni) oggi è ${v}. Sotto 0,8 era storicamente conveniente, sopra 2,4 surriscaldato. Aggiornato ogni giorno.`,
+    mayerH: (v) => `Multiplo di Mayer di Bitcoin oggi: ${v}`, mayerP: (v, s) => `Prezzo diviso per la media a 200 giorni (${s}): ${v}. Sotto 0,8 Bitcoin era storicamente considerato conveniente, sopra 2,4 surriscaldato.`,
+    full: 'L’andamento completo e quante volte Bitcoin è stato più alto dopo, nella Bussola del ciclo', fullBtn: 'Apri la Bussola del ciclo', also: 'Altri indicatori di ciclo',
+    note: 'Gli indicatori descrivono cicli passati, nessuna garanzia per il prossimo. Non è una consulenza finanziaria.' },
+  pt: { nav: 'Bússola do ciclo', label: { Tief: 'baixo', Günstig: 'barato', Neutral: 'neutro', Erhitzt: 'aquecido', Überhitzt: 'superaquecido' },
+    season: (v) => (v >= 75 ? 'temporada de altcoins' : v <= 25 ? 'temporada do Bitcoin' : 'transição'),
+    riskT: (v, l, d) => `Risco do ciclo do Bitcoin hoje: ${v}/100 (${l}) – ${d}`, riskD: (v, l) => `O índice de risco do ciclo do Coinweather reúne múltiplo de Mayer, média de 2 anos, Pi Cycle, distância da máxima e Fear & Greed: hoje ${v}/100 (${l}). Com retrospectiva honesta. Não é recomendação de investimento.`,
+    riskH: (v, l) => `Risco do ciclo do Bitcoin hoje: ${v}/100 – ${l}`, riskP: 'Nosso próprio índice de 0 (baixo, barato) a 100 (superaquecido): a média de cinco componentes de ciclo conhecidos. Testado com preços diários do Bitcoin desde 2017, separadamente para 2018–22 e 2022–26.',
+    riskBt: (a, b) => `Depois de níveis como o de hoje, o Bitcoin estava mais alto um ano depois em ${a} (2018–22) e ${b} (2022–26) dos casos.`,
+    parts: { mayer: 'Múltiplo de Mayer', twoYear: 'Média de 2 anos', pi: 'Pi Cycle', ath: 'Proximidade da máxima', fng: 'Fear & Greed (30 dias)' }, partsH: 'Componentes (0 = baixo, 100 = superaquecido)',
+    seasonT: (v, l, d) => `Índice de temporada de altcoins hoje: ${v}/100 (${l}) – ${d}`, seasonD: (v, n) => `${v} % das ${n} maiores moedas superaram o Bitcoin nos últimos 90 dias. Atualizado diariamente, com as moedas mais fortes e mais fracas. Não é recomendação de investimento.`,
+    seasonH: (v, l) => `Índice de temporada de altcoins hoje: ${v}/100 – ${l}`, seasonP: (v, n, b) => `${v} % das ${n} maiores moedas (sem Bitcoin e stablecoins) foram melhores que o Bitcoin nos últimos 90 dias – o Bitcoin variou ${b}. A partir de 75 fala-se de temporada de altcoins, até 25 de temporada do Bitcoin.`,
+    lead: 'Na frente em 90 dias', lag: 'Atrás em 90 dias',
+    piT: (v, d) => `Indicador Pi Cycle Top hoje: ${v} % – ${d}`, piD: (v) => `A média de 111 dias do Bitcoin está em ${v} % do dobro da média de 350 dias. Em 100 % elas se cruzam – historicamente perto dos topos de ciclo. Atualizado diariamente.`,
+    piH: (v) => `Indicador Pi Cycle Top hoje: ${v} %`, piP: (a, b, v) => `A média de 111 dias (${a}) está em ${v} % do dobro da média de 350 dias (${b}). Quando se cruzaram (100 %), marcaram o topo no passado – da última vez em abril de 2021. ${v >= 95 ? 'O sinal está perto.' : 'No momento não há sinal.'}`,
+    mayerT: (v, d) => `Múltiplo de Mayer hoje: ${v} – ${d}`, mayerD: (v) => `O múltiplo de Mayer do Bitcoin (preço / média de 200 dias) está hoje em ${v}. Abaixo de 0,8 foi historicamente barato, acima de 2,4 superaquecido. Atualizado diariamente.`,
+    mayerH: (v) => `Múltiplo de Mayer do Bitcoin hoje: ${v}`, mayerP: (v, s) => `Preço dividido pela média de 200 dias (${s}): ${v}. Abaixo de 0,8 o Bitcoin era historicamente visto como barato, acima de 2,4 superaquecido.`,
+    full: 'O histórico completo e quantas vezes o Bitcoin estava mais alto depois, na Bússola do ciclo', fullBtn: 'Abrir a Bússola do ciclo', also: 'Mais indicadores de ciclo',
+    note: 'Indicadores descrevem ciclos passados – sem garantia para o próximo. Não é recomendação de investimento.' },
+  tr: { nav: 'Döngü Pusulası', label: { Tief: 'dip', Günstig: 'ucuz', Neutral: 'nötr', Erhitzt: 'ısınmış', Überhitzt: 'aşırı ısınmış' },
+    season: (v) => (v >= 75 ? 'altcoin sezonu' : v <= 25 ? 'Bitcoin sezonu' : 'geçiş'),
+    riskT: (v, l, d) => `Bugün Bitcoin döngü riski: ${v}/100 (${l}) – ${d}`, riskD: (v, l) => `Coinweather döngü riski endeksi Mayer çarpanı, 2 yıllık ortalama, Pi Cycle, zirveye uzaklık ve Korku ve Açgözlülüğü birleştirir: bugün ${v}/100 (${l}). Dürüst geriye bakışla. Yatırım tavsiyesi değildir.`,
+    riskH: (v, l) => `Bugün Bitcoin döngü riski: ${v}/100 – ${l}`, riskP: 'Kendi endeksimiz 0 (dip, ucuz) ile 100 (aşırı ısınmış) arasında: bilinen beş döngü bileşeninin ortalaması. 2017’den beri Bitcoin günlük fiyatlarında, 2018–22 ve 2022–26 için ayrı ayrı test edildi.',
+    riskBt: (a, b) => `Bugünkü gibi seviyelerden sonra Bitcoin bir yıl sonra vakaların ${a} (2018–22) ve ${b} (2022–26) kadarında daha yüksekti.`,
+    parts: { mayer: 'Mayer Çarpanı', twoYear: '2 yıllık ortalama', pi: 'Pi Cycle', ath: 'Zirveye yakınlık', fng: 'Korku ve Açgözlülük (30 gün)' }, partsH: 'Bileşenler (0 = dip, 100 = aşırı ısınmış)',
+    seasonT: (v, l, d) => `Bugün Altcoin Sezonu Endeksi: ${v}/100 (${l}) – ${d}`, seasonD: (v, n) => `En büyük ${n} coinin %${v} kadarı son 90 günde Bitcoin’i geçti. Her gün güncellenir – öndeki ve geride kalan coinlerle. Yatırım tavsiyesi değildir.`,
+    seasonH: (v, l) => `Bugün Altcoin Sezonu Endeksi: ${v}/100 – ${l}`, seasonP: (v, n, b) => `En büyük ${n} coinin (Bitcoin ve stablecoinler hariç) %${v} kadarı son 90 günde Bitcoin’den iyi performans gösterdi – Bitcoin’in değişimi ${b}. 75 ve üzeri altcoin sezonu, 25 ve altı Bitcoin sezonu sayılır.`,
+    lead: '90 günde önde', lag: '90 günde geride',
+    piT: (v, d) => `Bugün Pi Cycle Top göstergesi: %${v} – ${d}`, piD: (v) => `Bitcoin’in 111 günlük ortalaması, 350 günlük ortalamanın iki katının %${v} seviyesinde. %100’de kesişirler – tarihsel olarak döngü zirvelerine yakın. Her gün güncellenir.`,
+    piH: (v) => `Bugün Pi Cycle Top göstergesi: %${v}`, piP: (a, b, v) => `111 günlük ortalama (${a}), 350 günlük ortalamanın iki katının (${b}) %${v} seviyesinde. Kesiştiklerinde (%100) geçmişte zirveyi işaret etti – en son Nisan 2021’de. ${v >= 95 ? 'Sinyal yakın.' : 'Şu anda sinyal yok.'}`,
+    mayerT: (v, d) => `Bugün Mayer Çarpanı: ${v} – ${d}`, mayerD: (v) => `Bitcoin’in Mayer Çarpanı (fiyat / 200 günlük ortalama) bugün ${v}. 0,8 altı tarihsel olarak ucuz, 2,4 üstü aşırı ısınmıştı. Her gün güncellenir.`,
+    mayerH: (v) => `Bugün Bitcoin Mayer Çarpanı: ${v}`, mayerP: (v, s) => `Fiyatın 200 günlük ortalamaya (${s}) bölümü: ${v}. 0,8 altında Bitcoin tarihsel olarak ucuz, 2,4 üstünde aşırı ısınmış sayıldı.`,
+    full: 'Tüm geçmişi ve Bitcoin’in sonrasında ne sıklıkla daha yüksek olduğunu Döngü Pusulası’nda gör', fullBtn: 'Döngü Pusulası’nı aç', also: 'Diğer döngü göstergeleri',
+    note: 'Göstergeler geçmiş döngüleri anlatır – bir sonrakinin garantisi değildir. Yatırım tavsiyesi değildir.' },
+};
+
+// ---------- Seite zum Einbetten des Krypto-Wetters (Widget) ----------
+const EMB = {
+  en: { nav: 'Widget for your website', t: 'Free crypto weather widget for your website', d: 'Embed today’s crypto weather on your blog or website: market index, Fear & Greed and Bitcoin – free, updated every 15 minutes, one line of code.',
+    h: 'Free crypto weather widget', p: 'Show your readers today’s crypto weather – market index, Fear & Greed and Bitcoin, updated every 15 minutes. Free, no sign-up, one line of code. Copy the code into your page:', dark: 'Dark', light: 'Light' },
+  de: { nav: 'Kästchen für deine Webseite', t: 'Kostenloses Krypto-Wetter-Widget für deine Webseite', d: 'Bau das Krypto-Wetter von heute in deinen Blog oder deine Webseite ein: Markt-Index, Fear & Greed und Bitcoin – kostenlos, alle 15 Minuten aktuell, eine Zeile Code.',
+    h: 'Kostenloses Krypto-Wetter-Widget', p: 'Zeig deinen Lesern das Krypto-Wetter von heute – Markt-Index, Fear & Greed und Bitcoin, alle 15 Minuten aktuell. Kostenlos, ohne Anmeldung, eine Zeile Code. Kopiere den Code in deine Seite:', dark: 'Dunkel', light: 'Hell' },
+  es: { nav: 'Widget para tu web', t: 'Widget gratuito del tiempo cripto para tu web', d: 'Integra el tiempo cripto de hoy en tu blog o web: índice de mercado, Fear & Greed y Bitcoin, gratis, actualizado cada 15 minutos, una línea de código.',
+    h: 'Widget gratuito del tiempo cripto', p: 'Muestra a tus lectores el tiempo cripto de hoy: índice de mercado, Fear & Greed y Bitcoin, actualizado cada 15 minutos. Gratis, sin registro, una línea de código. Copia el código en tu página:', dark: 'Oscuro', light: 'Claro' },
+  fr: { nav: 'Widget pour ton site', t: 'Widget météo crypto gratuit pour ton site', d: 'Intègre la météo crypto du jour sur ton blog ou ton site : indice de marché, Fear & Greed et Bitcoin – gratuit, mis à jour toutes les 15 minutes, une ligne de code.',
+    h: 'Widget météo crypto gratuit', p: 'Montre à tes lecteurs la météo crypto du jour – indice de marché, Fear & Greed et Bitcoin, mis à jour toutes les 15 minutes. Gratuit, sans inscription, une ligne de code. Copie le code dans ta page :', dark: 'Sombre', light: 'Clair' },
+  it: { nav: 'Widget per il tuo sito', t: 'Widget gratuito del meteo crypto per il tuo sito', d: 'Integra il meteo crypto di oggi nel tuo blog o sito: indice di mercato, Fear & Greed e Bitcoin – gratis, aggiornato ogni 15 minuti, una riga di codice.',
+    h: 'Widget gratuito del meteo crypto', p: 'Mostra ai tuoi lettori il meteo crypto di oggi – indice di mercato, Fear & Greed e Bitcoin, aggiornato ogni 15 minuti. Gratis, senza registrazione, una riga di codice. Copia il codice nella tua pagina:', dark: 'Scuro', light: 'Chiaro' },
+  pt: { nav: 'Widget para o seu site', t: 'Widget gratuito da previsão cripto para o seu site', d: 'Incorpore a previsão cripto de hoje no seu blog ou site: índice de mercado, Fear & Greed e Bitcoin – grátis, atualizado a cada 15 minutos, uma linha de código.',
+    h: 'Widget gratuito da previsão cripto', p: 'Mostre aos seus leitores a previsão cripto de hoje – índice de mercado, Fear & Greed e Bitcoin, atualizada a cada 15 minutos. Grátis, sem cadastro, uma linha de código. Copie o código para a sua página:', dark: 'Escuro', light: 'Claro' },
+  tr: { nav: 'Web siten için widget', t: 'Web siten için ücretsiz kripto hava durumu widget’ı', d: 'Bugünün kripto hava durumunu blog veya web sitene yerleştir: piyasa endeksi, Korku ve Açgözlülük ve Bitcoin – ücretsiz, 15 dakikada bir güncel, tek satır kod.',
+    h: 'Ücretsiz kripto hava durumu widget’ı', p: 'Okuyucularına bugünün kripto hava durumunu göster – piyasa endeksi, Korku ve Açgözlülük ve Bitcoin, 15 dakikada bir güncel. Ücretsiz, kayıt yok, tek satır kod. Kodu sayfana kopyala:', dark: 'Koyu', light: 'Açık' },
+};
+
 const LANG_ORDER = ['en', 'de', 'es', 'fr', 'it', 'pt', 'tr'];
 const prefix = (lang) => (lang === 'en' ? '' : `/${lang}`);
 
@@ -612,6 +740,53 @@ for (const lang of LANG_ORDER) {
       ${offer(L.fOffer)}`);
   }
 
+  // Indikator-Seiten aus dem Zyklus-Kompass
+  if (indices) {
+    const X = IX[lang], ri = indices.risk;
+    const RL = (v) => (v < 20 ? 'Tief' : v < 40 ? 'Günstig' : v < 60 ? 'Neutral' : v < 80 ? 'Erhitzt' : 'Überhitzt');
+    const rl = X.label[RL(ri.value)], se = indices.altseason;
+    const names = { risk: X.riskH(ri.value, rl).split(':')[0], season: se ? X.seasonH(se.value, X.season(se.value)).split(':')[0] : null,
+      pi: X.piH(0).split(':')[0], mayer: X.mayerH(0).split(':')[0] };
+    const paths = { risk: '/bitcoin-cycle-risk/', season: '/altcoin-season-index/', pi: '/pi-cycle-top/', mayer: '/mayer-multiple/' };
+    const more = (self) => `<h2>${X.also}</h2><ul class="links">${Object.entries(paths).filter(([k]) => k !== self && names[k]).map(([k, p]) => `<li><a href="${pre}${p}">${esc(names[k])}</a></li>`).join('')}
+      <li><a href="${pre}/fear-and-greed-index/">${esc(L.fngNav)}</a></li></ul>`;
+    const cta = `<section class="panel cta"><strong>${X.full}</strong><p><a class="btn" href="${app('#/indikatoren')}">${X.fullBtn}</a></p></section><p class="muted">${X.note}</p>`;
+    const stat = (l, v) => `<div class="panel stat"><div class="l">${l}</div><div class="v">${v}</div></div>`;
+    const bucket = ri.backtest.find((b) => ri.value >= b.lo && ri.value < b.hi);
+    const y1 = bucket?.periods.map((pp) => (pp['365'] ? `${pp['365'].up} %` : '–'));
+    add('ix:risk', paths.risk, X.riskT(ri.value, rl, day), X.riskD(ri.value, rl),
+      `<h1>${esc(X.riskH(ri.value, rl))}</h1><p class="muted">${esc(day)}</p>
+      <div class="grid">${stat(names.risk, `${ri.value}/100`)}${stat(X.parts.mayer, num(indices.mayer.value, 2))}${stat(X.parts.pi, `${num(indices.pi.ratio * 100, 0)} %`)}${se ? stat(names.season, `${se.value}/100`) : ''}</div>
+      <p>${X.riskP}</p>${y1 ? `<p><strong>${X.riskBt(y1[0], y1[1])}</strong></p>` : ''}
+      <h2>${X.partsH}</h2><div class="panel"><table>${Object.entries(ri.parts ?? {}).map(([k, v]) => `<tr><td>${X.parts[k]}</td><td class="n">${num(v, 0)}</td></tr>`).join('')}</table></div>
+      ${cta}${more('risk')}`);
+    if (se) {
+      const list = (arr) => arr.map((x) => `<tr><td>${esc(x.symbol)}</td><td class="n ${tone(x.ret)}">${pct(x.ret)}</td></tr>`).join('');
+      add('ix:season', paths.season, X.seasonT(se.value, X.season(se.value), day), X.seasonD(se.value, se.n),
+        `<h1>${esc(X.seasonH(se.value, X.season(se.value)))}</h1><p class="muted">${esc(day)}</p>
+        <p>${X.seasonP(se.value, se.n, pct(se.btc90))}</p>
+        <div class="grid"><div class="panel"><table><tr><th>${X.lead}</th><th class="n">90 d</th></tr>${list(se.leaders)}</table></div>
+          <div class="panel"><table><tr><th>${X.lag}</th><th class="n">90 d</th></tr>${list(se.laggards)}</table></div></div>
+        ${cta}${more('season')}`);
+    }
+    const piV = Math.round(indices.pi.ratio * 100);
+    add('ix:pi', paths.pi, X.piT(piV, day), X.piD(piV),
+      `<h1>${esc(X.piH(piV))}</h1><p class="muted">${esc(day)}</p><p>${X.piP(usd(indices.pi.sma111), usd(indices.pi.line), piV)}</p>${cta}${more('pi')}`);
+    const mv = num(indices.mayer.value, 2);
+    add('ix:mayer', paths.mayer, X.mayerT(mv, day), X.mayerD(mv),
+      `<h1>${esc(X.mayerH(mv))}</h1><p class="muted">${esc(day)}</p><p>${X.mayerP(mv, usd(indices.mayer.sma200))}</p>${cta}${more('mayer')}`);
+  }
+
+  // Widget zum Einbetten
+  {
+    const E = EMB[lang];
+    const code = (theme) => `<iframe src="${SITE}/widget.html?lang=${lang}${theme === 'light' ? '&theme=light' : ''}" width="340" height="112" style="border:0;max-width:100%" loading="lazy" title="Coinweather"></iframe>`;
+    add('embed', '/embed/', E.t, E.d, `<h1>${esc(E.h)}</h1><p>${esc(E.p)}</p>
+      ${['dark', 'light'].map((th) => `<h2>${esc(E[th])}</h2><div class="panel">${code(th)}</div>
+        <textarea readonly rows="3" style="width:100%;font:13px monospace;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--text)" onclick="this.select()">${esc(code(th))}</textarea>`).join('')}
+      ${offer(L.tOffer)}`);
+  }
+
   // Sparplan-Seiten je Coin und eine Übersicht
   const S2 = SP[lang], y3 = nowY - 3;
   const spList = SP_COINS.filter((c) => spResults.get(c.id)?.plan[0]);
@@ -668,7 +843,7 @@ for (const p of pages) {
 <body><header><div class="wrap"><a class="brand" href="${app()}">☁️ Coinweather</a><a class="btn" href="${app()}">${L.open}</a></div></header>
 <main class="wrap">${p.body}
 <p class="share muted">↗ <a href="https://wa.me/?text=${shareText}%20${share}" rel="noopener" target="_blank">WhatsApp</a><a href="https://t.me/share/url?url=${share}&text=${shareText}" rel="noopener" target="_blank">Telegram</a><a href="https://twitter.com/intent/tweet?url=${share}&text=${shareText}" rel="noopener" target="_blank">X</a><a href="https://www.facebook.com/sharer/sharer.php?u=${share}" rel="noopener" target="_blank">Facebook</a></p></main>
-<footer><div class="wrap"><p><a href="${pre}/crypto-weather-today/">${L.today}</a> · <a href="${pre}/fear-and-greed-index/">${esc(L.fngNav)}</a> · <a href="${pre}/coins/">${L.all}</a> · <a href="${pre}/savings-plan/">${SP[lang].nav}</a> ·
+<footer><div class="wrap"><p><a href="${pre}/crypto-weather-today/">${L.today}</a> · <a href="${pre}/fear-and-greed-index/">${esc(L.fngNav)}</a> · <a href="${pre}/coins/">${L.all}</a> · <a href="${pre}/savings-plan/">${SP[lang].nav}</a> · <a href="${pre}/bitcoin-cycle-risk/">${IX[lang].nav}</a> · <a href="${pre}/embed/">${EMB[lang].nav}</a> ·
 <a href="/?lang=${lang}#/risiko">${L.risk}</a> · <a href="/?lang=${lang}#/impressum">${L.legal}</a> · <a href="/?lang=${lang}#/datenschutz">${L.privacy}</a></p>
 <p class="langs">${twins.map((t) => `<a href="${t.path}" hreflang="${t.lang}"${t.lang === lang ? ' aria-current="page"' : ''}>${LANG_NAME[t.lang]}</a>`).join('')}</p>
 <p class="muted">${L.foot(esc(p.day))} Data: CoinGecko, Binance, Gate.io, alternative.me.</p></div></footer>
