@@ -27,7 +27,7 @@ permissions:
 jobs:
   post:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       POST_LANG: ${{ vars.POST_LANG }}
       EDITION: ${{ github.event.schedule == '30 16 * * *' && 'evening' || github.event.inputs.edition || 'morning' }}
@@ -44,7 +44,10 @@ jobs:
       # ffmpeg baut das tägliche Reel aus den Bildern
       - name: Videowerkzeug bereitstellen
         if: env.CHECK != 'true'
-        run: command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+        # Fertige ffmpeg-Datei aus npm: lädt in Sekunden (apt-get brauchte einmal 14 Minuten)
+        run: |
+          if command -v ffmpeg >/dev/null; then echo "FFMPEG=ffmpeg" >> "$GITHUB_ENV"
+          else npm install --no-save --silent ffmpeg-static@5.2.0 && echo "FFMPEG=$(node -p "require('ffmpeg-static')")" >> "$GITHUB_ENV"; fi
       - name: Zugang prüfen (ohne zu posten)
         if: env.CHECK == 'true'
         run: node scripts/post-daily.mjs --check
@@ -55,7 +58,7 @@ jobs:
       # Der Tagesstand wird gespeichert, damit Text und Bilder sicher zusammenpassen
       - name: Bilder erzeugen
         if: env.CHECK != 'true'
-        run: node scripts/post-daily.mjs --dry --images out --save-data today.json --video out/reel.mp4 && ffprobe -v error -show_entries format=duration,size -of compact out/reel.mp4
+        run: node scripts/post-daily.mjs --dry --images out --save-data today.json --video out/reel.mp4 && ls -l out/reel.mp4
       - name: Bilder zum Ansehen ablegen
         if: env.CHECK != 'true'
         uses: actions/upload-artifact@v4
