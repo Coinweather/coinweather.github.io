@@ -129,7 +129,8 @@ pages.push({ path: '/crypto-weather-today/', title: `Crypto market today (${day}
   <div class="panel"><table><tr><th>Gainers</th><th class="n">Price</th><th class="n">24 h</th></tr>${moverRows(movers.slice(0, 5))}</table></div>
   <div class="panel"><table><tr><th>Losers</th><th class="n">Price</th><th class="n">24 h</th></tr>${moverRows(movers.slice(-5).reverse())}</table></div>
   ${record?.d7 ? `<h2>Open track record</h2><p>Every buy signal of the site is re-measured. Since ${new Date(record.since * 86_400_000).toLocaleDateString('en-US')}:
-  after 7 days on average <strong>${pct(record.d7.avg)}</strong>, ${record.d7.up} of ${record.d7.n} in profit (Bitcoin over the same period ${pct(record.d7.btc)}).
+  after 7 days on average <strong>${pct(record.d7.avg)}</strong>, ${record.d7.up} of ${record.d7.n} in profit (Bitcoin over the same period ${pct(record.d7.btc)}${isNum(record.d7.mkt) ? `, the average top-100 coin ${pct(record.d7.mkt)}` : ''}).
+  Since 24 October 2026 buy signals are limited to the 100 largest coins – the size range the model was tested on.
   Including the bad results – that is the point.</p>` : ''}
   ${offer('Which coins have a buy signal today?')}` });
 

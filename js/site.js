@@ -103,7 +103,7 @@ export function pricingView(el, { access, user, record }) {
     const rec = record?.();
     const measured = !rec ? '' : `<section class="panel"><div class="label">Erfolgskontrolle – offen nachgemessen</div>
       <p>${rec.d7 ? `Kaufsignale der Seite seit ${new Date(rec.since * 86_400_000).toLocaleDateString(settings.locale)}: nach 7 Tagen im Schnitt <strong>${signed(rec.d7.avg, 1)} %</strong>,
-        ${rec.d7.up} von ${rec.d7.n} im Plus (Bitcoin im selben Zeitraum ${signed(rec.d7.btc, 1)} %).`
+        ${rec.d7.up} von ${rec.d7.n} im Plus (Bitcoin im selben Zeitraum ${signed(rec.d7.btc, 1)} %${Number.isFinite(rec.d7.mkt) ? `, der Durchschnitt der Top 100 ${signed(rec.d7.mkt, 1)} %` : ''}).`
         : `Jedes Kaufsignal der Seite wird seit ${new Date(rec.since * 86_400_000).toLocaleDateString(settings.locale)} nach 7 und 30 Tagen nachgemessen. Erste Ergebnisse erscheinen 7 Tage nach den ersten Signalen.`}</p></section>`;
     const yes = (t) => `<li class="yes">${t}</li>`;
     const card = (key, featured, hint, list) => `<section class="panel plan${featured ? ' featured' : ''}">

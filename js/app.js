@@ -578,12 +578,14 @@ const INFO = {
     <p>Etwa 45 % der Monate endeten in der Rückrechnung im Minus; Verluste lassen sich nicht ausschließen.</p>${LIMITS}` },
 
   record: { title: 'Erfolgskontrolle', body: () => `
-    <p>Einmal am Tag hält die zentrale Berechnung die bis zu 25 stärksten Kaufsignale mit ihrem Kurs fest – Coins aus den Top 300 mit genug Handelsvolumen.
+    <p>Einmal am Tag hält die zentrale Berechnung die bis zu 25 stärksten Kaufsignale mit ihrem Kurs fest – Coins mit genug Handelsvolumen.
       7 und 30 Tage später wird nachgesehen, wo der Kurs steht.</p>
     <p>Anders als die Rückrechnung arbeitet diese Messung mit Kursen, die beim Signal noch niemand kannte. Sie ist damit der ehrlichste Maßstab dafür, ob die Signale etwas taugen.</p>
     <ul><li><strong>Im Mittel:</strong> durchschnittliche Kursveränderung aller festgehaltenen Signale nach der Frist, ohne Gebühren.</li>
       <li><strong>Im Plus:</strong> Anteil der Signale, deren Kurs höher steht.</li>
-      <li><strong>Bitcoin:</strong> Veränderung von Bitcoin über dieselben Zeiträume, zum Vergleich.</li></ul>
+      <li><strong>Bitcoin:</strong> Veränderung von Bitcoin über dieselben Zeiträume, zum Vergleich.</li>
+      <li><strong>Top 100 im Schnitt:</strong> durchschnittliche Veränderung der 100 größten Coins (ohne Stablecoins) über dieselben Zeiträume – so ist zu sehen, ob die Signale besser oder schlechter liefen als der Markt (erfasst ab 24.10.2026).</li></ul>
+    <p><strong>Änderung am 24.10.2026:</strong> In der ersten Woche lagen die Signale bei kleineren Coins (ab Rang 200) im Mittel bei ${signed(-6.5, 1)} %, in den Top 10 bei ${signed(0.2, 1)} %. Das Modell ist nur an großen Coins geprüft. Seitdem gibt es Kaufsignale nur noch für die 100 größten Coins mit mehrjährigen Tageskursen. Die früheren Ergebnisse bleiben unverändert in der Messung.</p>
     <p class="muted">Die Messung wird mit jedem Tag aussagekräftiger. Wenige Wochen sagen wenig – in einer fallenden Marktphase liegen auch gute Signale im Minus.</p>` },
 
   performance: { title: 'Wertentwicklung', body: () => `
@@ -777,7 +779,7 @@ function marketView(preview = false) {
     $('#record').hidden = !rec;
     if (rec) {
       const line = (label, o) => (o ? `<div><div class="label">${label}</div><div class="value ${tone(o.avg)}">${signed(o.avg, 1)} %</div>
-          <div class="muted">${num(o.up / o.n * 100, 0)} % im Plus (${o.up} von ${o.n}) · Bitcoin ${signed(o.btc, 1)} %</div></div>`
+          <div class="muted">${num(o.up / o.n * 100, 0)} % im Plus (${o.up} von ${o.n}) · Bitcoin ${signed(o.btc, 1)} %${isNum(o.mkt) ? ` · Top 100 im Schnitt ${signed(o.mkt, 1)} %` : ''}</div></div>`
         : `<div><div class="label">${label}</div><div class="value muted">–</div><div class="muted">noch keine Ergebnisse</div></div>`);
       $('#record').innerHTML = `<div class="head-row"><div><div class="label">Erfolgskontrolle</div>
           <div class="muted">Kaufsignale der Seite, gemessen seit ${new Date(rec.since * 86_400_000).toLocaleDateString(settings.locale)}</div></div>${infoBtn('record', 'So wird gemessen')}</div>

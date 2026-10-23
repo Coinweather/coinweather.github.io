@@ -45,6 +45,11 @@ export function fearZone(regime) {
 // Ethereum in 57–100 %. Eigene Regeln je Altcoin (kein Kauf im eigenen Abwärtstrend, kein Kauf nach eigener Gier,
 // Kauf nach eigener Angst) halfen jeweils nur in einem der beiden Prüfzeiträume und sind deshalb nicht eingebaut.
 export const CORE_IDS = new Set(['bitcoin', 'ethereum']);
+// Kaufsignale nur dort, wo das Modell geprüft ist: an 84 großen Coins mit mehrjährigen Tageskursen. Die offene
+// Erfolgskontrolle (12.–16.10.2026) zeigte, was außerhalb passiert: Kaufsignale ab Rang 200 lagen 7 Tage später im
+// Mittel bei −6,5 % (15 % im Plus), in den Top 10 bei +0,2 %, während der mittlere Top-100-Coin −2 % machte.
+// Kleinere Coins lassen sich auch nicht fair zurückrechnen – in alten Daten fehlen alle, die es nicht mehr gibt.
+export const SIGNAL_RANK = 100;
 export const CORE_DD = -40;
 const W_NEWS = 0.1;             // Nachrichten verschieben den Score um höchstens ±10 Punkte
 // Schwellen des Gesamt-Scores (-100 … +100). Kaufsignal ab 15: Erst ab dort lag das mittlere Ergebnis
@@ -542,6 +547,10 @@ function assemble(c, short, medium, long, regime, volDaily, news) {
     [signal, label] = ['hold', 'Halten'];
     notes.push('Sehr geringes Handelsvolumen – das Kaufsignal wurde auf „Halten“ begrenzt, weil sich der Coin schwer handeln lässt.');
   }
+  if (signal === 'buy' && !anticyclical && (c.market_cap_rank ?? 9999) > SIGNAL_RANK) {
+    [signal, label] = ['hold', 'Halten'];
+    notes.push(`Kaufsignale gibt es nur für die ${SIGNAL_RANK} größten Coins – nur an solchen ist das Modell geprüft. Kleinere Coins liefen in der offenen Erfolgskontrolle deutlich schlechter; der Score reicht hier für ein Kaufsignal, angezeigt wird trotzdem „Halten“.`);
+  }
   if (regime.score !== null && Math.abs(regime.score) > 0.25) {
     notes.push(`Die Marktphase ${regime.score > 0 ? 'stützt' : 'belastet'} die Bewertung deutlich (${signed(regime.score * W_REGIME * 100, 0)} Punkte).`);
   }
@@ -640,7 +649,13 @@ export function quickAnalyse(c, regime) {
   // Hier stammt die Schwankung nur aus 7 Tagen Stundenkursen: Ruhe über so kurze Zeit ist kein Beleg, deshalb
   // zählt sie in der Schnellbewertung nur als Nachteil. Mit Tageskursen (90 Tage) zählt sie in beide Richtungen.
   const withSwing = (list, weight) => horizon(list.some(Boolean) ? [...list, swingFactor(volDaily, weight, true)] : []);
-  return assemble(c, withDip(withSwing(short, SWING_W.short), c, regime), withSwing(medium, SWING_W.medium), withSwing(long, SWING_W.long), regime, volDaily);
+  const a = assemble(c, withDip(withSwing(short, SWING_W.short), c, regime), withSwing(medium, SWING_W.medium), withSwing(long, SWING_W.long), regime, volDaily);
+  // Ohne mehrjährige Tageskurse ist ein Kaufsignal nicht geprüft – die Bewertung mit Tageskursen (detailAnalyse) ersetzt diese
+  if (a.signal === 'buy') {
+    Object.assign(a, { signal: 'hold', label: 'Halten', horizon: 'Abwarten', scope: null });
+    a.notes.push('Für diesen Coin fehlen Tageskurse über mehrere Jahre. Ohne sie ist ein Kaufsignal nicht geprüft und wird auf „Halten“ begrenzt.');
+  }
+  return a;
 }
 
 // Stimmung des einzelnen Coins von 0 (Angst) bis 100 (Gier) – ein eigener Wert in der Art des Fear-&-Greed-Index,

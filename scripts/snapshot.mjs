@@ -168,15 +168,18 @@ const byId = new Map(coins.map((c) => [c.id, c]));
 function outcome(entry) {
   const rets = entry.sig.map(([id, , price]) => byId.get(id)?.current_price / price - 1).filter(Number.isFinite);
   if (!rets.length || !(btc?.current_price > 0)) return null;
+  // Vergleich: Durchschnitt der 100 größten Coins (ohne Stablecoins) über dieselbe Frist – fällt der ganze Markt, fallen auch gute Signale
+  const market = (entry.top ?? []).map(([id, price]) => byId.get(id)?.current_price / price - 1).filter(Number.isFinite);
   return { n: rets.length, up: rets.filter((r) => r > 0).length, avg: Number((rets.reduce((a, b) => a + b, 0) / rets.length * 100).toFixed(2)),
-    btc: Number(((btc.current_price / entry.btc - 1) * 100).toFixed(2)) };
+    btc: Number(((btc.current_price / entry.btc - 1) * 100).toFixed(2)),
+    ...(market.length >= 50 ? { mkt: Number((market.reduce((a, b) => a + b, 0) / market.length * 100).toFixed(2)) } : {}) };
 }
 for (const e of track.days) {
   if (!e.sig) continue;
   const age = today - e.d;
   // Fiel die Berechnung länger aus, wird die Frist nicht nachträglich mit einem späteren Kurs „erfüllt“ (false = ausgelassen)
   if (e.e7 === undefined && age >= 7) e.e7 = age <= 10 ? outcome(e) : false;
-  if (e.e30 === undefined && age >= 30) { e.e30 = age <= 35 ? outcome(e) : false; delete e.sig; }   // danach wird die Liste nicht mehr gebraucht
+  if (e.e30 === undefined && age >= 30) { e.e30 = age <= 35 ? outcome(e) : false; delete e.sig; delete e.top; }   // danach werden die Listen nicht mehr gebraucht
 }
 if (!track.days.some((e) => e.d === today) && btc?.current_price > 0) {
   // dieselbe Auswahl wie bei den Kaufvorschlägen im Portfolio: große, handelbare Coins, keine verpackten Token
@@ -184,7 +187,8 @@ if (!track.days.some((e) => e.d === today) && btc?.current_price > 0) {
     && !/wrapped|staked|staking|bridged|restaked|usd|usd/i.test(c.name))
     .sort((a, b) => b.analysis.score - a.analysis.score).slice(0, TRACK_SIGNALS)
     .map((c) => [c.id, c.symbol, c.current_price, c.analysis.score]);
-  track.days.push({ d: today, btc: btc.current_price, idx: market.value, sig });
+  const top = coins.filter((c) => (c.market_cap_rank ?? 9999) <= 100 && !c.analysis.stable && c.current_price > 0).map((c) => [c.id, c.current_price]);
+  track.days.push({ d: today, btc: btc.current_price, idx: market.value, sig, top });
 }
 track.days = track.days.filter((e) => today - e.d <= TRACK_KEEP_DAYS);
 // Zusammenfassung für die Seite
@@ -193,7 +197,8 @@ const sumUp = (key) => {
   const n = done.reduce((a, o) => a + o.n, 0);
   if (!n) return null;
   return { days: done.length, n, up: done.reduce((a, o) => a + o.up, 0), avg: Number((done.reduce((a, o) => a + o.avg * o.n, 0) / n).toFixed(2)),
-    btc: Number((done.reduce((a, o) => a + o.btc, 0) / done.length).toFixed(2)) };
+    btc: Number((done.reduce((a, o) => a + o.btc, 0) / done.length).toFixed(2)),
+    ...(done.some((o) => Number.isFinite(o.mkt)) ? { mkt: Number((done.filter((o) => Number.isFinite(o.mkt)).reduce((a, o) => a + o.mkt, 0) / done.filter((o) => Number.isFinite(o.mkt)).length).toFixed(2)), mktDays: done.filter((o) => Number.isFinite(o.mkt)).length } : {}) };
 };
 const record = { since: track.since, days: track.days.length, d7: sumUp('e7'), d30: sumUp('e30') };
 
