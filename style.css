@@ -686,3 +686,8 @@ details.d-fold > summary { font-size: 15px; letter-spacing: 0; text-transform: n
 .onboard-list { list-style: none; padding: 0; margin: 10px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); gap: 8px 18px; }
 .onboard-list li { display: flex; gap: 10px; align-items: center; font-size: 14.5px; }
 .onboard-list li.ok { color: var(--muted); text-decoration: line-through; }
+/* Coin-Vergleich */
+.cmp-form { grid-template-columns: 1fr 1fr auto; }
+.cmp-table th .coin-cell { justify-content: flex-end; }
+.cmp-table td:first-child { color: var(--muted); }
+@media (max-width: 760px) { .cmp-form { grid-template-columns: 1fr 1fr; } .cmp-form .btn { grid-column: 1 / -1; } }

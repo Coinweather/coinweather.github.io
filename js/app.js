@@ -1283,7 +1283,9 @@ function detailView(id) {
           ${a.mood ? `<div><dt>Stimmung des Coins</dt><dd>${a.mood.value} / 100 · ${moodLabel(a.mood.value)}</dd></div>` : ''}
           <div><dt>Übereinstimmung</dt><dd>${a.agreement ? `${a.agreement.agreeing} von ${a.agreement.of} Zeiträumen` : '–'}</dd></div></dl></div>
       ${summary(a)}
-      <p class="share-row hint d-share">${shareLinks(shareUrl(`#/coin/${encodeURIComponent(c.id)}`), `${c.name}: ${i18n.say(a.label)} – Coinweather`)}</p>
+      <p class="share-row hint d-share">${shareLinks(shareUrl(`#/coin/${encodeURIComponent(c.id)}`), `${c.name}: ${i18n.say(a.label)} – Coinweather`)}
+        <a href="#/vergleich/${encodeURIComponent(c.id)},${c.id === 'bitcoin' ? 'ethereum' : 'bitcoin'}">⇄ ${c.id === 'bitcoin' ? 'Mit Ethereum vergleichen' : 'Mit Bitcoin vergleichen'}</a>
+        <a href="#/rechner/${encodeURIComponent(c.id)}">🧮 Sparplan rechnen</a></p>
     </section>`;
   }
 
@@ -2974,6 +2976,90 @@ function modelView() {
   return { update() { const key = access().plan ?? 'none'; if (key === shown) return; shown = key; render(); } };
 }
 
+// ---------- Coin-Vergleich: zwei Coins nebeneinander (#/vergleich/bitcoin,ethereum) ----------
+// Kurse und Kennzahlen sind für alle sichtbar; das Signal nur, wo es auch sonst sichtbar ist (Paket oder Beispiel-Coin).
+function compareView(arg) {
+  const ids = (arg ?? '').split('?')[0].split(',').filter(Boolean);
+  const pick = { a: ids[0] || 'bitcoin', b: ids[1] || 'ethereum' };
+  let range = 365, run = 0;
+  view.innerHTML = `
+    <section class="panel calc">
+      <div class="label">Coin-Vergleich</div>
+      <h1 class="page-title">Zwei Coins im Vergleich</h1>
+      <form id="cmp-form" class="calc-form cmp-form">
+        <label>Coin 1<input id="cmp-a" list="cmp-coins" autocomplete="off" required></label>
+        <label>Coin 2<input id="cmp-b" list="cmp-coins" autocomplete="off" required></label>
+        <datalist id="cmp-coins"></datalist>
+        <button class="btn" type="submit">Vergleichen</button>
+      </form>
+    </section>
+    <div id="cmp-out"></div>`;
+  const find = (text) => {
+    const q = text.trim().toLowerCase();
+    return state.byId.get(q) ?? state.coins.find((c) => c.name.toLowerCase() === q || c.symbol.toLowerCase() === q)
+      ?? state.coins.find((c) => c.name.toLowerCase().startsWith(q) || c.symbol.toLowerCase().startsWith(q));
+  };
+  function fill() {
+    if (!state.coins.length) return;
+    $('#cmp-coins').innerHTML = state.coins.filter((c) => (c.market_cap_rank ?? 9999) <= 300 && c.analysis?.signal !== 'none')
+      .map((c) => `<option value="${esc(c.name)}">${esc(c.symbol.toUpperCase())}</option>`).join('');
+    if (!$('#cmp-a').value) $('#cmp-a').value = state.byId.get(pick.a)?.name ?? '';
+    if (!$('#cmp-b').value) $('#cmp-b').value = state.byId.get(pick.b)?.name ?? '';
+  }
+  async function compare() {
+    const a = find($('#cmp-a').value), b = find($('#cmp-b').value), out = $('#cmp-out');
+    if (!a || !b) { out.innerHTML = '<section class="panel"><p class="muted">Diesen Coin kenne ich nicht. Wähle einen aus der Liste.</p></section>'; return; }
+    pick.a = a.id; pick.b = b.id;
+    history.replaceState(null, '', `#/vergleich/${encodeURIComponent(a.id)},${encodeURIComponent(b.id)}`);
+    const mine = ++run;
+    out.innerHTML = '<section class="panel"><p class="muted">Lade Kursgeschichte …</p></section>';
+    try {
+      const [da, db] = await Promise.all([dailyOf(a), dailyOf(b)]);
+      if (mine !== run || current?.cmp !== true) return;
+      // Gemeinsame Tage der letzten „range“ Tage, beide Kurse auf 100 gesetzt
+      const mapB = new Map(db.t.map((t, i) => [Math.floor(t / 86_400_000), db.p[i]]));
+      const from = Date.now() - range * 86_400_000;
+      const rows = da.t.map((t, i) => [t, da.p[i], mapB.get(Math.floor(t / 86_400_000))]).filter((r) => r[0] >= from && r[2] > 0);
+      const show = (c) => !!access().plan || SAMPLES.includes(c.id);
+      const vol = (d) => { const p = d.p.slice(-91); const r = p.slice(1).map((x, i) => Math.log(x / p[i])); const mu = r.reduce((s, x) => s + x, 0) / r.length;
+        return Math.sqrt(r.reduce((s, x) => s + (x - mu) ** 2, 0) / (r.length - 1)) * 100; };
+      const line = (label, fa, fb, cls) => `<tr><td>${label}</td><td class="num ${cls ? tone(fa) : ''}">${fa}</td><td class="num ${cls ? tone(fb) : ''}">${fb}</td></tr>`;
+      const pc = (c, k) => { const v = c[`price_change_percentage_${k}_in_currency`]; return isNum(v) ? `${signed(v, 1)} %` : '–'; };
+      const pcTone = (c, k) => c[`price_change_percentage_${k}_in_currency`];
+      const row = (label, k) => `<tr><td>${label}</td><td class="num ${tone(pcTone(a, k))}">${pc(a, k)}</td><td class="num ${tone(pcTone(b, k))}">${pc(b, k)}</td></tr>`;
+      const head = (c) => `<a class="coin-cell" href="#/coin/${encodeURIComponent(c.id)}"><img src="${esc(c.image)}" alt=""><div><div class="coin-name">${esc(c.name)}</div><div class="coin-sym">${esc(c.symbol)}</div></div></a>`;
+      out.innerHTML = `<section class="panel">
+          <div class="panel-top"><h2>Kursverlauf (Start = 100)</h2><div class="chips" id="cmp-range">${[[90, '90T'], [365, '1J'], [1461, '4J']].map(([d, l]) => `<button class="chip ${d === range ? 'active' : ''}" data-days="${d}">${i18n.span(l)}</button>`).join('')}</div></div>
+          <div id="cmp-chart" class="chart"></div>
+        </section>
+        <section class="panel"><div class="table-wrap"><table class="cmp-table">
+          <thead><tr><th></th><th>${head(a)}</th><th>${head(b)}</th></tr></thead><tbody>
+          ${line('Kurs', money(a.current_price), money(b.current_price))}
+          ${line('Rang nach Marktwert', `#${a.market_cap_rank ?? '–'}`, `#${b.market_cap_rank ?? '–'}`)}
+          ${line('Marktkapitalisierung', compact(a.market_cap), compact(b.market_cap))}
+          ${row('24 Stunden', '24h')}${row('7 Tage', '7d')}${row('30 Tage', '30d')}${row('1 Jahr', '1y')}
+          ${line('Abstand zum Allzeithoch', isNum(a.ath_change_percentage) ? `${num(a.ath_change_percentage, 0)} %` : '–', isNum(b.ath_change_percentage) ? `${num(b.ath_change_percentage, 0)} %` : '–')}
+          ${line('Schwankung am Tag (90 Tage)', `${num(vol(da), 1)} %`, `${num(vol(db), 1)} %`)}
+          ${line('Signal', show(a) ? badge(a.analysis) : '🔒', show(b) ? badge(b.analysis) : '🔒')}
+          ${line('Risiko', show(a) ? riskTag(a.analysis.risk) : '🔒', show(b) ? riskTag(b.analysis.risk) : '🔒')}
+          </tbody></table></div>
+          ${show(a) && show(b) ? '' : `<p class="hint">Signal und Risiko aller Coins siehst du mit einem kostenlosen Konto. <a href="${depot.user ? '#/preise' : '#/konto'}">${depot.user ? 'Pakete ansehen' : 'Kostenlos starten'}</a></p>`}
+          <p class="hint">Vergangene Entwicklung ist keine Prognose. Keine Anlageberatung.</p>
+          <p class="share-row hint">${shareLinks(shareUrl(location.hash), `${a.name} vs. ${b.name} – Coinweather`)}</p>
+        </section>`;
+      const base = rows[0];
+      drawChart($('#cmp-chart'), { t: rows.map((r) => r[0]), p: rows.map((r) => r[1] / base[1] * 100), plain: true, note: a.name,
+        overlays: [{ values: rows.map((r) => r[2] / base[2] * 100), color: 'var(--accent)', label: b.name }] });
+      $('#cmp-range').addEventListener('click', (e) => { const btn = e.target.closest('[data-days]'); if (!btn) return; range = Number(btn.dataset.days); compare(); });
+    } catch (err) {
+      if (mine === run) out.innerHTML = `<section class="panel"><p class="muted">Kursgeschichte nicht erreichbar: ${esc(err.message)}</p></section>`;
+    }
+  }
+  $('#cmp-form').addEventListener('submit', (e) => { e.preventDefault(); compare(); });
+  let started = false;
+  return { cmp: true, update() { fill(); if (!started && state.coins.length) { started = true; compare(); } } };
+}
+
 // ---------- Rechner: Sparplan und Einmalanlage im Rückblick ----------
 // Für alle offen, auch ohne Konto: Was wäre aus einem monatlichen Sparplan oder einer Einmalanlage geworden?
 // Gerechnet mit echten Tageskursen (Binance oder Gate.io, bis zu 4 Jahre; sonst CoinGecko, 1 Jahr), ohne Gebühren und Steuern.
@@ -3145,12 +3231,12 @@ function route() {
   routedFor = !depot.ready && maybeSignedIn() ? 'wait' : (depot.user?.uid ?? 'guest');
   const [name, arg] = location.hash.replace(/^#\/?/, '').split('/');
   const pages = ['preise', ...site.LEGAL_KINDS];
-  const section = name === 'portfolio' ? 'portfolio' : name === 'konto' ? 'account' : name === 'daytrading' ? 'trading' : name === 'admin' ? 'admin' : name === 'rechner' ? 'tools' : name === 'indikatoren' ? 'compass' : name === 'modell' ? 'model'
+  const section = name === 'portfolio' ? 'portfolio' : name === 'konto' ? 'account' : name === 'daytrading' ? 'trading' : name === 'admin' ? 'admin' : name === 'rechner' ? 'tools' : name === 'indikatoren' ? 'compass' : name === 'modell' ? 'model' : name === 'vergleich' ? 'market'
     : pages.includes(name) ? null : 'market';
   for (const a of document.querySelectorAll('nav a')) a.classList.toggle('active', a.dataset.nav === section);
   let id = arg;
   try { id = decodeURIComponent(arg ?? ''); } catch { /* fehlerhafte Adresse – unverändert verwenden */ }
-  const open = ['konto', 'rechner', 'indikatoren', 'modell'].includes(name) || pages.includes(name);
+  const open = ['konto', 'rechner', 'indikatoren', 'modell', 'vergleich'].includes(name) || pages.includes(name);
   const sales = () => site.pricingView(view, { access, user: () => depot.user, record: () => state.record });
   // Mit Bezahlschranke erst abwarten, wer angemeldet ist und ob ein Abo läuft – sonst blitzt die Verkaufsseite kurz auf
   usagePage(name || 'markt', arg);
@@ -3169,6 +3255,7 @@ function route() {
   else if (name === 'rechner') current = calculatorView(arg);
   else if (name === 'indikatoren') current = compassView();
   else if (name === 'modell') current = modelView();
+  else if (name === 'vergleich') current = compareView(arg);
   else if (site.LEGAL_KINDS.includes(name)) current = site.legalView(view, name);
   else current = marketView();
   current.update();
