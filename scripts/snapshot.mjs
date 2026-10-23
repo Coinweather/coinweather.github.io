@@ -232,4 +232,7 @@ const snapshot = {
 await mkdir(dirname(OUT), { recursive: true });
 await writeFile(OUT, JSON.stringify(snapshot));
 await writeFile(TRACK, JSON.stringify(track));
+// Schnellstart: dieselben Daten für die 150 größten Coins – die Seite zeigt sie sofort und lädt die übrigen im Hintergrund nach
+const lite = { ...snapshot, lite: true, coins: snapshot.coins.filter((c) => (c.market_cap_rank ?? 9999) <= 150) };
+await writeFile(join(dirname(OUT), 'lite.json'), JSON.stringify(lite));
 console.log(`Geschrieben: ${OUT} (${(JSON.stringify(snapshot).length / 1e6).toFixed(1)} MB, ${Math.round((Date.now() - started) / 1000)} s) · Markt-Index ${market.value} ${market.label}`);

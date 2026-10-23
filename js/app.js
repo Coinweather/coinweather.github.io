@@ -224,15 +224,18 @@ async function refineAll() {
 // ---------- Zentral berechnete Daten ----------
 
 // Lädt das Ergebnis der zentralen Berechnung. Gibt false zurück, wenn es fehlt oder zu alt ist.
-async function loadSnapshot() {
+// lite: zuerst die kleine Datei mit den 150 größten Coins (schneller erster Bildschirm), danach die vollständige
+async function loadSnapshot(lite = false) {
   try {
     // Die Zeitangabe in der Adresse umgeht zu lange Zwischenspeicherung
-    const res = await fetch(`${SNAPSHOT_URL}?t=${Math.floor(Date.now() / SNAPSHOT_REFRESH_MS)}`);
+    const url = lite ? SNAPSHOT_URL.replace('snapshot.json', 'lite.json') : SNAPSHOT_URL;
+    const res = await fetch(`${url}?t=${Math.floor(Date.now() / SNAPSHOT_REFRESH_MS)}`);
     if (!res.ok) return false;
     const snap = localise(await res.json());   // Zahlen in den Texten in der gewählten Schreibweise
     i18n.setRates(snap.fx);                    // Wechselkurse für die gewählte Währung
     if (!Array.isArray(snap.coins) || snap.coins.length < 100 || Date.now() - snap.time > SNAPSHOT_MAX_AGE_MS) return false;
-    if (state.server && state.updated && snap.time <= state.updated.getTime()) return true;   // nichts Neues
+    if (state.server && state.updated && snap.time <= state.updated.getTime() && (lite || state.full)) return true;   // nichts Neues
+    if (lite && state.full) return true;   // die vollständigen Daten sind schon da
 
     const live = new Map([...state.raw.values()].map((c) => [c.id, c.current_price]));
     state.server = true;
@@ -257,6 +260,7 @@ async function loadSnapshot() {
     state.pagesLoaded = api.PAGES;
     state.refineDone = true;
     state.updated = new Date(snap.time);
+    state.full = !lite;
     rebuild();
     setStatus(null);
     current?.update();
@@ -285,7 +289,8 @@ async function livePriceLoop() {
 }
 
 async function start() {
-  if (await loadSnapshot()) {
+  const quick = await loadSnapshot(true);
+  if ((await loadSnapshot()) || quick) {
     livePriceLoop();
     for (;;) {
       await sleep(SNAPSHOT_REFRESH_MS);
@@ -618,6 +623,16 @@ const INFO = {
       <li>Die Seite handelt nicht selbst. Du setzt die Schritte bei deiner Börse um und trägst sie hier als umgesetzt ein.</li></ul>
     <p>Etwa 45 % der Monate endeten in der Rückrechnung im Minus; Verluste lassen sich nicht ausschließen.</p>${LIMITS}` },
 
+  compass: { title: 'Zyklus-Risiko', body: () => `
+    <p>Ein eigener Index von Coinweather: Er fasst fünf Bausteine zusammen, je von 0 (tief, günstig) bis 100 (überhitzt), und bildet daraus den Mittelwert.</p>
+    <ul><li><strong>Mayer-Multiple:</strong> 0,7 ergibt 0, 2,4 ergibt 100.</li>
+      <li><strong>2-Jahres-Schnitt:</strong> am Schnitt 0, beim Fünffachen 100 (logarithmisch).</li>
+      <li><strong>Pi-Cycle:</strong> 40 % ergibt 0, das Kreuzen (100 %) ergibt 100.</li>
+      <li><strong>Nähe zum Allzeithoch:</strong> 80 % darunter ergibt 0, am Hoch 100.</li>
+      <li><strong>Fear &amp; Greed:</strong> Schnitt der letzten 30 Tage.</li></ul>
+    <p>Geprüft an Bitcoin-Tageskursen seit 2017, getrennt für 2018–22 und 2022–26: Unter 20 stand Bitcoin ein Jahr später in 83–100 % der Fälle höher, über 80 nur in rund jedem vierten Fall.
+      Die Schwellen der Bausteine sind bekannte Marken aus der Literatur, nicht an diesen Daten optimiert. Trotzdem: Es gibt nur wenige Zyklen – eine Tendenz, keine Gewissheit.</p>` },
+
   record: { title: 'Erfolgskontrolle', body: () => `
     <p>Einmal am Tag hält die zentrale Berechnung die bis zu 25 stärksten Kaufsignale mit ihrem Kurs fest – Coins mit genug Handelsvolumen.
       7 und 30 Tage später wird nachgesehen, wo der Kurs steht.</p>
@@ -727,6 +742,7 @@ function marketView(preview = false) {
       <div class="panel gauge-panel" id="g-fng"></div>
       <div class="panel" id="market-parts"></div>
     </section>
+    <a class="panel compass-teaser" href="#/indikatoren" id="compass-teaser" hidden></a>
     <a class="panel calc-teaser" href="#/rechner"><span class="calc-icon" aria-hidden="true">🧮</span><span><strong>Sparplan-Rechner</strong>
       <span class="muted">Was wäre aus einem monatlichen Sparplan oder einer Einmalanlage geworden?</span></span><span class="btn ghost">Ausprobieren</span></a>
     <section class="panel" id="cycle"></section>
@@ -738,6 +754,12 @@ function marketView(preview = false) {
       <div id="picks" class="picks"></div>
     </section>
     <section class="panel" id="record" hidden></section>
+    <section class="heat-wrap">
+      <div class="panel-top"><h2>Markt-Heatmap</h2>
+        <div class="chips" id="heat-range"><button class="chip active" data-heat="24h">24 h</button><button class="chip" data-heat="7d">7 Tage</button><button class="chip" data-heat="30d">30 Tage</button></div></div>
+      <div id="heatmap" class="heatmap"></div>
+      <p class="hint">Die 100 größten Coins ohne Stablecoins: Die Fläche wächst mit dem Marktwert, die Farbe zeigt die Kursveränderung. Ein Klick öffnet den Coin.</p>
+    </section>
     ${preview ? '<p class="hint">Bitcoin und Ethereum zeigen das Signal als Beispiel. Die Signale aller 1000 Coins siehst du mit einem kostenlosen Konto.</p>' : ''}
     <section class="controls">
       <input id="search" type="search" placeholder="Coin suchen (z. B. Bitcoin, ETH) …" aria-label="Coin suchen" value="${esc(state.query)}">
@@ -759,6 +781,14 @@ function marketView(preview = false) {
     <div class="pager" id="pager"></div>`;
 
   $('#search').addEventListener('input', (e) => { state.query = e.target.value; state.page = 1; table(); });
+  let heatRange = '24h';
+  $('#heat-range').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-heat]');
+    if (!btn) return;
+    heatRange = btn.dataset.heat;
+    for (const b of $('#heat-range').children) b.classList.toggle('active', b === btn);
+    heatmap();
+  });
   $('#show-none').addEventListener('change', (e) => { state.showNone = e.target.checked; state.page = 1; table(); });
   $('#filters').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-filter]');
@@ -950,6 +980,58 @@ function marketView(preview = false) {
       : '';
   }
 
+  // Zyklus-Kompass als Kurzfassung – lädt einmal und verlinkt auf die ganze Seite
+  let teaserDone = false;
+  async function compassTeaser() {
+    if (teaserDone) return;
+    teaserDone = true;
+    const x = await loadIndices();
+    const el = $('#compass-teaser');
+    if (!x || !el) return;
+    const label = RISK_LABEL(x.risk.value);
+    el.innerHTML = `<div class="label">Zyklus-Kompass</div>
+      <div class="teaser-stats">
+        <span>Zyklus-Risiko <strong>${num(x.risk.value, 0)}/100</strong> · ${label}</span>
+        ${x.altseason ? `<span>Altcoin-Saison <strong>${x.altseason.value}/100</strong> · ${seasonLabel(x.altseason.value)}</span>` : ''}
+        <span>Pi-Cycle <strong>${num(x.pi.ratio * 100, 0)} %</strong></span>
+        <span>Mayer-Multiple <strong>${num(x.mayer.value, 2)}</strong></span>
+      </div><span class="btn ghost">Alle Indikatoren</span>`;
+    el.hidden = false;
+  }
+
+  // Heatmap: Kacheln nach dem „Squarified“-Verfahren – möglichst quadratisch, damit Kürzel und Prozent lesbar bleiben
+  function heatmap() {
+    const el = $('#heatmap');
+    const list = state.coins.filter((c) => (c.market_cap_rank ?? 9999) <= 110 && c.analysis.signal !== 'none' && c.market_cap > 0).slice(0, 100);
+    if (!list.length || !el.clientWidth) return;
+    const W = el.clientWidth, H = Math.round(W < 600 ? W * 1.25 : W * 0.5);
+    // Die Fläche wächst mit dem Marktwert, abgeschwächt – sonst wäre Bitcoin fast die ganze Karte
+    const weights = list.map((c) => Math.pow(c.market_cap, 0.6)), sum = weights.reduce((a, b) => a + b, 0);
+    let rest = list.map((c, i) => ({ c, v: weights[i] / sum * W * H }));
+    const tiles = [];
+    let x = 0, y = 0, w = W, h = H;
+    while (rest.length) {
+      const short = Math.min(w, h);
+      const worst = (row) => { const t = row.reduce((a, b) => a + b.v, 0); const mx = Math.max(...row.map((r) => r.v)), mn = Math.min(...row.map((r) => r.v)); return Math.max(short * short * mx / (t * t), t * t / (short * short * mn)); };
+      const row = [rest[0]]; let i = 1;
+      while (i < rest.length && worst([...row, rest[i]]) <= worst(row)) row.push(rest[i++]);
+      const t = row.reduce((a, b) => a + b.v, 0);
+      if (w >= h) { const cw = t / h; let cy = y; for (const r of row) { const rh = r.v / cw; tiles.push({ ...r, x, y: cy, w: cw, h: rh }); cy += rh; } x += cw; w -= cw; }
+      else { const rh = t / w; let cx = x; for (const r of row) { const rw = r.v / rh; tiles.push({ ...r, x: cx, y, w: rw, h: rh }); cx += rw; } y += rh; h -= rh; }
+      rest = rest.slice(i);
+    }
+    const key = { '24h': 'price_change_percentage_24h_in_currency', '7d': 'price_change_percentage_7d_in_currency', '30d': 'price_change_percentage_30d_in_currency' }[heatRange];
+    const full = { '24h': 8, '7d': 20, '30d': 35 }[heatRange];   // so viel Prozent ergeben die kräftigste Farbe
+    el.style.height = `${H}px`;
+    el.innerHTML = tiles.map(({ c, x: tx, y: ty, w: tw, h: th }) => {
+      const v = c[key], a = isNum(v) ? Math.round(Math.min(1, Math.abs(v) / full) * 75 + 10) : 0;
+      const bg = !isNum(v) ? 'var(--panel-2)' : `color-mix(in srgb, var(--${v >= 0 ? 'up' : 'down'}) ${a}%, var(--panel-2))`;
+      const big = tw > 46 && th > 30, fs = Math.max(10, Math.min(22, Math.sqrt(tw * th) / 5));
+      return `<a class="heat-tile" href="#/coin/${encodeURIComponent(c.id)}" style="left:${tx}px;top:${ty}px;width:${tw}px;height:${th}px;background:${bg};font-size:${fs}px"
+        title="${esc(c.name)}: ${isNum(v) ? `${signed(v, 1)} %` : '–'}">${big ? `<span class="coin-sym">${esc(c.symbol.toUpperCase())}</span><small>${pct(v)}</small>` : ''}</a>`;
+    }).join('');
+  }
+
   function favs() {
     const list = (depot.user ? depot.data.watch ?? [] : []).map((id) => state.byId.get(id)).filter(Boolean);
     $('#favs').hidden = !list.length;
@@ -963,7 +1045,7 @@ function marketView(preview = false) {
     }).join('')}</div>`;
   }
 
-  return { update() { hero(); favs(); picks(); table(); } };
+  return { update() { hero(); compassTeaser(); favs(); picks(); heatmap(); table(); } };
 }
 
 // ---------- Detailansicht ----------
@@ -971,7 +1053,9 @@ function marketView(preview = false) {
 const RANGES = { '1T': 1, '7T': 7, '30T': 30, '90T': 90, '1J': 365, '4J': 1461 };
 const INTRADAY_REFRESH_MS = 2 * 60_000;
 
-function drawChart(el, { t, p, overlays = [], hourly, intraday, note, marker }) {
+function drawChart(el, { t, p, overlays = [], hourly, intraday, note, marker, plain }) {
+  // plain: Kennzahlen ohne Währung (Indikatoren)
+  const fmtV = plain ? (v) => num(v, Math.abs(v) < 10 ? 2 : 0) : money;
   if (p.length < 2) { el.innerHTML = '<p class="muted">Keine Kursdaten für diesen Zeitraum.</p>'; return; }
   // In echten Pixeln zeichnen, damit die Beschriftung auf schmalen Bildschirmen lesbar bleibt
   const W = Math.max(el.clientWidth, 280), narrow = W < 600;
@@ -1000,7 +1084,7 @@ function drawChart(el, { t, p, overlays = [], hourly, intraday, note, marker }) 
 
   const grid = [0, 1, 2, 3, 4].map((k) => {
     const v = lo + (hi - lo) * k / 4;
-    return `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${W - R + 8}" y="${y(v) + 4}" class="axis">${esc(money(v))}</text>`;
+    return `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${W - R + 8}" y="${y(v) + 4}" class="axis">${esc(fmtV(v))}</text>`;
   }).join('');
   const ticks = Array.from({ length: tickCount + 1 }, (_, k) => {
     const i = Math.round(k / tickCount * (p.length - 1));
@@ -1030,7 +1114,7 @@ function drawChart(el, { t, p, overlays = [], hourly, intraday, note, marker }) 
     $('line', cursor).setAttribute('x1', x(i)); $('line', cursor).setAttribute('x2', x(i));
     $('circle', cursor).setAttribute('cx', x(i)); $('circle', cursor).setAttribute('cy', y(p[i]));
     tip.hidden = false;
-    tip.innerHTML = `<strong>${esc(money(p[i]))}</strong><br>${date(t[i])}`;
+    tip.innerHTML = `<strong>${esc(fmtV(p[i]))}</strong><br>${date(t[i])}`;
     const left = x(i) / W * box.width;
     tip.style.left = `${Math.min(Math.max(left, 70), box.width - 70)}px`;
   });
@@ -2669,10 +2753,127 @@ function adminView() {
   return { update() {}, admin: load };
 }
 
+// ---------- Zyklus-Kompass: Zyklus-Indikatoren mit Rückblick (Daten: /data/indices.json, scripts/indices.mjs) ----------
+// Die aktuellen Werte sind für alle sichtbar. Verläufe und Rückblick-Tabellen gibt es mit Paket oder Testphase – das ist
+// der Teil, der über eine Momentaufnahme hinausgeht.
+let indicesData = null;
+const loadIndices = () => (indicesData ??= fetch(['localhost', '127.0.0.1'].includes(location.hostname) ? 'out/indices.json' : `/data/indices.json?t=${Math.floor(Date.now() / 3_600_000)}`)
+  .then((r) => (r.ok ? r.json() : null)).catch(() => null));
+const RISK_COLORS = [...SELL_TO_BUY].reverse();   // links grün (tief), rechts rot (überhitzt)
+const RISK_LABEL = (v) => (v < 20 ? 'Tief' : v < 40 ? 'Günstig' : v < 60 ? 'Neutral' : v < 80 ? 'Erhitzt' : 'Überhitzt');
+const RISK_TEXT = {
+  Tief: 'Bitcoin steht tief im Zyklus – historisch die besten Einstiege für Geduldige.',
+  Günstig: 'Eher günstig bewertet – kein Überschwang zu sehen.',
+  Neutral: 'Weder günstig noch überhitzt.',
+  Erhitzt: 'Der Markt läuft heiß – Vorsicht bei neuen Käufen.',
+  Überhitzt: 'Überhitzt – in vergangenen Zyklen folgten darauf oft starke Rückgänge.',
+};
+const seasonLabel = (v) => (v >= 75 ? 'Altcoin-Saison' : v <= 25 ? 'Bitcoin-Saison' : 'Übergang');
+const dayMs = (d) => d * 86_400_000;
+
+// Rückblick-Tabelle: je Bereich, wie oft Bitcoin 90 Tage und 1 Jahr später höher stand – getrennt nach Zeitraum
+function backtestTable(rows, current) {
+  const cell = (x) => (x ? `<strong class="${x.up >= 55 ? 'up' : x.up <= 45 ? 'down' : ''}">${x.up} %</strong><div class="muted fc-range">Median ${signed(x.median, 0)} %</div>` : '<span class="muted">–</span>');
+  return `<div class="table-wrap"><table class="bt-table"><thead><tr><th>Bereich</th><th class="num">90 Tage<div class="muted fc-range">2018–22</div></th><th class="num">90 Tage<div class="muted fc-range">2022–26</div></th>
+      <th class="num">1 Jahr<div class="muted fc-range">2018–22</div></th><th class="num">1 Jahr<div class="muted fc-range">2022–26</div></th></tr></thead>
+    <tbody>${rows.map((b) => `<tr class="${current >= b.lo && current < b.hi ? 'now' : ''}"><td>${esc(b.label)}${current >= b.lo && current < b.hi ? ' <span class="badge hold">heute</span>' : ''}</td>
+      <td class="num">${cell(b.periods[0]['90'])}</td><td class="num">${cell(b.periods[1]['90'])}</td><td class="num">${cell(b.periods[0]['365'])}</td><td class="num">${cell(b.periods[1]['365'])}</td></tr>`).join('')}</tbody></table></div>
+    <p class="hint">Anteil der Tage, nach denen Bitcoin höher stand, und das mittlere Ergebnis. Zwei getrennte Zeiträume – nur was in beiden gilt, ist ein Muster. Wenige Zyklen sind eine schmale Grundlage.</p>`;
+}
+
+function compassView() {
+  const open = () => !!access().plan;
+  view.innerHTML = `
+    <section class="panel compass-head">
+      <div class="label">Neu · Zyklus-Kompass</div>
+      <h1 class="page-title">Wo steht Bitcoin im Zyklus?</h1>
+      <p class="muted">Die bekanntesten Zyklus-Indikatoren an einem Ort – und zu jedem der ehrliche Rückblick: Wie oft stand Bitcoin danach wirklich höher?
+        Dazu unser eigener Index, das Zyklus-Risiko.</p>
+    </section>
+    <div id="compass"><section class="panel"><p class="muted">Lade die Indikatoren …</p></section></div>`;
+
+  async function render() {
+    const x = await loadIndices();
+    const el = $('#compass');
+    if (!el) return;
+    if (!x) { el.innerHTML = '<section class="panel"><p class="muted">Die Indikatoren sind gerade nicht erreichbar. Bitte später noch einmal versuchen.</p></section>'; return; }
+    const full = open();
+    const lockedBox = (what) => `<div class="locked-box"><span aria-hidden="true">🔒</span><div><strong>${what}</strong>
+        <div class="muted">Mit einem kostenlosen Konto 30 Tage lang sichtbar, danach im Paket ${esc(SITE.plans.standard.name)}.</div></div>
+        <a class="btn" href="${depot.user ? '#/preise' : '#/konto'}">${depot.user ? 'Pakete ansehen' : 'Kostenlos starten'}</a></div>`;
+    const chartBox = (id) => (full ? `<div id="${id}" class="chart small-chart"></div>` : lockedBox('Verlauf und Rückblick'));
+    const r = x.risk, label = RISK_LABEL(r.value);
+    const partName = { mayer: 'Mayer-Multiple', twoYear: '2-Jahres-Schnitt', pi: 'Pi-Cycle', ath: 'Nähe zum Allzeithoch', fng: 'Fear & Greed (30 Tage)' };
+    const bar = (v) => `<span class="mini-bar"><i style="width:${Math.max(3, v)}%;background:${v < 40 ? 'var(--up)' : v < 60 ? 'var(--hold)' : 'var(--down)'}"></i></span>`;
+    const nowBucket = r.backtest.find((b) => r.value >= b.lo && r.value < b.hi);
+    const y1 = nowBucket?.periods.map((pp) => pp['365']).filter(Boolean) ?? [];
+    const s = x.altseason, d = x.dominance;
+    el.innerHTML = `
+      <section class="panel compass-risk">
+        <div class="gauge-panel"><div class="label">Zyklus-Risiko</div>${gauge(r.value, RISK_COLORS)}
+          <div class="gauge-value">${num(r.value, 0)}<small> / 100</small></div><span class="badge big ${r.value < 40 ? 'buy' : r.value < 60 ? 'hold' : 'sell'}">${label}</span></div>
+        <div>
+          <h2>${label}: ${RISK_TEXT[label]}</h2>
+          ${y1.length ? `<p>Nach Ständen wie heute stand Bitcoin ein Jahr später höher:</p><ul class="plain">${nowBucket.periods.map((pp, k) => (pp['365']
+            ? `<li><strong>${['2018–22', '2022–26'][k]}:</strong> <span>${pp['365'].up} % der Fälle, mittleres Ergebnis ${signed(pp['365'].median, 0)} %</span></li>` : '')).join('')}</ul>` : ''}
+          <div class="label">Bausteine (0 = tief, 100 = überhitzt)</div>
+          <ul class="risk-parts">${Object.entries(r.parts ?? {}).map(([k, v]) => `<li><span>${partName[k]}</span>${bar(v)}<strong>${num(v, 0)}</strong></li>`).join('')}</ul>
+          <p class="hint">Unser eigener Index: Mittel aus fünf Bausteinen, je 0 (tief, günstig) bis 100 (überhitzt). ${infoBtn('compass')}</p>
+        </div>
+        <div class="compass-wide">${full ? backtestTable(r.backtest, r.value) : ''}${chartBox('c-risk')}</div>
+      </section>
+      <div class="compass-grid">
+        ${s ? `<section class="panel"><div class="label">Altcoin-Saison-Index</div>
+          <div class="ind-value">${s.value}<small> / 100</small></div><span class="badge ${s.value >= 75 ? 'buy' : s.value <= 25 ? 'sell' : 'hold'}">${seasonLabel(s.value)}</span>
+          <p class="hint">${s.value} % der ${s.n} größten Coins liefen in 90 Tagen besser als Bitcoin (${signed(s.btc90, 0)} %). Ab 75 spricht man von Altcoin-Saison, bis 25 von Bitcoin-Saison.</p>
+          ${full ? `<div class="mini-lists"><div><div class="label">Vorne</div>${s.leaders.map((l) => `<div>${esc(l.symbol)} <span class="up">${signed(l.ret, 0)} %</span></div>`).join('')}</div>
+            <div><div class="label">Hinten</div>${s.laggards.map((l) => `<div>${esc(l.symbol)} <span class="down">${signed(l.ret, 0)} %</span></div>`).join('')}</div></div>` : ''}
+          ${chartBox('c-season')}</section>` : ''}
+        <section class="panel"><div class="label">Pi-Cycle-Top</div>
+          <div class="ind-value">${num(x.pi.ratio * 100, 0)}<small> %</small></div><span class="badge ${x.pi.ratio >= 0.95 ? 'sell' : x.pi.ratio >= 0.8 ? 'hold' : 'buy'}">${x.pi.ratio >= 1 ? 'Signal: Hoch' : x.pi.ratio >= 0.95 ? 'Kurz vor dem Signal' : 'Kein Signal'}</span>
+          <p class="hint">Der 111-Tage-Schnitt (${money(x.pi.sma111)}) steht bei ${num(x.pi.ratio * 100, 0)} % des doppelten 350-Tage-Schnitts (${money(x.pi.line)}). Bei 100 % kreuzen sie – das traf zuletzt im April 2021 das damalige Hoch.</p>
+          ${full ? backtestTable(x.pi.backtest, x.pi.ratio) : ''}${chartBox('c-pi')}</section>
+        <section class="panel"><div class="label">Mayer-Multiple</div>
+          <div class="ind-value">${num(x.mayer.value, 2)}</div><span class="badge ${x.mayer.value >= 2.4 ? 'sell' : x.mayer.value < 0.8 ? 'buy' : 'hold'}">${x.mayer.value >= 2.4 ? 'Überhitzt' : x.mayer.value < 0.8 ? 'Günstig' : 'Normal'}</span>
+          <p class="hint">Kurs geteilt durch den 200-Tage-Schnitt (${money(x.mayer.sma200)}). Unter 0,8 galt Bitcoin historisch als günstig, über 2,4 als überhitzt.</p>
+          ${full ? backtestTable(x.mayer.backtest, x.mayer.value) : ''}${chartBox('c-mayer')}</section>
+        <section class="panel"><div class="label">2-Jahres-MA-Multiplikator</div>
+          <div class="ind-value">${num(x.twoYear.ratio, 2)}<small>×</small></div><span class="badge ${x.twoYear.ratio < 1 ? 'buy' : x.twoYear.ratio >= 3.5 ? 'sell' : 'hold'}">${x.twoYear.ratio < 1 ? 'Kaufzone' : x.twoYear.ratio >= 5 ? 'Verkaufszone' : 'Dazwischen'}</span>
+          <p class="hint">Kurs im Verhältnis zum 2-Jahres-Schnitt (${money(x.twoYear.sma730)}). Darunter lag historisch die Kaufzone, über dem Fünffachen (${money(x.twoYear.top)}) die Verkaufszone.</p>
+          ${full ? backtestTable(x.twoYear.backtest, x.twoYear.ratio) : ''}${chartBox('c-2y')}</section>
+        <section class="panel"><div class="label">Volatilität (30 Tage)</div>
+          <div class="ind-value">${num(x.volatility.value, 0)}<small> % p. a.</small></div><span class="badge hold">ruhiger als an ${100 - x.volatility.percentile} % der Tage</span>
+          <p class="hint">Wie stark Bitcoin zuletzt schwankte, aufs Jahr gerechnet – eingeordnet gegen die letzten 4 Jahre. Lange ruhige Phasen endeten oft mit einer großen Bewegung, die Richtung verrät die Ruhe nicht.</p>
+          ${chartBox('c-vol')}</section>
+        ${d ? `<section class="panel"><div class="label">Bitcoin-Dominanz</div>
+          <div class="ind-value">${num(d.btc, 1)}<small> %</small></div><span class="badge hold">Ethereum ${num(d.eth, 1)} %</span>
+          <p class="hint">Anteil von Bitcoin am Marktwert aller Coins. Steigt er, fließt Geld eher in Bitcoin; sinkt er deutlich, laufen oft die Altcoins.</p></section>` : ''}
+      </div>
+      <p class="hint">Stand ${new Date(x.time).toLocaleString(settings.locale)} · Tageskurse von Binance seit ${new Date(x.since).getUTCFullYear()}, Fear & Greed von alternative.me, Dominanz von CoinGecko.
+        Indikatoren beschreiben vergangene Zyklen – keine Garantie für den nächsten. Keine Anlageberatung.</p>
+      <p class="share-row hint">${shareLinks(shareUrl('#/indikatoren'), `${i18n.say('Zyklus-Risiko')}: ${r.value}/100 (${i18n.say(label)}) – Coinweather`)}</p>`;
+    if (!full) return;
+    const line = (id, hist, opts = {}) => { const box = $(`#${id}`); if (!box || !hist?.length) return; drawChart(box, { t: hist.map((h) => dayMs(h[0])), p: hist.map((h) => h[1]), plain: true, ...opts }); };
+    line('c-risk', r.history, { note: 'Zyklus-Risiko' });
+    line('c-season', s?.history, { note: 'Altcoin-Saison-Index' });
+    line('c-pi', x.pi.history.map((h) => [h[0], h[1] * 100]), { note: 'Pi-Cycle: 111-Tage-Schnitt in % des doppelten 350-Tage-Schnitts', marker: null });
+    line('c-mayer', x.mayer.history, { note: 'Mayer-Multiple' });
+    line('c-2y', x.twoYear.history, { note: 'Kurs / 2-Jahres-Schnitt' });
+    line('c-vol', x.volatility.history, { note: 'Volatilität in % pro Jahr' });
+  }
+  let shown = null;
+  return { update() { const key = `${!!access().plan}`; if (key === shown) return; shown = key; render(); } };
+}
+
 // ---------- Rechner: Sparplan und Einmalanlage im Rückblick ----------
 // Für alle offen, auch ohne Konto: Was wäre aus einem monatlichen Sparplan oder einer Einmalanlage geworden?
 // Gerechnet mit echten Tageskursen (Binance oder Gate.io, bis zu 4 Jahre; sonst CoinGecko, 1 Jahr), ohne Gebühren und Steuern.
 // Die Einstellungen stehen in der Adresse (#/rechner/bitcoin?m=plan&b=100&s=2023-01) – so lässt sich ein Ergebnis teilen.
+
+// Modell-Portfolio des Portfolio-Managers (scripts/model-curve.mjs, beim Veröffentlichen täglich neu gerechnet): Anteilswert je Tag
+let modelCurve = null;
+const loadModelCurve = () => (modelCurve ??= fetch(['localhost', '127.0.0.1'].includes(location.hostname) ? 'out/model-curve.json' : '/data/model-curve.json')
+  .then((r) => (r.ok ? r.json() : null)).catch(() => null));
 
 async function dailyOf(c) {
   if (state.daily.has(c.id)) return state.daily.get(c.id);
@@ -2765,11 +2966,15 @@ function calculatorView(arg) {
     const startMs = Date.UTC(y, m - 1, 1);
     try {
       const btc = state.byId.get('bitcoin');
-      const [data, btcData] = await Promise.all([dailyOf(c), c.id !== 'bitcoin' && btc ? dailyOf(btc).catch(() => null) : null]);
+      const [data, btcData, curve] = await Promise.all([dailyOf(c), c.id !== 'bitcoin' && btc ? dailyOf(btc).catch(() => null) : null, loadModelCurve()]);
       if (mine !== run || current?.calc !== true) return;
       const r = simulate(data, c.current_price, { mode: f.mode, amount, startMs });
       if (!r) { out.innerHTML = '<section class="panel"><p class="muted">Für diesen Zeitraum gibt es keine Kursdaten.</p></section>'; return; }
       const b = btcData ? simulate(btcData, btc.current_price, { mode: f.mode, amount, startMs: r.from }) : null;
+      // Derselbe Plan mit dem Portfolio-Manager: monatlich Anteile am Modell-Portfolio kaufen
+      const mgr = curve?.t?.length && curve.t[0] <= r.from + 5 * 86_400_000
+        ? simulate({ t: curve.t, p: curve.nav }, curve.nav[curve.nav.length - 1], { mode: f.mode, amount, startMs: r.from }) : null;
+      const mgrAt = mgr ? new Map(mgr.days.map((t, i) => [Math.floor(t / 86_400_000), mgr.value[i]])) : null;
       const late = r.from - startMs > 20 * 86_400_000;
       const date = (ms) => new Date(ms).toLocaleDateString(settings.locale, { month: 'long', year: 'numeric' });
       const stat = (label, value, cls = '') => `<div><div class="label">${label}</div><div class="value ${cls}">${value}</div></div>`;
@@ -2788,12 +2993,26 @@ function calculatorView(arg) {
           ${r.worst < 0 ? `<p class="hint">Am ${new Date(r.worstAt).toLocaleDateString(settings.locale)} lag der Wert ${num(-r.worst * 100, 0)} % unter dem eingezahlten Betrag. Wer da verkauft hätte, hätte den Verlust mitgenommen.</p>` : ''}
           <div id="calc-chart" class="chart"></div>
           ${b ? `<p class="calc-compare">Zum Vergleich derselbe Plan in Bitcoin: <strong class="${tone(b.ret)}">${signed(b.ret * 100, 1)} %</strong> (Wert heute ${money(b.last)}).</p>` : ''}
+          ${mgr ? `<div class="calc-mgr">
+            <div class="label">Derselbe Plan mit dem Portfolio-Manager von Coinweather</div>
+            <div class="stat-grid calc-stats">
+              ${stat('Wert heute', money(mgr.last), tone(mgr.gain))}
+              ${stat('Rendite', `${signed(mgr.ret * 100, 1)} %`, tone(mgr.ret))}
+              ${stat('Tiefster Stand unterwegs', mgr.worst < 0 ? `${signed(mgr.worst * 100, 1)} %` : 'nie im Minus', mgr.worst < 0 ? 'down' : 'up')}
+              ${stat(`Modell-Portfolio seit ${new Date(curve.t[0]).getUTCFullYear()}`, `${signed(curve.stats.cagr, 0)} % pro Jahr`)}
+            </div>
+            <p class="hint">Der Portfolio-Manager wählt selbst aus ${curve.coins} geprüften Coins, prüft jede Woche und hält in schwachen Marktphasen eine Reserve – mit 0,25 % Gebühr je Handel.
+              <strong>Wichtig:</strong> Das ist eine Rückrechnung an den Kursen, an denen die Regeln entwickelt wurden. Die Zukunft fällt meist schlechter aus; Coins, die es nicht mehr gibt, fehlen; Steuern sind nicht berücksichtigt.
+              Größter Rückgang des Modell-Portfolios seit ${new Date(curve.t[0]).getUTCFullYear()}: ${num(-curve.stats.maxDrawdown, 0)} %.</p>
+            ${access().plan === 'full' ? '<p><a class="btn ghost" href="#/portfolio">Portfolio-Manager öffnen</a></p>' : ''}
+          </div>` : ''}
           <p class="share-row hint">${shareLinks(shareUrl(location.hash), msg, 'Ergebnis teilen')}</p>
           <p class="hint">Rückblick mit echten Tageskursen, ohne Gebühren und Steuern. Die Vergangenheit ist keine Prognose – Kryptowerte können stark fallen, bis zum Totalverlust.</p>
         </section>
         ${access().plan ? `<p><a class="btn ghost" href="#/coin/${encodeURIComponent(c.id)}">Signal und Aussicht für <span translate="no">${esc(c.name)}</span> ansehen</a></p>`
           : previewCta('Und wie sieht es heute aus?', 'Mit einem kostenlosen Konto siehst du für jeden der 1000 Coins das Signal, die Aussicht für 7 und 30 Tage und den Rückblick. 30 Tage alle Funktionen, ohne Zahlungsdaten.')}`;
-      drawChart($('#calc-chart'), { t: r.days, p: r.value, overlays: [{ values: r.paid, color: 'var(--muted)', label: 'Eingezahlt' }], note: 'Wert des Bestands' });
+      drawChart($('#calc-chart'), { t: r.days, p: r.value, note: 'Wert des Bestands', overlays: [{ values: r.paid, color: 'var(--muted)', label: 'Eingezahlt' },
+        ...(mgrAt ? [{ values: r.days.map((t) => mgrAt.get(Math.floor(t / 86_400_000)) ?? null), color: 'var(--accent)', label: 'Mit dem Portfolio-Manager' }] : [])] });
     } catch (err) {
       if (mine === run) out.innerHTML = `<section class="panel"><p class="muted">Kursgeschichte nicht erreichbar: ${esc(err.message)}</p></section>`;
     }
@@ -2816,12 +3035,12 @@ function route() {
   routedFor = !depot.ready && maybeSignedIn() ? 'wait' : (depot.user?.uid ?? 'guest');
   const [name, arg] = location.hash.replace(/^#\/?/, '').split('/');
   const pages = ['preise', ...site.LEGAL_KINDS];
-  const section = name === 'portfolio' ? 'portfolio' : name === 'konto' ? 'account' : name === 'daytrading' ? 'trading' : name === 'admin' ? 'admin' : name === 'rechner' ? 'tools'
+  const section = name === 'portfolio' ? 'portfolio' : name === 'konto' ? 'account' : name === 'daytrading' ? 'trading' : name === 'admin' ? 'admin' : name === 'rechner' ? 'tools' : name === 'indikatoren' ? 'compass'
     : pages.includes(name) ? null : 'market';
   for (const a of document.querySelectorAll('nav a')) a.classList.toggle('active', a.dataset.nav === section);
   let id = arg;
   try { id = decodeURIComponent(arg ?? ''); } catch { /* fehlerhafte Adresse – unverändert verwenden */ }
-  const open = name === 'konto' || name === 'rechner' || pages.includes(name);
+  const open = name === 'konto' || name === 'rechner' || name === 'indikatoren' || pages.includes(name);
   const sales = () => site.pricingView(view, { access, user: () => depot.user, record: () => state.record });
   // Mit Bezahlschranke erst abwarten, wer angemeldet ist und ob ein Abo läuft – sonst blitzt die Verkaufsseite kurz auf
   usagePage(name || 'markt', arg);
@@ -2838,6 +3057,7 @@ function route() {
   else if (name === 'daytrading') { current = fullAccess() ? tradingView() : lockedView('trading'); if (fullAccess()) tradingAck(); }
   else if (name === 'preise') current = sales();
   else if (name === 'rechner') current = calculatorView(arg);
+  else if (name === 'indikatoren') current = compassView();
   else if (site.LEGAL_KINDS.includes(name)) current = site.legalView(view, name);
   else current = marketView();
   current.update();

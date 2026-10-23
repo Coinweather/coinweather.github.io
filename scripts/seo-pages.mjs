@@ -50,9 +50,28 @@ await mkdir(`${out}/werbung`, { recursive: true });
 for (const f of await readdir(new URL('werbung', root))) if (f.endsWith('.jpg')) await cp(new URL(`werbung/${f}`, root), `${out}/werbung/${f}`);
 await writeFile(`${out}/${INDEXNOW_KEY}.txt`, INDEXNOW_KEY);
 
+// Modell-Portfolio des Portfolio-Managers für den Sparplan-Rechner (scripts/model-curve.mjs) – fehlt es, zeigt der Rechner es nicht
+try {
+  const { buildCurve } = await import('./model-curve.mjs');
+  const curve = await buildCurve();
+  await mkdir(`${out}/data`, { recursive: true });
+  await writeFile(`${out}/data/model-curve.json`, JSON.stringify(curve));
+  console.log(`Modell-Portfolio: ${curve.stats.cagr} % pro Jahr seit ${new Date(curve.t[0]).toISOString().slice(0, 10)}`);
+} catch (err) { console.log(`Modell-Portfolio nicht berechnet: ${err.message}`); }
+
 // ---------- Tagesstand ----------
 const snap = await (await fetch(`${SNAPSHOT}?t=${Date.now()}`)).json();
 const { market, fng, coins, record } = snap;
+
+// Zyklus-Kompass (scripts/indices.mjs) für die App und die Indikator-Seiten
+let indices = null;
+try {
+  const { buildIndices } = await import('./indices.mjs');
+  indices = await buildIndices(snap);
+  await mkdir(`${out}/data`, { recursive: true });
+  await writeFile(`${out}/data/indices.json`, JSON.stringify(indices));
+  console.log(`Zyklus-Kompass: Zyklus-Risiko ${indices.risk.value}, Altcoin-Saison ${indices.altseason?.value}`);
+} catch (err) { console.log(`Zyklus-Kompass nicht berechnet: ${err.message}`); }
 const SAMPLES = ['bitcoin', 'ethereum'];
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
