@@ -675,3 +675,9 @@ details.d-fold > summary { font-size: 15px; letter-spacing: 0; text-transform: n
 @media (max-width: 560px) { .weather .label { padding-right: 92px; } }
 .prefs label { flex-wrap: wrap; max-width: 100%; }
 .prefs select { max-width: 100%; min-width: 0; }
+
+/* Modell-Portfolio */
+.model-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); gap: 16px; margin: 16px 0; }
+.m-table { width: 100%; border-collapse: collapse; }
+.m-table td { padding: 7px 6px; border-bottom: 1px solid var(--line); font-size: 14px; }
+.m-table .m-bar { width: 40%; }

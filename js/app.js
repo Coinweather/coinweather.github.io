@@ -2865,6 +2865,86 @@ function compassView() {
   return { update() { const key = `${!!access().plan}`; if (key === shown) return; shown = key; render(); } };
 }
 
+// ---------- Modell-Portfolio: der Portfolio-Manager als Musterdepot zum Mitverfolgen ----------
+// Wertentwicklung gegen Bitcoin ist für alle sichtbar; was das Modell gerade hält und zuletzt gehandelt hat, gehört zum Paket Komplett.
+const TRADE_TYPE = { buy: 'Kauf', add: 'Aufstocken', sell: 'Verkauf', reduce: 'Reduzieren', profit: 'Gewinnmitnahme', 'swap-in': 'Tausch: gekauft', 'swap-out': 'Tausch: verkauft' };
+
+function modelView() {
+  view.innerHTML = `
+    <section class="panel compass-head">
+      <div class="label">Neu · Modell-Portfolio</div>
+      <h1 class="page-title">Der Portfolio-Manager als Musterdepot</h1>
+      <p class="muted">So wäre ein Depot gelaufen, das seit 2018 jede Woche genau den Regeln des Portfolio-Managers folgt – mit Reserve in schwachen Phasen,
+        Auswahl aus den geprüften Coins und 0,25 % Gebühr je Handel. Daneben Bitcoin zum Vergleich.</p>
+    </section>
+    <div id="model"><section class="panel"><p class="muted">Lade das Modell-Portfolio …</p></section></div>`;
+
+  async function render() {
+    const c = await loadModelCurve();
+    const el = $('#model');
+    if (!el) return;
+    if (!c?.nav?.length) { el.innerHTML = '<section class="panel"><p class="muted">Das Modell-Portfolio ist gerade nicht erreichbar. Bitte später noch einmal versuchen.</p></section>'; return; }
+    const full = access().plan === 'full';
+    const startYear = new Date(c.t[0]).getUTCFullYear();
+    const stat = (label, value, cls = '') => `<div><div class="label">${label}</div><div class="value ${cls}">${value}</div></div>`;
+    // Rendite über die letzten n Tage (pro Jahr ab einem Jahr) – für Modell und Bitcoin
+    const since = (arr, days) => { const i = Math.max(0, arr.length - 1 - days); const a = arr[i], b = arr[arr.length - 1]; if (!(a > 0) || !(b > 0)) return null;
+      const years = (arr.length - 1 - i) / 365; return years > 1.01 ? (Math.pow(b / a, 1 / years) - 1) * 100 : (b / a - 1) * 100; };
+    const y1 = since(c.nav, 365), y4 = since(c.nav, 1461), b1 = c.btc ? since(c.btc, 365) : null, b4 = c.btc ? since(c.btc, 1461) : null;
+    const lockedBox = (what) => `<div class="locked-box"><span aria-hidden="true">🔒</span><div><strong>${what}</strong>
+        <div class="muted">Mit einem kostenlosen Konto 30 Tage lang sichtbar, danach im Paket ${esc(SITE.plans.full.name)}.</div></div>
+        <a class="btn" href="${depot.user ? '#/preise' : '#/konto'}">${depot.user ? 'Pakete ansehen' : 'Kostenlos starten'}</a></div>`;
+    const date = (ms) => new Date(ms).toLocaleDateString(settings.locale);
+    el.innerHTML = `
+      <section class="panel">
+        <div class="stat-grid">
+          ${stat(`Modell-Portfolio seit ${startYear}`, `${signed(c.stats.cagr, 0)} % pro Jahr`, 'up')}
+          ${stat(`Bitcoin seit ${startYear}`, `${signed(c.stats.btcCagr, 0)} % pro Jahr`)}
+          ${stat('Größter Rückgang', `${num(c.stats.maxDrawdown, 0)} %`, 'down')}
+          ${isNum(y1) ? stat('Letzte 12 Monate', `${signed(y1, 0)} %`, tone(y1)) + (isNum(b1) ? `<div class="muted">Bitcoin ${signed(b1, 0)} %</div>` : '') : ''}
+          ${isNum(y4) ? stat('Letzte 4 Jahre', `${signed(y4, 0)} % pro Jahr`, tone(y4)) : ''}
+          ${stat('Reserve heute', `${num(c.cash, 0)} %`)}
+        </div>
+        <div class="panel-top"><span></span><div class="chips" id="m-range"><button class="chip active" data-years="4">4 Jahre</button><button class="chip" data-years="0">seit ${startYear}</button></div></div>
+        <div id="m-chart" class="chart"></div>
+        <p class="hint"><strong>Wichtig:</strong> Das ist eine Rückrechnung an den Kursen, an denen die Regeln entwickelt wurden. Die Zukunft fällt meist schlechter aus;
+          Coins, die es nicht mehr gibt, fehlen; Steuern sind nicht berücksichtigt. Keine Anlageberatung.</p>
+      </section>
+      <div class="model-grid">
+        <section class="panel"><h2>Bestand heute</h2>
+          ${full ? `<table class="m-table">${c.holdings.map((h) => `<tr><td><strong>${esc(h.symbol)}</strong></td><td class="num">${num(h.share, 1)} %</td><td class="m-bar"><span class="mini-bar"><i style="width:${Math.min(100, h.share)}%;background:var(--accent)"></i></span></td></tr>`).join('')}
+            <tr><td>Reserve (Bargeld)</td><td class="num">${num(c.cash, 1)} %</td><td class="m-bar"><span class="mini-bar"><i style="width:${Math.min(100, c.cash)}%;background:var(--muted)"></i></span></td></tr></table>
+            <p class="hint">Stand ${date(c.asOf)} · wird jeden Morgen neu gerechnet.</p>` : lockedBox('Bestand des Modell-Portfolios')}
+        </section>
+        <section class="panel"><h2>Letzte Käufe und Verkäufe</h2>
+          ${full ? `<table class="m-table">${c.trades.slice(0, 15).map((tr) => `<tr><td class="muted">${date(tr.t)}</td><td><span class="tag ${['buy', 'add', 'swap-in'].includes(tr.type) ? 'up' : 'down'}">${TRADE_TYPE[tr.type] ?? tr.type}</span></td>
+              <td><strong>${esc(tr.symbol)}</strong></td><td class="num">${num(tr.share, 1)} %</td></tr>`).join('')}</table>
+            <p class="hint">Anteil am Wert des Portfolios zum Zeitpunkt des Handels.</p>` : lockedBox('Handel des Modell-Portfolios')}
+        </section>
+      </div>
+      <section class="panel upsell"><div><h3>Den Manager auf dein eigenes Portfolio anwenden</h3>
+        <p class="muted">Trag deine Coins ein – der Portfolio-Manager rechnet aus, was das Modell für deinen Bestand vorsieht, mit Begründung. Die Entscheidung triffst du.</p></div>
+        <div class="btn-row"><a class="btn" href="${depot.user ? '#/portfolio' : '#/konto'}">${depot.user ? 'Zum Portfolio' : 'Kostenlos starten'}</a> <a class="btn ghost" href="#/rechner">Sparplan-Rechner</a></div></section>
+      <p class="share-row hint">${shareLinks(shareUrl('#/modell'), `${i18n.say('Modell-Portfolio des Portfolio-Managers')}: ${signed(c.stats.cagr, 0)} % / ${i18n.say('Jahr')} – Coinweather`)}</p>`;
+    // Diagramm: beide Linien ab dem gewählten Start auf 100 gesetzt
+    const chart = (years) => {
+      const from = years ? Math.max(0, c.nav.length - 1 - years * 365) : 0;
+      const base = c.nav[from], bb = c.btc?.[from];
+      drawChart($('#m-chart'), { t: c.t.slice(from), p: c.nav.slice(from).map((v) => v / base * 100), plain: true, note: 'Modell-Portfolio (Start = 100)',
+        overlays: c.btc ? [{ values: c.btc.slice(from).map((v) => (v === null ? null : v / bb * 100)), color: 'var(--muted)', label: 'Bitcoin (Start = 100)' }] : [] });
+    };
+    chart(4);
+    $('#m-range').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-years]');
+      if (!b) return;
+      for (const x of $('#m-range').children) x.classList.toggle('active', x === b);
+      chart(Number(b.dataset.years));
+    });
+  }
+  let shown = null;
+  return { update() { const key = access().plan ?? 'none'; if (key === shown) return; shown = key; render(); } };
+}
+
 // ---------- Rechner: Sparplan und Einmalanlage im Rückblick ----------
 // Für alle offen, auch ohne Konto: Was wäre aus einem monatlichen Sparplan oder einer Einmalanlage geworden?
 // Gerechnet mit echten Tageskursen (Binance oder Gate.io, bis zu 4 Jahre; sonst CoinGecko, 1 Jahr), ohne Gebühren und Steuern.
@@ -3004,7 +3084,7 @@ function calculatorView(arg) {
             <p class="hint">Der Portfolio-Manager wählt selbst aus ${curve.coins} geprüften Coins, prüft jede Woche und hält in schwachen Marktphasen eine Reserve – mit 0,25 % Gebühr je Handel.
               <strong>Wichtig:</strong> Das ist eine Rückrechnung an den Kursen, an denen die Regeln entwickelt wurden. Die Zukunft fällt meist schlechter aus; Coins, die es nicht mehr gibt, fehlen; Steuern sind nicht berücksichtigt.
               Größter Rückgang des Modell-Portfolios seit ${new Date(curve.t[0]).getUTCFullYear()}: ${num(-curve.stats.maxDrawdown, 0)} %.</p>
-            ${access().plan === 'full' ? '<p><a class="btn ghost" href="#/portfolio">Portfolio-Manager öffnen</a></p>' : ''}
+            <p><a class="btn ghost" href="#/modell">Modell-Portfolio ansehen</a>${access().plan === 'full' ? ' <a class="btn ghost" href="#/portfolio">Portfolio-Manager öffnen</a>' : ''}</p>
           </div>` : ''}
           <p class="share-row hint">${shareLinks(shareUrl(location.hash), msg, 'Ergebnis teilen')}</p>
           <p class="hint">Rückblick mit echten Tageskursen, ohne Gebühren und Steuern. Die Vergangenheit ist keine Prognose – Kryptowerte können stark fallen, bis zum Totalverlust.</p>
@@ -3035,12 +3115,12 @@ function route() {
   routedFor = !depot.ready && maybeSignedIn() ? 'wait' : (depot.user?.uid ?? 'guest');
   const [name, arg] = location.hash.replace(/^#\/?/, '').split('/');
   const pages = ['preise', ...site.LEGAL_KINDS];
-  const section = name === 'portfolio' ? 'portfolio' : name === 'konto' ? 'account' : name === 'daytrading' ? 'trading' : name === 'admin' ? 'admin' : name === 'rechner' ? 'tools' : name === 'indikatoren' ? 'compass'
+  const section = name === 'portfolio' ? 'portfolio' : name === 'konto' ? 'account' : name === 'daytrading' ? 'trading' : name === 'admin' ? 'admin' : name === 'rechner' ? 'tools' : name === 'indikatoren' ? 'compass' : name === 'modell' ? 'model'
     : pages.includes(name) ? null : 'market';
   for (const a of document.querySelectorAll('nav a')) a.classList.toggle('active', a.dataset.nav === section);
   let id = arg;
   try { id = decodeURIComponent(arg ?? ''); } catch { /* fehlerhafte Adresse – unverändert verwenden */ }
-  const open = name === 'konto' || name === 'rechner' || name === 'indikatoren' || pages.includes(name);
+  const open = ['konto', 'rechner', 'indikatoren', 'modell'].includes(name) || pages.includes(name);
   const sales = () => site.pricingView(view, { access, user: () => depot.user, record: () => state.record });
   // Mit Bezahlschranke erst abwarten, wer angemeldet ist und ob ein Abo läuft – sonst blitzt die Verkaufsseite kurz auf
   usagePage(name || 'markt', arg);
@@ -3058,6 +3138,7 @@ function route() {
   else if (name === 'preise') current = sales();
   else if (name === 'rechner') current = calculatorView(arg);
   else if (name === 'indikatoren') current = compassView();
+  else if (name === 'modell') current = modelView();
   else if (site.LEGAL_KINDS.includes(name)) current = site.legalView(view, name);
   else current = marketView();
   current.update();

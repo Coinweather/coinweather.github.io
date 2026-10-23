@@ -61,13 +61,14 @@ export async function buildCurve() {
   // Wie die Rückrechnung im README (sim2.mjs): Start mit 10 000 $ in bar, jede Woche nach dem Plan des Managers handeln
   const fee = 0.0025, step = 7;
   const startDay = btc.days[200];
-  let cash = 10000; const pos = {}; const days = [], values = []; let trades = 0;
+  let cash = 10000; const pos = {}; const days = [], values = [], cashShare = []; let trades = 0;
+  const log = [];   // Handel der letzten Zeit: Tag, Art, Coin, Anteil am Portfolio
   for (let j = 200; j < btc.n; j++) {
     const day = btc.days[j];
     const price = (s) => { const i = IDX[s].get(day); return i === undefined ? null : I[s].prices[i]; };
     for (const s in pos) { const p = price(s); if (p) { pos[s].last = p; pos[s].peak = Math.max(pos[s].peak ?? 0, p); } }
     let value = cash; for (const s in pos) value += pos[s].units * pos[s].last;
-    days.push(day); values.push(value);
+    days.push(day); values.push(value); cashShare.push(cash / value);
     if ((day - startDay) % step) continue;
     const R = regimeOf(j);
     const A = {};
@@ -84,20 +85,28 @@ export async function buildCurve() {
     const core = ['BTC', 'ETH'].filter((s) => A[s]).map((s) => ({ id: idOf(s), name: s, symbol: s, price: A[s].price, analysis: A[s].analysis }));
     const p = mg.plan({ holdings, cash, candidates, core, regime: R, options: {}, now: day * 86400000 });
     if (!p) continue;
-    const sell = (s, usd) => { const pr = A[s].price; const u = Math.min(pos[s].units, usd / pr); pos[s].units -= u; cash += u * pr * (1 - fee); trades++; if (pos[s].units * pr < 1) delete pos[s]; return u * pr * (1 - fee); };
-    const buy = (s, usd) => { usd = Math.min(usd, cash); if (usd < 1 || !A[s]) return; const pr = A[s].price; const u = usd * (1 - fee) / pr; const o = pos[s] ?? { units: 0, cost: 0 }; o.cost = (o.cost * o.units + usd) / (o.units + u); o.units += u; o.last = pr; o.peak = Math.max(o.peak ?? 0, pr); pos[s] = o; cash -= usd; trades++; };
-    for (const mv of p.moves.filter((x) => ['sell', 'reduce', 'profit'].includes(x.type))) { if (pos[sym(mv.id)]) { sell(sym(mv.id), mv.usd); if (mv.type === 'profit' && pos[sym(mv.id)]) pos[sym(mv.id)].trim = mv.price; } }
-    for (const mv of p.moves.filter((x) => x.type === 'swap')) { if (!pos[sym(mv.id)]) continue; const got = sell(sym(mv.id), mv.usd); if (mv.from === 'profit' && pos[sym(mv.id)]) pos[sym(mv.id)].trim = mv.price; buy(sym(mv.to), got); }
-    for (const mv of p.moves.filter((x) => ['buy', 'add'].includes(x.type))) buy(sym(mv.id), mv.usd);
+    const total = values[values.length - 1];
+    const sell = (s, usd, type) => { const pr = A[s].price; const u = Math.min(pos[s].units, usd / pr); pos[s].units -= u; cash += u * pr * (1 - fee); trades++; log.push([day, type, s, Math.round(u * pr / total * 1000) / 10]); if (pos[s].units * pr < 1) delete pos[s]; return u * pr * (1 - fee); };
+    const buy = (s, usd, type) => { usd = Math.min(usd, cash); if (usd < 1 || !A[s]) return; const pr = A[s].price; const u = usd * (1 - fee) / pr; const o = pos[s] ?? { units: 0, cost: 0 }; o.cost = (o.cost * o.units + usd) / (o.units + u); o.units += u; o.last = pr; o.peak = Math.max(o.peak ?? 0, pr); pos[s] = o; cash -= usd; trades++; log.push([day, type, s, Math.round(usd / total * 1000) / 10]); };
+    for (const mv of p.moves.filter((x) => ['sell', 'reduce', 'profit'].includes(x.type))) { if (pos[sym(mv.id)]) { sell(sym(mv.id), mv.usd, mv.type); if (mv.type === 'profit' && pos[sym(mv.id)]) pos[sym(mv.id)].trim = mv.price; } }
+    for (const mv of p.moves.filter((x) => x.type === 'swap')) { if (!pos[sym(mv.id)]) continue; const got = sell(sym(mv.id), mv.usd, 'swap-out'); if (mv.from === 'profit' && pos[sym(mv.id)]) pos[sym(mv.id)].trim = mv.price; buy(sym(mv.to), got, 'swap-in'); }
+    for (const mv of p.moves.filter((x) => ['buy', 'add'].includes(x.type))) buy(sym(mv.id), mv.usd, mv.type);
   }
   // Anteilswert, Start = 100; dazu Bitcoin über denselben Zeitraum zum Vergleich
   const nav = values.map((v) => Math.round(v / values[0] * 100 * 1000) / 1000);
   const years = (days[days.length - 1] - days[0]) / 365.25;
   let peak = 0, dd = 0; for (const v of nav) { peak = Math.max(peak, v); dd = Math.min(dd, v / peak - 1); }
   const btcStart = btc.prices[200], btcEnd = btc.prices[btc.n - 1];
+  // Bestand heute und Bitcoin zum Vergleich (ebenfalls Start = 100)
+  const lastDay = days[days.length - 1], total = values[values.length - 1];
+  const holdings = Object.entries(pos).map(([s, o]) => ({ symbol: s, share: Math.round(o.units * o.last / total * 1000) / 10 })).sort((a, b) => b.share - a.share);
+  const btcNav = days.map((d) => { const i = IDX.BTC.get(d); return i === undefined ? null : Math.round(btc.prices[i] / btc.prices[200] * 100 * 100) / 100; });
   return {
-    version: 1, built: Date.now(), coins: syms.length, fee, stepDays: step,
-    t: days.map((d) => d * 86_400_000), nav,
+    version: 2, built: Date.now(), coins: syms.length, fee, stepDays: step,
+    t: days.map((d) => d * 86_400_000), nav, btc: btcNav,
+    cash: Math.round(cash / total * 1000) / 10, holdings, asOf: lastDay * 86_400_000,
+    cashHistory: days.map((d, i) => [d, Math.round(cashShare[i] * 100)]).filter((_, i) => (days.length - 1 - i) % 7 === 0),
+    trades: log.slice(-40).reverse().map(([d, type, s, share]) => ({ t: d * 86_400_000, type, symbol: s, share })),
     stats: { years: Math.round(years * 10) / 10, cagr: Math.round((Math.pow(nav[nav.length - 1] / 100, 1 / years) - 1) * 1000) / 10, maxDrawdown: Math.round(dd * 1000) / 10,
       trades, btcCagr: Math.round((Math.pow(btcEnd / btcStart, 1 / years) - 1) * 1000) / 10 },
   };
