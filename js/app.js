@@ -645,9 +645,39 @@ const SORTS = {
   d30: (c) => c.price_change_percentage_30d_in_currency, mcap: (c) => c.market_cap, score: (c) => c.analysis.score,
 };
 
-function marketView() {
-  const th = (key, label, cls = '') => `<th class="${cls} sortable" data-sort="${key}">${label}</th>`;
+// Ohne Konto oder Abo: kostenlose Vorschau. Die Großwetterlage ist frei sichtbar, die Signale der einzelnen Coins
+// sind verdeckt – außer bei Bitcoin und Ethereum als Beispiel. So sieht jeder Besucher sofort, was die Seite kann.
+const SAMPLES = ['bitcoin', 'ethereum'];
+const previewCta = (title, text) => {
+  const guest = !depot.user;
+  return `<section class="panel preview-cta">
+    <div><div class="label">${guest ? 'Kostenlose Vorschau' : 'Vorschau'}</div><h2>${title}</h2>
+      <p class="muted">${guest ? text : 'Deine Testphase ist vorbei. Mit einem Paket siehst du wieder alle Signale.'}</p></div>
+    <div class="btn-row">${guest ? '<a class="btn" href="#/konto">Kostenlos starten</a> <a class="btn ghost" href="#/preise">Mehr erfahren</a>'
+      : '<a class="btn" href="#/preise">Pakete ansehen</a>'}</div>
+  </section>`;
+};
+
+// Detailansicht eines Coins ohne Konto: Hinweis auf das kostenlose Konto, darunter das Angebot
+function lockedCoinView(id) {
+  view.innerHTML = '<div id="locked-head"></div><div id="locked-sales"></div>';
+  const sales = site.pricingView($('#locked-sales'), { access, user: () => depot.user, record: () => state.record });
+  const head = () => {
+    const c = state.coins.find((x) => x.id === id);
+    const name = c ? `<span translate="no">${esc(c.name)}</span>` : 'diesen Coin';
+    $('#locked-head').innerHTML = previewCta(`Signal und Aussicht für ${name}`,
+      'Mit einem kostenlosen Konto siehst du für jeden der 1000 Coins das Signal, die Aussicht für 7 und 30 Tage und den Rückblick. 30 Tage alle Funktionen, ohne Zahlungsdaten.');
+  };
+  return { update() { head(); sales.update(); } };
+}
+
+function marketView(preview = false) {
+  const th = (key, label, cls = '') => (preview && key === 'score' ? `<th class="${cls}">${label}</th>` : `<th class="${cls} sortable" data-sort="${key}">${label}</th>`);
+  if (preview && state.sort.key === 'score') state.sort = { key: 'rank', dir: 1 };
+  if (preview) state.filter = 'all';
   view.innerHTML = `
+    ${preview ? previewCta('Die Großwetterlage siehst du hier frei. Welche Coins gerade ein Kaufsignal haben, zeigt dein kostenloses Konto.',
+      '30 Tage alle Funktionen, ohne Zahlungsdaten. Anmelden mit Google dauert 10 Sekunden.') : ''}
     <section class="hero">
       <div class="panel gauge-panel" id="g-market"></div>
       <div class="panel gauge-panel" id="g-fng"></div>
@@ -661,9 +691,10 @@ function marketView() {
       <div id="picks" class="picks"></div>
     </section>
     <section class="panel" id="record" hidden></section>
+    ${preview ? '<p class="hint">Bitcoin und Ethereum zeigen das Signal als Beispiel. Die Signale aller 1000 Coins siehst du mit einem kostenlosen Konto.</p>' : ''}
     <section class="controls">
       <input id="search" type="search" placeholder="Coin suchen (z. B. Bitcoin, ETH) …" aria-label="Coin suchen" value="${esc(state.query)}">
-      <div class="chips" id="filters" role="group" aria-label="Nach Signal filtern">
+      <div class="chips" id="filters" role="group" aria-label="Nach Signal filtern"${preview ? ' hidden' : ''}>
         ${[['all', 'Alle'], ['buy', 'Kaufen'], ['hold', 'Halten'], ['sell', 'Verkaufen']].map(([k, l]) =>
           `<button data-filter="${k}" class="chip ${state.filter === k ? 'active' : ''}">${l}</button>`).join('')}
       </div>
@@ -770,6 +801,19 @@ function marketView() {
     const list = state.coins.filter((c) => c.analysis.signal === 'buy' && (c.market_cap_rank ?? 9999) <= 500 &&
       c.total_volume >= 1e6 && !DERIVATIVE.test(c.name))
       .sort((a, b) => adjusted(b.analysis) - adjusted(a.analysis)).slice(0, 8);
+    // Vorschau: Plätze, Signal, Haltedauer und Risiko sind sichtbar, welcher Coin es ist, nicht
+    if (preview) {
+      $('#picks').innerHTML = list.length ? list.map((c, i) => `<a class="pick panel locked" href="${depot.user ? '#/preise' : '#/konto'}">
+          <div class="coin-cell"><span class="lock-icon" aria-hidden="true">🔒</span>
+            <div><div class="label">Platz ${i + 1}</div><div class="coin-name blur" aria-hidden="true">Coinname</div></div></div>
+          <div class="pick-score blur" aria-hidden="true">+00</div>
+          <div class="pick-meta">${badge(c.analysis)}<span>Haltedauer: <strong>${c.analysis.horizon}</strong></span><span>Risiko: ${riskTag(c.analysis.risk)}</span></div>
+        </a>`).join('') + `<section class="panel upsell"><div><h3>Welche Coins sind das?</h3>
+          <p class="muted">Mit einem kostenlosen Konto siehst du die stärksten Kaufsignale, das Signal jedes Coins und die Detailansicht mit Rückblick.</p></div>
+          <div class="btn-row"><a class="btn" href="${depot.user ? '#/preise' : '#/konto'}">${depot.user ? 'Pakete ansehen' : 'Kostenlos starten'}</a></div></section>`
+        : `<p class="muted">${state.coins.length ? 'Aktuell erfüllt kein Coin die Kriterien für ein Kaufsignal.' : 'Lade Kurse …'}</p>`;
+      return;
+    }
     $('#picks').innerHTML = list.length ? list.map((c) => `<a class="pick panel" href="#/coin/${encodeURIComponent(c.id)}">
         <div class="coin-cell"><img src="${esc(c.image)}" alt="" loading="lazy">
           <div><div class="coin-name">${esc(c.name)}</div><div class="coin-sym">${esc(c.symbol)} · #${c.market_cap_rank}</div></div></div>
@@ -802,6 +846,8 @@ function marketView() {
 
     $('#rows').innerHTML = rows.length ? rows.map((c) => {
       const a = c.analysis, d7 = c.price_change_percentage_7d_in_currency;
+      const hidden = preview && !SAMPLES.includes(c.id);
+      const lock = '<span class="lock-cell" title="Mit kostenlosem Konto sichtbar">🔒</span>';
       return `<tr class="coin" data-id="${esc(c.id)}">
         <td class="num muted col-rank">${c.market_cap_rank ?? ''}</td>
         <td class="col-coin"><a class="coin-cell" href="#/coin/${encodeURIComponent(c.id)}"><img src="${esc(c.image)}" alt="" loading="lazy">
@@ -812,10 +858,10 @@ function marketView() {
         <td class="num col-30d">${pct(c.price_change_percentage_30d_in_currency)}</td>
         <td class="num col-cap">${compact(c.market_cap)}</td>
         <td class="col-chart">${sparkline(c.sparkline_in_7d?.price, !isNum(d7) || d7 >= 0)}</td>
-        <td class="col-score">${scoreCell(a.score)}</td>
-        <td class="col-hold">${a.horizon}</td>
-        <td class="col-risk">${riskTag(a.risk)}</td>
-        <td>${badge(a)}</td>
+        <td class="col-score">${hidden ? lock : scoreCell(a.score)}</td>
+        <td class="col-hold">${hidden ? lock : a.horizon}</td>
+        <td class="col-risk">${hidden ? lock : riskTag(a.risk)}</td>
+        <td>${hidden ? lock : badge(a)}</td>
       </tr>`;
     }).join('') : `<tr><td colspan="12" class="empty">${state.coins.length ? 'Keine Coins gefunden.' : 'Lade Kurse …'}</td></tr>`;
 
@@ -2524,7 +2570,11 @@ function route() {
   usagePage(name || 'markt', arg);
   if (name === 'admin') current = !depot.ready ? waitView() : depot.owner ? adminView() : accountView();
   else if (SITE.paywall && !open && (!depot.ready || (depot.user && !depot.owner && !abo.loaded))) current = waitView();
-  else if (!open && !access().plan) current = sales();   // ohne Abo gibt es keine Inhalte
+  // Ohne Abo: Markt als kostenlose Vorschau, Bitcoin und Ethereum als Beispiel, sonst das Angebot
+  else if (!open && !access().plan) {
+    current = name === 'coin' && id ? (SAMPLES.includes(id) ? detailView(id) : lockedCoinView(id))
+      : section === 'market' ? marketView(true) : sales();
+  }
   else if (name === 'coin' && id) current = detailView(id);
   else if (name === 'portfolio') current = !depot.user ? accountView(true) : fullAccess() ? portfolioView() : lockedView('portfolio');
   else if (name === 'konto') current = accountView();
