@@ -411,6 +411,97 @@ async function images() {
     .map((svg) => sharp(Buffer.from(svg)).jpeg({ quality: 88 }).toBuffer()));
 }
 
+// ---------- Reel: 15 Sekunden im Hochformat 9:16 aus den 4 Bildern ----------
+// Reels zeigen Instagram und Facebook auch Leuten, die dem Konto (noch) nicht folgen – normale Beiträge kaum.
+// Oben steht die Frage, die neugierig macht, unten der Aufruf zum Folgen. Gebaut mit ffmpeg (auf GitHub vorhanden).
+const RW = 1080, RH = 1920, TOP = 285;
+const RT = {
+  en: { ask: ['Is now a good time', 'to buy crypto?'], follow: 'Follow for your daily crypto weather' },
+  de: { ask: ['Ist jetzt ein guter Zeitpunkt', 'für Krypto?'], follow: 'Folge für dein tägliches Krypto-Wetter' },
+}[lang];
+async function reelFrames(jpgs) {
+  const back = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${RW}" height="${RH}" font-family="DejaVu Sans, Arial, sans-serif">
+    <defs><radialGradient id="g" cx="0.2" cy="0.05" r="1.2"><stop offset="0" stop-color="#1b2433"/><stop offset="1" stop-color="${C.bg}"/></radialGradient></defs>
+    <rect width="${RW}" height="${RH}" fill="url(#g)"/>
+    <text x="540" y="140" font-size="64" fill="${C.text}" font-weight="700" text-anchor="middle">${esc(RT.ask[0])}</text>
+    <text x="540" y="225" font-size="64" fill="${C.sun}" font-weight="700" text-anchor="middle">${esc(RT.ask[1])}</text>
+    <text x="540" y="${TOP + HGT + 95}" font-size="40" fill="${C.text}" font-weight="700" text-anchor="middle">${esc(RT.follow)}</text>
+  </svg>`);
+  return Promise.all(jpgs.map((jpg) => sharp(back).composite([{ input: jpg, top: TOP, left: 0 }]).jpeg({ quality: 92 }).toBuffer()));
+}
+// Je Bild 4 Sekunden (das letzte 3), mit halbsekündiger Überblendung, dazu eine stille Tonspur (manche Prüfungen verlangen Ton)
+async function makeReel(jpgs, file) {
+  const { execFile } = await import('node:child_process');
+  const { tmpdir } = await import('node:os');
+  const dir = `${tmpdir()}/coinweather-reel`;
+  await mkdir(dir, { recursive: true });
+  const frames = await reelFrames(jpgs);
+  await Promise.all(frames.map((f, i) => writeFile(`${dir}/f${i}.jpg`, f)));
+  const show = [4.5, 4.5, 4.5, 3.5], fade = 0.5;
+  const inputs = frames.flatMap((_, i) => ['-loop', '1', '-t', String(show[i]), '-i', `${dir}/f${i}.jpg`]);
+  let chain = '', last = '[0:v]', at = 0;
+  for (let i = 1; i < frames.length; i++) {
+    at += show[i - 1] - fade;
+    chain += `${last}[${i}:v]xfade=transition=fade:duration=${fade}:offset=${at.toFixed(2)}[v${i}];`;
+    last = `[v${i}]`;
+  }
+  const total = show.reduce((a, b) => a + b, 0) - fade * (frames.length - 1);
+  const argv = ['-y', ...inputs, '-f', 'lavfi', '-t', String(total), '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000',
+    '-filter_complex', `${chain}${last}format=yuv420p,fps=30[out]`, '-map', '[out]', '-map', `${frames.length}:a`,
+    '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-profile:v', 'high', '-c:a', 'aac', '-b:a', '128k',
+    '-shortest', '-movflags', '+faststart', file];
+  await new Promise((ok, fail) => execFile(env.FFMPEG ?? 'ffmpeg', argv, { maxBuffer: 1 << 24 }, (err, _o, e) => (err ? fail(new Error(`ffmpeg: ${String(e).slice(-300)}`)) : ok())));
+  return readFile(file);
+}
+let reelReady;
+// Der Ablauf baut das Reel schon im Bild-Schritt (REEL_FILE) – dann wird es nur noch gelesen
+const reel = (jpgs) => (reelReady ??= readFile(env.REEL_FILE ?? 'reel.mp4').catch(() => makeReel(jpgs, env.REEL_FILE ?? 'reel.mp4')));
+
+// Hochladen direkt zu Meta (rupload): Instagram und Facebook brauchen dafür keine öffentliche Adresse
+async function rupload(url, token, data) {
+  const r = await fetch(url, { method: 'POST', headers: { authorization: `OAuth ${token}`, offset: '0', file_size: String(data.length) }, body: data });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok || body.success === false || body.error || body.debug_info) throw new Error(`Hochladen: ${body.error?.message ?? body.debug_info?.message ?? r.status}`);
+}
+
+async function instagramReel(jpgs) {
+  const video = await reel(jpgs);
+  const { token } = await metaToken();
+  const ig = env.INSTAGRAM_USER_ID;
+  const call = async (step, path, params, method = 'GET') => {
+    const r = await (await fetch(`${GRAPH}/${path}?${new URLSearchParams({ ...params, access_token: token })}`, { method })).json();
+    if (r.error) throw new Error(`${step}: ${r.error.error_user_msg ?? r.error.message} (Code ${r.error.code}${r.error.error_subcode ? `/${r.error.error_subcode}` : ''})`);
+    return r;
+  };
+  const made = await call('Anlegen', `${ig}/media`, { media_type: 'REELS', upload_type: 'resumable', caption: text.instagram, share_to_feed: 'true' }, 'POST');
+  await rupload(made.uri ?? `https://rupload.facebook.com/ig-api-upload/v21.0/${made.id}`, token, video);
+  // Videos verarbeitet Instagram länger als Bilder – bis zu 5 Minuten warten
+  for (let i = 0; ; i++) {
+    const s = await call('Verarbeiten', made.id, { fields: 'status_code,status' });
+    if (s.status_code === 'FINISHED') break;
+    if (s.status_code === 'ERROR' || s.status_code === 'EXPIRED') throw new Error(`Verarbeiten: ${s.status ?? s.status_code}`);
+    if (i >= 60) throw new Error('Verarbeiten: nach 5 Minuten nicht fertig');
+    await sleep(5000);
+  }
+  await call('Veröffentlichen', `${ig}/media_publish`, { creation_id: made.id }, 'POST');
+  return 'gepostet (Reel)';
+}
+
+async function facebookReel(jpgs) {
+  const video = await reel(jpgs);
+  const { token } = await metaToken();
+  const page = env.FACEBOOK_PAGE_ID;
+  const call = async (step, params) => {
+    const r = await (await fetch(`${GRAPH}/${page}/video_reels?${new URLSearchParams({ ...params, access_token: token })}`, { method: 'POST' })).json();
+    if (r.error) throw new Error(`${step}: ${r.error.error_user_msg ?? r.error.message} (Code ${r.error.code})`);
+    return r;
+  };
+  const start = await call('Anlegen', { upload_phase: 'start' });
+  await rupload(start.upload_url ?? `https://rupload.facebook.com/video-upload/v21.0/${start.video_id}`, token, video);
+  await call('Veröffentlichen', { upload_phase: 'finish', video_id: start.video_id, video_state: 'PUBLISHED', description: text.facebook });
+  return 'gepostet (Reel)';
+}
+
 // ---------- Kanäle ----------
 async function telegram(jpgs) {
   const form = new FormData();
@@ -571,13 +662,18 @@ const CHANNELS = [
   ['Bluesky', ['BLUESKY_HANDLE', 'BLUESKY_APP_PASSWORD'], bluesky],
   ['Facebook', ['FACEBOOK_PAGE_ID', 'FACEBOOK_PAGE_TOKEN'], facebook],
   ['Instagram', ['INSTAGRAM_USER_ID', 'FACEBOOK_PAGE_TOKEN'], instagram],
+  ['Instagram-Reel', ['INSTAGRAM_USER_ID', 'FACEBOOK_PAGE_TOKEN'], instagramReel],
+  ['Facebook-Reel', ['FACEBOOK_PAGE_ID', 'FACEBOOK_PAGE_TOKEN'], facebookReel],
 ];
 
 const jpgs = await images();
 if (arg('--images')) {
   await mkdir(arg('--images'), { recursive: true });
   await Promise.all(jpgs.map((jpg, i) => writeFile(`${arg('--images')}/slide-${i + 1}.jpg`, jpg)));
+  if (args.includes('--frames')) await Promise.all((await reelFrames(jpgs)).map((f, i) => writeFile(`${arg('--images')}/reel-${i + 1}.jpg`, f)));
 }
+// --video <datei>: nur das Reel bauen (zum Prüfen)
+if (arg('--video')) { await makeReel(jpgs, arg('--video')); console.log(`Reel: ${arg('--video')}`); }
 if (args.includes('--show')) for (const [k, t] of Object.entries(text)) console.log(`--- ${k} (${[...t].length} Zeichen)\n${t}\n`);
 
 // --dry: nur die Bilder erzeugen (der Ablauf stellt sie danach öffentlich bereit, bevor gepostet wird)
