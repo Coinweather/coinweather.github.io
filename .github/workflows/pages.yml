@@ -1,0 +1,49 @@
+# Veröffentlicht die Seite: App-Dateien plus täglich neue Seiten für Suchmaschinen (scripts/seo-pages.mjs).
+# Läuft bei jeder Änderung an main und jeden Morgen nach dem Kurs-Stand; meldet die Seiten danach an Bing & Co. (IndexNow).
+name: Seite veröffentlichen
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '20 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Seite bauen
+        run: node scripts/seo-pages.mjs _site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+      - uses: actions/checkout@v4
+      - name: Seiten an Suchmaschinen melden
+        continue-on-error: true
+        run: |
+          mkdir -p _site && curl -sf https://coinweather.github.io/sitemap.xml -o _site/sitemap.xml
+          node scripts/seo-pages.mjs --indexnow _site
