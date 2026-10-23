@@ -5,6 +5,7 @@
 //   /fear-and-greed-index/   der Fear & Greed Index heute mit dem, was die Rückrechnung über Angst und Gier zeigt
 //   /coin/<id>/              je eine Seite für die 500 größten Coins: Kurs, Entwicklung, Großwetterlage, Signal (verdeckt)
 //   /coins/                  Übersicht mit Links auf alle Coin-Seiten
+//   /savings-plan/<id>/      Sparplan-Rückblick für die 40 größten Coins (100 $ pro Monat, 1000 $ einmalig) und eine Übersicht
 //   sitemap.xml, robots.txt, feed.xml (RSS, englisch)
 // Jede Seite verweist auf ihre Fassungen in den anderen Sprachen (hreflang), damit Google jedem Land die passende zeigt.
 // Die Seiten sagen klar: keine Anlageberatung. Die Signale einzelner Coins bleiben wie in der App dem kostenlosen Konto
@@ -40,7 +41,8 @@ if (!out) throw new Error('Zielordner fehlt');
 
 // ---------- App-Dateien übernehmen ----------
 await mkdir(out, { recursive: true });
-for (const f of ['index.html', 'style.css', 'og-image.jpg', '.nojekyll']) await cp(new URL(f, root), `${out}/${f}`);
+for (const f of ['index.html', 'style.css', 'og-image.jpg', '.nojekyll', 'manifest.webmanifest', 'sw.js']) await cp(new URL(f, root), `${out}/${f}`);
+await cp(new URL('icons', root), `${out}/icons`, { recursive: true });
 // Bestätigungsdatei der Google Search Console – muss dauerhaft erreichbar bleiben
 for (const f of await readdir(root)) if (/^google[0-9a-f]+\.html$/.test(f)) await cp(new URL(f, root), `${out}/${f}`);
 await cp(new URL('js', root), `${out}/js`, { recursive: true });
@@ -66,6 +68,96 @@ const movers = coins.filter((c) => c.market_cap_rank <= 100 && c.analysis?.signa
   .sort((a, b) => b.price_change_percentage_24h_in_currency - a.price_change_percentage_24h_in_currency);
 const top = coins.filter((c) => isNum(c.market_cap_rank) && c.market_cap_rank <= 500).sort((a, b) => a.market_cap_rank - b.market_cap_rank);
 const ch = (c, k) => c?.[`price_change_percentage_${k}_in_currency`];
+
+// ---------- Sparplan-Seiten: Rückblick für die größten Coins (gleiche Rechnung wie der Rechner in der App) ----------
+const { history } = await import('../js/api.js');
+const SP_COINS = top.filter((c) => !c.analysis?.stable && c.analysis?.signal !== 'none' && ['Binance', 'Gate.io'].includes(c.hist)).slice(0, 40);
+const spData = new Map();
+for (let i = 0; i < SP_COINS.length; i += 4) {
+  await Promise.all(SP_COINS.slice(i, i + 4).map(async (c) => {
+    try { const d = await history(c.symbol, c.hist); if (d) spData.set(c.id, d); } catch { /* ohne Kursgeschichte keine Seite */ }
+  }));
+}
+function simulate(data, price, mode, amount, startMs) {
+  const t = data.t, p = [...data.p.slice(0, -1), price];
+  const i0 = t.findIndex((x) => x >= startMs);
+  if (i0 < 0 || i0 >= t.length - 1 || t[i0] - startMs > 20 * 86_400_000) return null;
+  let units = 0, invested = 0, month = null, worst = 0;
+  for (let i = i0; i < t.length; i++) {
+    const d = new Date(t[i]), key = d.getUTCFullYear() * 12 + d.getUTCMonth();
+    if (mode === 'once' ? i === i0 : key !== month) { units += amount / p[i]; invested += amount; month = key; }
+    worst = Math.min(worst, units * p[i] / invested - 1);
+  }
+  const last = units * p[p.length - 1];
+  return { invested, last, ret: last / invested - 1, worst, from: t[i0] };
+}
+const nowY = new Date(snap.time).getUTCFullYear();
+const SP_STARTS = [3, 2, 1].map((y) => Date.UTC(nowY - y, 0, 1));
+const spResults = new Map(SP_COINS.filter((c) => spData.has(c.id)).map((c) => [c.id, {
+  plan: SP_STARTS.map((s) => simulate(spData.get(c.id), c.current_price, 'plan', 100, s)),
+  once: SP_STARTS.map((s) => simulate(spData.get(c.id), c.current_price, 'once', 1000, s)),
+}]));
+console.log(`Sparplan-Seiten: ${spResults.size} Coins mit Kursgeschichte`);
+
+const SP = {
+  en: { nav: 'Savings plan calculator', title: (n, y) => `${n} savings plan calculator: $100 a month since ${y} – result today`,
+    desc: (n, y, inv, val, r) => `If you had invested $100 a month in ${n} since January ${y}, you would have paid in ${inv} – worth ${val} today (${r}). Past results with real daily prices, no forecast.`,
+    h1: (n) => `${n} savings plan: what would it be worth today?`, sub: (d) => `Calculated with real daily prices, updated ${d}. Without fees and taxes.`,
+    lead: (n, y, inv, val, r, w) => `If you had put <strong>$100 into ${n} every month since January ${y}</strong>, you would have paid in <strong>${inv}</strong> – today that would be worth <strong>${val}</strong> (${r}).${w ? ` Along the way the value was at times ${w} below the amount paid in.` : ''}`,
+    planH: '$100 every month', onceH: '$1,000 one-time investment', start: 'Start', inv: 'Paid in', val: 'Value today', ret: 'Return', worst: 'Lowest point', never: 'never in the red',
+    jan: (y) => `Jan ${y}`, try: 'Try your own amount and start date', tryBtn: 'Open the calculator', note: 'The past is no forecast. Crypto assets can fall sharply – up to a total loss. Not financial advice.',
+    others: 'Savings plans for other coins', hubTitle: (y) => `Crypto savings plan comparison: $100 a month since ${y} in 40 coins`, hubDesc: (y) => `Which crypto savings plan did best since ${y}? $100 a month in the 40 largest coins, calculated with real daily prices. Past results, not a forecast.`,
+    hubH1: 'Crypto savings plans compared', hubSub: (y, d) => `$100 every month since January ${y}, calculated with real daily prices – updated ${d}. Past results, not a forecast.`, coin: 'Coin' },
+  de: { nav: 'Sparplan-Rechner', title: (n, y) => `${n} Sparplan-Rechner: 100 $ pro Monat seit ${y} – das Ergebnis heute`,
+    desc: (n, y, inv, val, r) => `Wer seit Januar ${y} jeden Monat 100 $ in ${n} gesteckt hätte, hätte ${inv} eingezahlt – heute wären es ${val} (${r}). Rückblick mit echten Tageskursen, keine Prognose.`,
+    h1: (n) => `${n}-Sparplan: Was wäre er heute wert?`, sub: (d) => `Gerechnet mit echten Tageskursen, Stand ${d}. Ohne Gebühren und Steuern.`,
+    lead: (n, y, inv, val, r, w) => `Wer <strong>seit Januar ${y} jeden Monat 100 $ in ${n}</strong> gesteckt hätte, hätte <strong>${inv}</strong> eingezahlt – heute wären es <strong>${val}</strong> (${r}).${w ? ` Unterwegs lag der Wert zeitweise ${w} unter dem eingezahlten Betrag.` : ''}`,
+    planH: '100 $ jeden Monat', onceH: '1000 $ einmalig', start: 'Start', inv: 'Eingezahlt', val: 'Wert heute', ret: 'Rendite', worst: 'Tiefster Stand', never: 'nie im Minus',
+    jan: (y) => `Jan. ${y}`, try: 'Rechne mit deinem eigenen Betrag und Startmonat', tryBtn: 'Zum Rechner', note: 'Die Vergangenheit ist keine Prognose. Kryptowerte können stark fallen – bis zum Totalverlust. Keine Anlageberatung.',
+    others: 'Sparpläne für andere Coins', hubTitle: (y) => `Krypto-Sparpläne im Vergleich: 100 $ pro Monat seit ${y} in 40 Coins`, hubDesc: (y) => `Welcher Krypto-Sparplan lief seit ${y} am besten? 100 $ pro Monat in die 40 größten Coins, gerechnet mit echten Tageskursen. Rückblick, keine Prognose.`,
+    hubH1: 'Krypto-Sparpläne im Vergleich', hubSub: (y, d) => `100 $ jeden Monat seit Januar ${y}, gerechnet mit echten Tageskursen – Stand ${d}. Rückblick, keine Prognose.`, coin: 'Coin' },
+  es: { nav: 'Calculadora de plan de ahorro', title: (n, y) => `Calculadora de plan de ahorro en ${n}: 100 $ al mes desde ${y} – resultado hoy`,
+    desc: (n, y, inv, val, r) => `Si hubieras invertido 100 $ al mes en ${n} desde enero de ${y}, habrías aportado ${inv} – hoy valdría ${val} (${r}). Retrospectiva con precios diarios reales, no es una previsión.`,
+    h1: (n) => `Plan de ahorro en ${n}: ¿cuánto valdría hoy?`, sub: (d) => `Calculado con precios diarios reales, actualizado el ${d}. Sin comisiones ni impuestos.`,
+    lead: (n, y, inv, val, r, w) => `Si hubieras puesto <strong>100 $ en ${n} cada mes desde enero de ${y}</strong>, habrías aportado <strong>${inv}</strong> – hoy valdría <strong>${val}</strong> (${r}).${w ? ` Por el camino el valor estuvo a ratos un ${w} por debajo de lo aportado.` : ''}`,
+    planH: '100 $ cada mes', onceH: '1000 $ de una vez', start: 'Inicio', inv: 'Aportado', val: 'Valor hoy', ret: 'Rentabilidad', worst: 'Punto más bajo', never: 'nunca en negativo',
+    jan: (y) => `ene. ${y}`, try: 'Calcula con tu propio importe y fecha de inicio', tryBtn: 'Abrir la calculadora', note: 'El pasado no es una previsión. Las criptomonedas pueden caer con fuerza, hasta la pérdida total. No es asesoramiento financiero.',
+    others: 'Planes de ahorro en otras monedas', hubTitle: (y) => `Planes de ahorro cripto comparados: 100 $ al mes desde ${y} en 40 monedas`, hubDesc: (y) => `¿Qué plan de ahorro cripto fue mejor desde ${y}? 100 $ al mes en las 40 monedas más grandes, con precios diarios reales. Retrospectiva, no previsión.`,
+    hubH1: 'Planes de ahorro cripto comparados', hubSub: (y, d) => `100 $ cada mes desde enero de ${y}, con precios diarios reales – actualizado el ${d}. Retrospectiva, no previsión.`, coin: 'Moneda' },
+  fr: { nav: 'Calculateur de plan d’épargne', title: (n, y) => `Calculateur de plan d’épargne ${n} : 100 $ par mois depuis ${y} – résultat aujourd’hui`,
+    desc: (n, y, inv, val, r) => `En investissant 100 $ par mois en ${n} depuis janvier ${y}, tu aurais versé ${inv} – cela vaudrait ${val} aujourd’hui (${r}). Rétrospective avec de vrais cours quotidiens, pas une prévision.`,
+    h1: (n) => `Plan d’épargne ${n} : combien vaudrait-il aujourd’hui ?`, sub: (d) => `Calculé avec de vrais cours quotidiens, mis à jour le ${d}. Sans frais ni impôts.`,
+    lead: (n, y, inv, val, r, w) => `En plaçant <strong>100 $ en ${n} chaque mois depuis janvier ${y}</strong>, tu aurais versé <strong>${inv}</strong> – cela vaudrait aujourd’hui <strong>${val}</strong> (${r}).${w ? ` En chemin, la valeur a été par moments ${w} sous le montant versé.` : ''}`,
+    planH: '100 $ chaque mois', onceH: '1000 $ en une fois', start: 'Début', inv: 'Versé', val: 'Valeur aujourd’hui', ret: 'Rendement', worst: 'Point le plus bas', never: 'jamais dans le rouge',
+    jan: (y) => `janv. ${y}`, try: 'Calcule avec ton propre montant et ta date de début', tryBtn: 'Ouvrir le calculateur', note: 'Le passé n’est pas une prévision. Les cryptos peuvent chuter fortement, jusqu’à la perte totale. Pas un conseil en investissement.',
+    others: 'Plans d’épargne pour d’autres cryptos', hubTitle: (y) => `Plans d’épargne crypto comparés : 100 $ par mois depuis ${y} dans 40 cryptos`, hubDesc: (y) => `Quel plan d’épargne crypto a le mieux marché depuis ${y} ? 100 $ par mois dans les 40 plus grandes cryptos, avec de vrais cours quotidiens. Rétrospective, pas une prévision.`,
+    hubH1: 'Plans d’épargne crypto comparés', hubSub: (y, d) => `100 $ chaque mois depuis janvier ${y}, avec de vrais cours quotidiens – mis à jour le ${d}. Rétrospective, pas une prévision.`, coin: 'Crypto' },
+  it: { nav: 'Calcolatore di piano di accumulo', title: (n, y) => `Calcolatore PAC ${n}: 100 $ al mese dal ${y} – il risultato oggi`,
+    desc: (n, y, inv, val, r) => `Investendo 100 $ al mese in ${n} da gennaio ${y} avresti versato ${inv} – oggi varrebbero ${val} (${r}). Retrospettiva con prezzi giornalieri reali, non una previsione.`,
+    h1: (n) => `Piano di accumulo in ${n}: quanto varrebbe oggi?`, sub: (d) => `Calcolato con prezzi giornalieri reali, aggiornato il ${d}. Senza commissioni e tasse.`,
+    lead: (n, y, inv, val, r, w) => `Mettendo <strong>100 $ in ${n} ogni mese da gennaio ${y}</strong> avresti versato <strong>${inv}</strong> – oggi varrebbero <strong>${val}</strong> (${r}).${w ? ` Lungo il percorso il valore è stato a tratti ${w} sotto l’importo versato.` : ''}`,
+    planH: '100 $ ogni mese', onceH: '1000 $ in un’unica soluzione', start: 'Inizio', inv: 'Versato', val: 'Valore oggi', ret: 'Rendimento', worst: 'Punto più basso', never: 'mai in perdita',
+    jan: (y) => `gen. ${y}`, try: 'Calcola con il tuo importo e la tua data di inizio', tryBtn: 'Apri il calcolatore', note: 'Il passato non è una previsione. Le crypto possono crollare, fino alla perdita totale. Non è una consulenza finanziaria.',
+    others: 'Piani di accumulo per altri coin', hubTitle: (y) => `Piani di accumulo crypto a confronto: 100 $ al mese dal ${y} in 40 coin`, hubDesc: (y) => `Quale piano di accumulo crypto è andato meglio dal ${y}? 100 $ al mese nei 40 coin più grandi, con prezzi giornalieri reali. Retrospettiva, non una previsione.`,
+    hubH1: 'Piani di accumulo crypto a confronto', hubSub: (y, d) => `100 $ ogni mese da gennaio ${y}, con prezzi giornalieri reali – aggiornato il ${d}. Retrospettiva, non una previsione.`, coin: 'Coin' },
+  pt: { nav: 'Calculadora de aporte mensal', title: (n, y) => `Calculadora de aporte mensal em ${n}: 100 $ por mês desde ${y} – resultado hoje`,
+    desc: (n, y, inv, val, r) => `Se você tivesse investido 100 $ por mês em ${n} desde janeiro de ${y}, teria aportado ${inv} – hoje valeria ${val} (${r}). Retrospectiva com preços diários reais, não é previsão.`,
+    h1: (n) => `Aporte mensal em ${n}: quanto valeria hoje?`, sub: (d) => `Calculado com preços diários reais, atualizado em ${d}. Sem taxas e impostos.`,
+    lead: (n, y, inv, val, r, w) => `Se você tivesse colocado <strong>100 $ em ${n} todo mês desde janeiro de ${y}</strong>, teria aportado <strong>${inv}</strong> – hoje valeria <strong>${val}</strong> (${r}).${w ? ` No caminho o valor ficou às vezes ${w} abaixo do aportado.` : ''}`,
+    planH: '100 $ todo mês', onceH: '1000 $ de uma vez', start: 'Início', inv: 'Aportado', val: 'Valor hoje', ret: 'Retorno', worst: 'Ponto mais baixo', never: 'nunca no negativo',
+    jan: (y) => `jan. ${y}`, try: 'Calcule com seu próprio valor e data de início', tryBtn: 'Abrir a calculadora', note: 'O passado não é uma previsão. Criptoativos podem cair muito, até a perda total. Não é recomendação de investimento.',
+    others: 'Aportes mensais em outras moedas', hubTitle: (y) => `Aportes mensais em cripto comparados: 100 $ por mês desde ${y} em 40 moedas`, hubDesc: (y) => `Qual aporte mensal em cripto foi melhor desde ${y}? 100 $ por mês nas 40 maiores moedas, com preços diários reais. Retrospectiva, não previsão.`,
+    hubH1: 'Aportes mensais em cripto comparados', hubSub: (y, d) => `100 $ todo mês desde janeiro de ${y}, com preços diários reais – atualizado em ${d}. Retrospectiva, não previsão.`, coin: 'Moeda' },
+  tr: { nav: 'Birikim planı hesaplayıcı', title: (n, y) => `${n} birikim planı hesaplayıcı: ${y}’ten beri ayda 100 $ – bugünkü sonuç`,
+    desc: (n, y, inv, val, r) => `Ocak ${y}’ten beri her ay ${n} coinine 100 $ yatırsaydın ${inv} yatırmış olurdun – bugün değeri ${val} olurdu (${r}). Gerçek günlük fiyatlarla geriye dönük bakış, tahmin değildir.`,
+    h1: (n) => `${n} birikim planı: bugün ne kadar ederdi?`, sub: (d) => `Gerçek günlük fiyatlarla hesaplandı, güncelleme: ${d}. Ücretler ve vergiler hariç.`,
+    lead: (n, y, inv, val, r, w) => `<strong>Ocak ${y}’ten beri her ay ${n} coinine 100 $</strong> yatırsaydın <strong>${inv}</strong> yatırmış olurdun – bugün değeri <strong>${val}</strong> olurdu (${r}).${w ? ` Yol boyunca değer zaman zaman yatırılan tutarın ${w} altındaydı.` : ''}`,
+    planH: 'Her ay 100 $', onceH: 'Tek seferde 1000 $', start: 'Başlangıç', inv: 'Yatırılan', val: 'Bugünkü değer', ret: 'Getiri', worst: 'En düşük nokta', never: 'hiç ekside değil',
+    jan: (y) => `Oca ${y}`, try: 'Kendi tutarın ve başlangıç tarihinle hesapla', tryBtn: 'Hesaplayıcıyı aç', note: 'Geçmiş bir tahmin değildir. Kripto varlıklar sert düşebilir – tamamen değer kaybına kadar. Yatırım tavsiyesi değildir.',
+    others: 'Diğer coinler için birikim planları', hubTitle: (y) => `Kripto birikim planları karşılaştırması: ${y}’ten beri 40 coinde ayda 100 $`, hubDesc: (y) => `${y}’ten beri hangi kripto birikim planı en iyi sonucu verdi? En büyük 40 coinde ayda 100 $, gerçek günlük fiyatlarla. Geriye dönük bakış, tahmin değil.`,
+    hubH1: 'Kripto birikim planları karşılaştırması', hubSub: (y, d) => `Ocak ${y}’ten beri her ay 100 $, gerçek günlük fiyatlarla – güncelleme: ${d}. Geriye dönük bakış, tahmin değil.`, coin: 'Coin' },
+};
+
 
 // ---------- Texte je Sprache ----------
 const TX = {
@@ -501,6 +593,32 @@ for (const lang of LANG_ORDER) {
       ${offer(L.fOffer)}`);
   }
 
+  // Sparplan-Seiten je Coin und eine Übersicht
+  const S2 = SP[lang], y3 = nowY - 3;
+  const spList = SP_COINS.filter((c) => spResults.get(c.id)?.plan[0]);
+  const noSign = (v) => pct(v).replace(/^[−+-]/, '');
+  const spRow = (label, r) => (r ? `<tr><td>${label}</td><td class="n">${usd(r.invested)}</td><td class="n">${usd(r.last)}</td><td class="n ${tone(r.ret)}">${pct(r.ret * 100)}</td><td class="n">${r.worst < 0 ? pct(r.worst * 100) : S2.never}</td></tr>` : '');
+  const spHead = (first) => `<tr><th>${first}</th><th class="n">${S2.inv}</th><th class="n">${S2.val}</th><th class="n">${S2.ret}</th><th class="n">${S2.worst}</th></tr>`;
+  const spTable = (rows) => `<div class="panel"><table>${spHead(S2.start)}${rows.map((r, j) => spRow(S2.jan(y3 + j), r)).join('')}</table></div>`;
+  for (const c of spList) {
+    const R = spResults.get(c.id), r = R.plan[0], name = esc(c.name);
+    add(`sp:${c.id}`, `/savings-plan/${slug(c.id)}/`, S2.title(c.name, y3), S2.desc(c.name, y3, usd(r.invested), usd(r.last), pct(r.ret * 100)),
+      `<h1>${esc(S2.h1(c.name))}</h1><p class="muted">${esc(S2.sub(day))}</p>
+      <p>${S2.lead(name, y3, usd(r.invested), usd(r.last), pct(r.ret * 100), r.worst < -0.05 ? noSign(r.worst * 100) : null)}</p>
+      <h2>${S2.planH}</h2>${spTable(R.plan)}<h2>${S2.onceH}</h2>${spTable(R.once)}
+      <section class="panel cta"><strong>${S2.try}</strong><p><a class="btn" href="${app(`#/rechner/${encodeURIComponent(c.id)}?m=plan&b=100&s=${y3}-01`)}">${S2.tryBtn}</a></p></section>
+      <p class="muted">${S2.note}</p>
+      <h2>${S2.others}</h2><ul class="links">${spList.filter((x) => x.id !== c.id).map((x) => `<li><a href="${pre}/savings-plan/${slug(x.id)}/">${esc(x.name)}</a></li>`).join('')}</ul>
+      ${offer(L.offCoin(name))}`);
+  }
+  if (spList.length) {
+    const ranked = [...spList].sort((a, b) => spResults.get(b.id).plan[0].ret - spResults.get(a.id).plan[0].ret);
+    add('sp-hub', '/savings-plan/', S2.hubTitle(y3), S2.hubDesc(y3),
+      `<h1>${S2.hubH1}</h1><p class="muted">${esc(S2.hubSub(y3, day))}</p>
+      <div class="panel"><table>${spHead(S2.coin)}${ranked.map((c) => spRow(`<a href="${pre}/savings-plan/${slug(c.id)}/">${esc(c.name)}</a>`, spResults.get(c.id).plan[0])).join('')}</table></div>
+      <section class="panel cta"><strong>${S2.try}</strong><p><a class="btn" href="${app('#/rechner')}">${S2.tryBtn}</a></p></section><p class="muted">${S2.note}</p>`);
+  }
+
   // Übersicht
   add('coins', '/coins/', L.lTitle(day), L.lDesc(market.value, label),
     `<h1>${L.lH1}</h1><p class="muted">${esc(L.lSub(day, market.value, label))} <a href="${pre}/crypto-weather-today/">${L.fullRep}</a></p>
@@ -531,7 +649,7 @@ for (const p of pages) {
 <body><header><div class="wrap"><a class="brand" href="${app()}">☁️ Coinweather</a><a class="btn" href="${app()}">${L.open}</a></div></header>
 <main class="wrap">${p.body}
 <p class="share muted">↗ <a href="https://wa.me/?text=${shareText}%20${share}" rel="noopener" target="_blank">WhatsApp</a><a href="https://t.me/share/url?url=${share}&text=${shareText}" rel="noopener" target="_blank">Telegram</a><a href="https://twitter.com/intent/tweet?url=${share}&text=${shareText}" rel="noopener" target="_blank">X</a><a href="https://www.facebook.com/sharer/sharer.php?u=${share}" rel="noopener" target="_blank">Facebook</a></p></main>
-<footer><div class="wrap"><p><a href="${pre}/crypto-weather-today/">${L.today}</a> · <a href="${pre}/fear-and-greed-index/">${esc(L.fngNav)}</a> · <a href="${pre}/coins/">${L.all}</a> ·
+<footer><div class="wrap"><p><a href="${pre}/crypto-weather-today/">${L.today}</a> · <a href="${pre}/fear-and-greed-index/">${esc(L.fngNav)}</a> · <a href="${pre}/coins/">${L.all}</a> · <a href="${pre}/savings-plan/">${SP[lang].nav}</a> ·
 <a href="/?lang=${lang}#/risiko">${L.risk}</a> · <a href="/?lang=${lang}#/impressum">${L.legal}</a> · <a href="/?lang=${lang}#/datenschutz">${L.privacy}</a></p>
 <p class="langs">${twins.map((t) => `<a href="${t.path}" hreflang="${t.lang}"${t.lang === lang ? ' aria-current="page"' : ''}>${LANG_NAME[t.lang]}</a>`).join('')}</p>
 <p class="muted">${L.foot(esc(p.day))} Data: CoinGecko, Binance, Gate.io, alternative.me.</p></div></footer>

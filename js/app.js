@@ -41,6 +41,7 @@ const state = {
   refining: false,
   refineDone: false,    // Hintergrund-Bewertung mindestens einmal abgeschlossen
   sort: { key: 'rank', dir: 1 }, page: 1, query: '', filter: 'all',
+  showNone: false,      // Stablecoins und Token auf Aktien, Gold & Co. (ohne Signal) in der Liste zeigen
   gen: 0, nextPage: 1, pagesLoaded: 0, updated: null,
 };
 
@@ -374,6 +375,46 @@ function gauge(value, colors) {
 
 const SELL_TO_BUY = ['var(--down)', 'var(--warn)', 'var(--hold)', 'var(--mild)', 'var(--up)'];
 
+// Teilen-Links (WhatsApp, Telegram, X, Link kopieren) – jeder geteilte Link kann neue Besucher bringen
+function shareLinks(url, msg, label = 'Teilen') {
+  const enc = encodeURIComponent;
+  return `<span>${label}:</span>
+    <a href="https://wa.me/?text=${enc(`${msg} ${url}`)}" target="_blank" rel="noopener">WhatsApp</a>
+    <a href="https://t.me/share/url?url=${enc(url)}&text=${enc(msg)}" target="_blank" rel="noopener">Telegram</a>
+    <a href="https://twitter.com/intent/tweet?url=${enc(url)}&text=${enc(msg)}" target="_blank" rel="noopener">X</a>
+    <button type="button" class="link-btn" data-copy="${esc(url)}">Link kopieren</button>`;
+}
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-copy]');
+  if (!btn) return;
+  try { await navigator.clipboard.writeText(btn.dataset.copy); btn.textContent = i18n.say('Kopiert'); } catch { prompt('Link', btn.dataset.copy); }
+});
+// Favoriten: Stern an jedem Coin. Gespeichert im Konto (portfolios/{uid}.watch); ohne Konto führt der Stern zur Anmeldung.
+const watched = (id) => !!depot.user && (depot.data.watch ?? []).includes(id);
+const star = (id) => `<button type="button" class="star${watched(id) ? ' on' : ''}" data-watch="${esc(id)}" title="${watched(id) ? 'Aus Favoriten entfernen' : 'Zu Favoriten'}" aria-label="${watched(id) ? 'Aus Favoriten entfernen' : 'Zu Favoriten'}">${watched(id) ? '★' : '☆'}</button>`;
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-watch]');
+  if (!btn) return;
+  e.preventDefault();
+  if (!depot.user) { location.hash = '#/konto'; return; }
+  const set = new Set(depot.data.watch ?? []);
+  if (set.has(btn.dataset.watch)) set.delete(btn.dataset.watch); else set.add(btn.dataset.watch);
+  saveDepot({ ...depot.data, watch: [...set] }, { internal: true });
+});
+const shareUrl = (hash = '') => `${location.origin}/?von=share&lang=${i18n.prefs.lang}${hash}`;
+
+// Das Krypto-Wetter: Markt-Index als Wetterlage – dieselben Stufen wie in den täglichen Beiträgen
+const skyOf = (v) => (v < 30 ? 'storm' : v < 45 ? 'rain' : v < 55 ? 'cloud' : v < 70 ? 'partly' : 'sun');
+const SKY_TITLE = { storm: 'Stürmisch', rain: 'Regnerisch', cloud: 'Bewölkt', partly: 'Heiter bis wolkig', sun: 'Sonnig' };
+function skyIcon(sky) {
+  const sun = '<circle cx="0" cy="0" r="70" fill="#f5a524"/>';
+  const cloud = (fill) => `<g fill="${fill}"><circle cx="-40" cy="20" r="50"/><circle cx="20" cy="0" r="65"/><circle cx="80" cy="25" r="45"/><rect x="-90" y="20" width="215" height="50" rx="25"/></g>`;
+  const drops = '<g stroke="#5b8def" stroke-width="10" stroke-linecap="round"><line x1="-40" y1="95" x2="-50" y2="125"/><line x1="10" y1="95" x2="0" y2="125"/><line x1="60" y1="95" x2="50" y2="125"/></g>';
+  const icon = { sun, partly: `<g transform="translate(-30,-30)">${sun}</g>${cloud('#e8ecf3')}`, cloud: cloud('#9aa4b2'),
+    rain: `${cloud('#7c8796')}${drops}`, storm: `${cloud('#5c6675')}<path d="M10 80 L-15 130 L10 130 L-5 175 L45 115 L20 115 L35 80 Z" fill="#f5a524"/>` }[sky];
+  return `<svg class="sky" viewBox="-110 -90 260 280" aria-hidden="true">${icon}</svg>`;
+}
+
 const NOW_ANSWER = {
   'Kaufen': 'Ja – der Markt spricht im Moment klar für Käufe.',
   'Eher kaufen': 'Eher ja – das Umfeld ist im Moment günstig.',
@@ -678,6 +719,7 @@ function marketView(preview = false) {
   if (preview && state.sort.key === 'score') state.sort = { key: 'rank', dir: 1 };
   if (preview) state.filter = 'all';
   view.innerHTML = `
+    <section class="panel weather" id="weather"></section>
     ${preview ? previewCta('Die Großwetterlage siehst du hier frei. Welche Coins gerade ein Kaufsignal haben, zeigt dein kostenloses Konto.',
       '30 Tage alle Funktionen, ohne Zahlungsdaten. Anmelden mit Google dauert 10 Sekunden.') : ''}
     <section class="hero">
@@ -685,9 +727,11 @@ function marketView(preview = false) {
       <div class="panel gauge-panel" id="g-fng"></div>
       <div class="panel" id="market-parts"></div>
     </section>
-    <p class="share-row hint" id="share-row"></p>
+    <a class="panel calc-teaser" href="#/rechner"><span class="calc-icon" aria-hidden="true">🧮</span><span><strong>Sparplan-Rechner</strong>
+      <span class="muted">Was wäre aus einem monatlichen Sparplan oder einer Einmalanlage geworden?</span></span><span class="btn ghost">Ausprobieren</span></a>
     <section class="panel" id="cycle"></section>
     <section class="panel" id="market-forecast" hidden></section>
+    <section id="favs" hidden></section>
     <section>
       <h2>Stärkste Kaufsignale</h2>
       <p class="hint">Coins aus den Top 500 mit ausreichend Handelsvolumen, sortiert nach Prognose-Score – riskantere Coins werden dabei abgewertet.</p>
@@ -698,9 +742,10 @@ function marketView(preview = false) {
     <section class="controls">
       <input id="search" type="search" placeholder="Coin suchen (z. B. Bitcoin, ETH) …" aria-label="Coin suchen" value="${esc(state.query)}">
       <div class="chips" id="filters" role="group" aria-label="Nach Signal filtern"${preview ? ' hidden' : ''}>
-        ${[['all', 'Alle'], ['buy', 'Kaufen'], ['hold', 'Halten'], ['sell', 'Verkaufen']].map(([k, l]) =>
+        ${[['all', 'Alle'], ['buy', 'Kaufen'], ['hold', 'Halten'], ['sell', 'Verkaufen'], ...(depot.user ? [['watch', '★ Favoriten']] : [])].map(([k, l]) =>
           `<button data-filter="${k}" class="chip ${state.filter === k ? 'active' : ''}">${l}</button>`).join('')}
       </div>
+      <label class="toggle"><input type="checkbox" id="show-none"${state.showNone ? ' checked' : ''}> Stablecoins und Token auf Aktien oder Gold zeigen</label>
     </section>
     <div class="table-wrap"><table>
       <thead><tr>
@@ -714,6 +759,7 @@ function marketView(preview = false) {
     <div class="pager" id="pager"></div>`;
 
   $('#search').addEventListener('input', (e) => { state.query = e.target.value; state.page = 1; table(); });
+  $('#show-none').addEventListener('change', (e) => { state.showNone = e.target.checked; state.page = 1; table(); });
   $('#filters').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-filter]');
     if (!btn) return;
@@ -730,6 +776,7 @@ function marketView(preview = false) {
   });
   $('#rows').addEventListener('click', (e) => {
     const row = e.target.closest('tr[data-id]');
+    if (e.target.closest('[data-watch]')) return;
     if (row) location.hash = '#/coin/' + encodeURIComponent(row.dataset.id);
   });
   $('#pager').addEventListener('click', (e) => {
@@ -743,22 +790,31 @@ function marketView(preview = false) {
   function shareRow() {
     const m = state.market;
     if (!m) return;
-    const lang = i18n.prefs.lang;
-    const url = `${location.origin}/?von=share&lang=${lang}`;
-    const msg = `${i18n.say('Das Krypto-Wetter heute')}: ${i18n.say(m.label)} (${m.value}/100)`;
-    const enc = encodeURIComponent, text = enc(`${msg} ${url}`);
-    $('#share-row').innerHTML = `<span>${'Heutigen Krypto-Wetterbericht teilen'}:</span>
-      <a href="https://wa.me/?text=${text}" target="_blank" rel="noopener">WhatsApp</a>
-      <a href="https://t.me/share/url?url=${enc(url)}&text=${enc(msg)}" target="_blank" rel="noopener">Telegram</a>
-      <a href="https://twitter.com/intent/tweet?url=${enc(url)}&text=${enc(msg)}" target="_blank" rel="noopener">X</a>
-      <button type="button" class="link-btn" id="share-copy">Link kopieren</button>`;
-    $('#share-copy').addEventListener('click', async (e) => {
-      try { await navigator.clipboard.writeText(url); e.target.textContent = 'Kopiert'; } catch { prompt('Link', url); }
-    });
+    $('#share-row').innerHTML = shareLinks(shareUrl(), `${i18n.say('Das Krypto-Wetter heute')}: ${i18n.say(m.label)} (${m.value}/100)`, 'Heutigen Krypto-Wetterbericht teilen');
+  }
+
+  function weather() {
+    const m = state.market, f = state.fng, btc = state.byId.get('bitcoin');
+    if (!m) { $('#weather').innerHTML = '<p class="muted">Das Krypto-Wetter wird berechnet …</p>'; return; }
+    const sky = skyOf(m.value), d24 = btc?.price_change_percentage_24h_in_currency;
+    $('#weather').className = `panel weather ${sky}`;
+    $('#weather').innerHTML = `<div class="weather-icon">${skyIcon(sky)}</div>
+      <div class="weather-main">
+        <div class="label">Das Krypto-Wetter heute</div>
+        <h1 class="weather-title">${SKY_TITLE[sky]}</h1>
+        <p class="weather-answer"><strong>Jetzt kaufen?</strong> ${NOW_ANSWER[m.label]}</p>
+        <div class="weather-stats">
+          <span>Markt-Index <strong>${m.value}/100</strong> · ${badge(m)}</span>
+          ${f ? `<span>Fear &amp; Greed <strong>${f.value}</strong> · ${fngLabel(f.value)}</span>` : ''}
+          ${btc ? `<span>Bitcoin <strong>${money(btc.current_price)}</strong> <span class="${tone(d24)}">${pct(d24)}</span></span>` : ''}
+        </div>
+        <p class="share-row hint" id="share-row"></p>
+      </div>`;
+    shareRow();
   }
 
   function hero() {
-    shareRow();
+    weather();
     const m = state.market;
     $('#g-market').innerHTML = m ? `<div class="label">Jetzt kaufen?</div>${gauge(m.value, SELL_TO_BUY)}
         <div class="gauge-value">${m.value}<small> / 100</small></div>${badge(m, 'big')}
@@ -810,11 +866,11 @@ function marketView(preview = false) {
     $('#g-fng').innerHTML = f ? `<div class="label">Fear &amp; Greed Index · <a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener">alternative.me</a></div>${gauge(f.value, SELL_TO_BUY)}
         <div class="gauge-value">${f.value}<small> / 100</small></div><span class="badge none big">${fngLabel(f.value)}</span>
         <div class="hint">Vor 7 Tagen: ${isNum(f.history[7]?.value) ? f.history[7].value : '–'} · vor 30 Tagen: ${isNum(f.history[29]?.value) ? f.history[29].value : '–'}${f.cmc ? `<br>CoinMarketCap: ${f.cmc.value}${f.cmc.label ? ` (${esc(f.cmc.label)})` : ''}` : ''}</div>
-        ${fngEffect(m?.regime)}${infoBtn('fng', 'Wirkung im Modell')}`
+        <details class="fold"><summary>Wirkung im Modell</summary>${fngEffect(m?.regime)}${infoBtn('fng', 'So wird gerechnet')}</details>`
       : '<div class="label">Fear &amp; Greed Index · <a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener">alternative.me</a></div><p class="muted">Wird geladen …</p>';
-    $('#market-parts').innerHTML = m ? `<div class="head-row"><div class="label">So setzt sich der Markt-Index zusammen</div>${infoBtn('index')}</div>
+    $('#market-parts').innerHTML = m ? `<details class="fold"><summary>So setzt sich der Markt-Index zusammen</summary>${infoBtn('index')}
         ${factorList(m.parts)}
-        <details><summary>Heutige Einzelwerte der Marktphase</summary>${factorList(m.regime.factors)}</details>`
+        <details><summary>Heutige Einzelwerte der Marktphase</summary>${factorList(m.regime.factors)}</details></details>`
       : '<div class="label">Markt-Index</div><p class="muted">Wird berechnet …</p>';
   }
 
@@ -849,7 +905,8 @@ function marketView(preview = false) {
     const q = state.query.trim().toLowerCase();
     const get = SORTS[state.sort.key];
     const list = state.coins.filter((c) =>
-      (state.filter === 'all' || c.analysis.signal === state.filter) &&
+      (state.filter === 'all' || c.analysis.signal === state.filter || (state.filter === 'watch' && watched(c.id))) &&
+      (state.showNone || c.analysis.signal !== 'none' || q) &&
       (!q || c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q)))
       .sort((a, b) => {
         const x = get(a), y = get(b);
@@ -868,12 +925,12 @@ function marketView(preview = false) {
 
     $('#rows').innerHTML = rows.length ? rows.map((c) => {
       const a = c.analysis, d7 = c.price_change_percentage_7d_in_currency;
-      const hidden = preview && !SAMPLES.includes(c.id);
+      const hidden = preview && !SAMPLES.includes(c.id) && a.signal !== 'none';
       const lock = '<span class="lock-cell" title="Mit kostenlosem Konto sichtbar">🔒</span>';
       return `<tr class="coin" data-id="${esc(c.id)}">
         <td class="num muted col-rank">${c.market_cap_rank ?? ''}</td>
-        <td class="col-coin"><a class="coin-cell" href="#/coin/${encodeURIComponent(c.id)}"><img src="${esc(c.image)}" alt="" loading="lazy">
-          <div><div class="coin-name">${esc(c.name)}</div><div class="coin-sym">${esc(c.symbol)}</div></div></a></td>
+        <td class="col-coin"><div class="coin-line">${a.signal === 'none' ? '' : star(c.id)}<a class="coin-cell" href="#/coin/${encodeURIComponent(c.id)}"><img src="${esc(c.image)}" alt="" loading="lazy">
+          <div><div class="coin-name">${esc(c.name)}</div><div class="coin-sym">${esc(c.symbol)}</div></div></a></div></td>
         <td class="num">${money(c.current_price)}</td>
         <td class="num">${pct(c.price_change_percentage_24h_in_currency)}</td>
         <td class="num col-7d">${pct(d7)}</td>
@@ -893,7 +950,20 @@ function marketView(preview = false) {
       : '';
   }
 
-  return { update() { hero(); picks(); table(); } };
+  function favs() {
+    const list = (depot.user ? depot.data.watch ?? [] : []).map((id) => state.byId.get(id)).filter(Boolean);
+    $('#favs').hidden = !list.length;
+    if (!list.length) return;
+    $('#favs').innerHTML = `<h2>Deine Favoriten</h2><div class="fav-list">${list.map((c) => {
+      const d24 = c.price_change_percentage_24h_in_currency, open = !preview || SAMPLES.includes(c.id);
+      return `<a class="panel fav" href="#/coin/${encodeURIComponent(c.id)}"><div class="coin-cell"><img src="${esc(c.image)}" alt="" loading="lazy">
+        <div><div class="coin-name">${esc(c.name)}</div><div class="coin-sym">${esc(c.symbol)}</div></div></div>
+        <div class="fav-num"><strong>${money(c.current_price)}</strong><span class="${tone(d24)}">${pct(d24)}</span></div>
+        <div>${open ? badge(c.analysis) : '<span class="lock-cell">🔒</span>'}</div></a>`;
+    }).join('')}</div>`;
+  }
+
+  return { update() { hero(); favs(); picks(); table(); } };
 }
 
 // ---------- Detailansicht ----------
@@ -910,7 +980,8 @@ function drawChart(el, { t, p, overlays = [], hourly, intraday, note, marker }) 
   const all = p.concat(...overlays.map((o) => o.values.filter((v) => v != null)));
   let lo = Math.min(...all), hi = Math.max(...all);
   const pad = (hi - lo) * 0.06 || hi * 0.01;
-  lo -= pad; hi += pad;
+  // Beträge und Kurse sind nie negativ – die Achse beginnt dann höchstens bei null
+  lo = lo >= 0 ? Math.max(0, lo - pad) : lo - pad; hi += pad;
   const x = (i) => L + i / (p.length - 1) * (W - L - R);
   const y = (v) => T + (hi - v) / (hi - lo) * (H - T - B);
   const path = (vals) => {
@@ -1086,7 +1157,7 @@ function detailView(id) {
     const strength = { Kaufen: 'deutlich', 'Eher kaufen': 'schwach – leichter Vorteil', Verkaufen: 'deutlich', 'Eher verkaufen': 'schwach' }[a.label];
     $('#d-head').innerHTML = `<section class="panel d-head">
       <div class="d-coin"><img src="${esc(c.image)}" alt="">
-        <div><h1 class="d-name">${esc(c.name)} <span class="coin-sym">${esc(c.symbol)}</span></h1>
+        <div><h1 class="d-name">${esc(c.name)} <span class="coin-sym">${esc(c.symbol)}</span> ${a.signal === 'none' ? '' : star(c.id)}</h1>
           <div class="muted">Rang #${c.market_cap_rank ?? '–'}</div></div></div>
       <div><div class="d-price">${money(c.current_price)}</div>
         <div>${pct(c.price_change_percentage_24h_in_currency)} <span class="muted">in 24 Stunden</span></div>
@@ -1099,7 +1170,22 @@ function detailView(id) {
           <div><dt>Risiko</dt><dd>${riskTag(a.risk)}</dd></div>
           ${a.mood ? `<div><dt>Stimmung des Coins</dt><dd>${a.mood.value} / 100 · ${moodLabel(a.mood.value)}</dd></div>` : ''}
           <div><dt>Übereinstimmung</dt><dd>${a.agreement ? `${a.agreement.agreeing} von ${a.agreement.of} Zeiträumen` : '–'}</dd></div></dl></div>
+      ${summary(a)}
+      <p class="share-row hint d-share">${shareLinks(shareUrl(`#/coin/${encodeURIComponent(c.id)}`), `${c.name}: ${i18n.say(a.label)} – Coinweather`)}</p>
     </section>`;
+  }
+
+  // „Kurz gesagt“: das Signal in Alltagssprache, mit der Häufigkeit aus vergleichbaren Fällen
+  function summary(a) {
+    if (a.signal === 'none') return '';
+    const say = a.anticyclical ? 'Antizyklischer Einstieg für mindestens 12 Monate – kurzfristig kann der Kurs weiter fallen.'
+      : { Kaufen: 'Die Daten sprechen für einen Kauf.', 'Eher kaufen': 'Die Daten sprechen leicht für einen Kauf – ein schwaches Signal.',
+        Halten: 'Im Moment kein klarer Vorteil – abwarten.', 'Eher verkaufen': 'Die Daten sprechen eher gegen einen Kauf.',
+        Verkaufen: 'Die Daten sprechen gegen einen Kauf.' }[a.label] ?? '';
+    const up = a.forecast?.medium?.up;
+    return `<p class="d-summary"><strong>Kurz gesagt:</strong> <span>${say}</span>
+      ${isNum(up) ? `<span>In vergleichbaren Fällen stand der Kurs 30 Tage später in ${up} von 100 Fällen höher.</span>` : ''}
+      <span class="muted">Eine Wahrscheinlichkeit, keine Garantie.</span></p>`;
   }
 
   // fc: die Aussicht von heute für denselben Zeitraum – sie steht zum Vergleich unter dem Rückblick
@@ -1181,13 +1267,13 @@ function detailView(id) {
 
     $('#d-forecast').innerHTML = `${percent}
       ${a.notes.map((n) => `<p class="notice">${esc(n)}</p>`).join('')}
-      <div class="head-row"><h2>So entsteht der Score</h2>${infoBtn('horizons')}</div>
+      <details class="fold d-fold"><summary>So entsteht der Score</summary>${infoBtn('horizons')}
       <p class="hint">Vier Bausteine bewerten den bisherigen Kursverlauf und die Marktlage – die Zutaten des Scores, keine eigenen Prognosen.
         ${d.ind ? `Verfeinert mit ${num(d.ind.n, 0)} Tageskursen.` : 'Schnellbewertung – die verfeinerte Bewertung wird geladen …'}</p>
       <div class="h-cards">${block('short', 'Kurzfristig', 'die letzten Tage')}${block('medium', 'Mittelfristig', '2–4 Wochen')}
         ${block('long', 'Langfristig', '200 Tage bis 1 Jahr')}${block('regime', 'Marktphase', 'gilt für alle Coins, Schnitt aus 14 Tagen')}</div>
       <p class="hint block-sum">Summe der Bausteine: <strong>${signed(blockSum, 0)}</strong>${a.score === null || blockSum === a.score ? ' – das ist der Prognose-Score.'
-        : `. Der Prognose-Score steht bei <strong>${signed(a.score, 0)}</strong>, weil ein Filter, Nachrichten oder der antizyklische Einstieg ihn verschieben.`}</p>
+        : `. Der Prognose-Score steht bei <strong>${signed(a.score, 0)}</strong>, weil ein Filter, Nachrichten oder der antizyklische Einstieg ihn verschieben.`}</p></details>
       ${extra}`;
   }
 
@@ -1246,6 +1332,9 @@ function detailView(id) {
 
 // Das Portfolio liegt immer im Browser und, wenn angemeldet, zusätzlich im Konto
 const depot = { data: pf.load(), user: null, ready: !auth.available, sync: 'local', error: null, stop: null };
+// Merkzeichen „auf diesem Gerät angemeldet“: Ohne es zeigt die Seite Gästen sofort die Vorschau, statt auf Firebase zu warten
+const LOGIN_HINT = 'coinwetter-konto';
+const maybeSignedIn = () => { try { return localStorage.getItem(LOGIN_HINT) === '1'; } catch { return true; } };
 
 // Coin zu einer Position: nach ID, sonst nach Kürzel oder Name
 const coinOf = (pos) => (pos.id && state.byId.get(pos.id))
@@ -1439,6 +1528,7 @@ auth.onUser(async (user) => {
   depot.user = user;
   depot.owner = owner;
   depot.ready = true;
+  try { if (user) localStorage.setItem(LOGIN_HINT, '1'); else localStorage.removeItem(LOGIN_HINT); } catch { /* dann wird gewartet */ }
   if (user?.uid !== before?.uid) usageStart(user);
   abo.stop?.();
   abo.stop = null; abo.sub = null; abo.loaded = false;
@@ -1478,7 +1568,8 @@ auth.onUser(async (user) => {
   renderAccountLink();
   // Das Portfolio gibt es nur angemeldet – nach An- oder Abmelden die Ansicht neu wählen
   // … und mit Bezahlschranke hängt jede Ansicht davon ab, wer angemeldet ist
-  if (SITE.paywall || /^#\/(portfolio|konto|preise)/.test(location.hash)) route(); else current?.update();
+  // Gäste sehen die Vorschau schon vor der Prüfung – bleibt es beim Gast, nicht neu aufbauen (sonst springt die Seite nach oben)
+  if ((SITE.paywall && routedFor !== (depot.user?.uid ?? 'guest')) || /^#\/(portfolio|konto|preise)/.test(location.hash)) route(); else current?.update();
 });
 
 const SYNC_TEXT = {
@@ -2578,20 +2669,164 @@ function adminView() {
   return { update() {}, admin: load };
 }
 
+// ---------- Rechner: Sparplan und Einmalanlage im Rückblick ----------
+// Für alle offen, auch ohne Konto: Was wäre aus einem monatlichen Sparplan oder einer Einmalanlage geworden?
+// Gerechnet mit echten Tageskursen (Binance oder Gate.io, bis zu 4 Jahre; sonst CoinGecko, 1 Jahr), ohne Gebühren und Steuern.
+// Die Einstellungen stehen in der Adresse (#/rechner/bitcoin?m=plan&b=100&s=2023-01) – so lässt sich ein Ergebnis teilen.
+
+async function dailyOf(c) {
+  if (state.daily.has(c.id)) return state.daily.get(c.id);
+  let data = null;
+  try { data = await api.history(c.symbol, histSource(c)); } catch { /* Börsen nicht erreichbar */ }
+  if (data && Math.abs(data.p[data.p.length - 1] / c.current_price - 1) > 0.1) data = null;
+  if (!data) data = { ...(await api.chart(c.id, 'usd')), source: 'CoinGecko' };
+  state.daily.set(c.id, data);
+  rebuild();
+  return data;
+}
+
+// mode: 'plan' (am ersten Kurstag jedes Monats kaufen) oder 'once'; amount in US-Dollar; der letzte Kurs ist der aktuelle
+function simulate(data, price, { mode, amount, startMs }) {
+  const t = data.t, p = [...data.p.slice(0, -1), price];
+  const i0 = t.findIndex((x) => x >= startMs);
+  if (i0 < 0 || i0 >= t.length - 1) return null;
+  let units = 0, invested = 0, buys = 0, month = null, worst = 0, worstAt = null;
+  const days = [], value = [], paid = [];
+  for (let i = i0; i < t.length; i++) {
+    const d = new Date(t[i]), key = d.getUTCFullYear() * 12 + d.getUTCMonth();
+    if (mode === 'once' ? i === i0 : key !== month) { units += amount / p[i]; invested += amount; buys++; month = key; }
+    const v = units * p[i];
+    days.push(t[i]); value.push(v); paid.push(invested);
+    if (v / invested - 1 < worst) { worst = v / invested - 1; worstAt = t[i]; }
+  }
+  const last = value[value.length - 1];
+  return { days, value, paid, invested, last, gain: last - invested, ret: last / invested - 1, buys, avg: invested / units, worst, worstAt, from: t[i0] };
+}
+
+function calculatorView(arg) {
+  const params = new URLSearchParams(location.hash.split('?')[1] ?? '');
+  const now = new Date();
+  const monthStr = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  const minMonth = monthStr(new Date(Date.UTC(now.getUTCFullYear() - 4, now.getUTCMonth() + 1, 1)));
+  const maxMonth = monthStr(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)));
+  const f = {
+    id: (arg ?? '').split('?')[0] || 'bitcoin',
+    mode: params.get('m') === 'once' ? 'once' : 'plan',
+    amount: Math.max(1, Number(params.get('b')) || (params.get('m') === 'once' ? 1000 : 100)),
+    start: /^\d{4}-\d{2}$/.test(params.get('s') ?? '') ? params.get('s') : `${now.getUTCFullYear() - 3}-01`,
+  };
+  if (f.start < minMonth) f.start = minMonth;
+  if (f.start > maxMonth) f.start = maxMonth;
+  let run = 0;
+  const candidates = () => state.coins.filter((c) => (c.market_cap_rank ?? 9999) <= 300 && c.analysis?.signal !== 'none');
+  const find = (text) => {
+    const q = text.trim().toLowerCase();
+    return state.byId.get(q) ?? state.coins.find((c) => c.name.toLowerCase() === q || c.symbol.toLowerCase() === q)
+      ?? candidates().find((c) => c.name.toLowerCase().startsWith(q) || c.symbol.toLowerCase().startsWith(q));
+  };
+
+  view.innerHTML = `
+    <section class="panel calc">
+      <div class="label">Kostenloser Rechner</div>
+      <h1 class="page-title">Sparplan-Rechner für Krypto</h1>
+      <p class="muted">Was wäre aus einem monatlichen Sparplan oder einer Einmalanlage geworden? Gerechnet mit echten Tageskursen der letzten bis zu 4 Jahre.</p>
+      <form id="calc-form" class="calc-form">
+        <label>Coin<input id="calc-coin" list="calc-coins" autocomplete="off" required></label>
+        <datalist id="calc-coins"></datalist>
+        <label>Art<select id="calc-mode"><option value="plan">Monatlicher Sparplan</option><option value="once">Einmalanlage</option></select></label>
+        <label><span>Betrag (<span translate="no">${currencyCode()}</span>)</span><input id="calc-amount" type="number" min="1" step="any" inputmode="decimal" required></label>
+        <label>Start<input id="calc-start" type="month" min="${minMonth}" max="${maxMonth}" required></label>
+        <button class="btn" type="submit">Berechnen</button>
+      </form>
+    </section>
+    <div id="calc-out"></div>`;
+  $('#calc-mode').value = f.mode;
+  $('#calc-amount').value = inputText(toDisplay(f.amount));
+  $('#calc-start').value = f.start;
+
+  function fillCoins() {
+    const list = candidates();
+    if (!list.length) return;
+    $('#calc-coins').innerHTML = list.map((c) => `<option value="${esc(c.name)}">${esc(c.symbol.toUpperCase())}</option>`).join('');
+    if (!$('#calc-coin').value) $('#calc-coin').value = state.byId.get(f.id)?.name ?? 'Bitcoin';
+  }
+
+  async function calculate() {
+    const c = find($('#calc-coin').value);
+    const out = $('#calc-out');
+    if (!c) { out.innerHTML = '<section class="panel"><p class="muted">Diesen Coin kenne ich nicht. Wähle einen aus der Liste.</p></section>'; return; }
+    const amount = fromDisplay(Number(String($('#calc-amount').value).replace(',', '.')));
+    if (!(amount > 0)) return;
+    f.id = c.id; f.mode = $('#calc-mode').value; f.amount = amount; f.start = $('#calc-start').value || f.start;
+    history.replaceState(null, '', `#/rechner/${encodeURIComponent(f.id)}?m=${f.mode}&b=${Math.round(f.amount * 100) / 100}&s=${f.start}`);
+    const mine = ++run;
+    out.innerHTML = '<section class="panel"><p class="muted">Lade Kursgeschichte …</p></section>';
+    const [y, m] = f.start.split('-').map(Number);
+    const startMs = Date.UTC(y, m - 1, 1);
+    try {
+      const btc = state.byId.get('bitcoin');
+      const [data, btcData] = await Promise.all([dailyOf(c), c.id !== 'bitcoin' && btc ? dailyOf(btc).catch(() => null) : null]);
+      if (mine !== run || current?.calc !== true) return;
+      const r = simulate(data, c.current_price, { mode: f.mode, amount, startMs });
+      if (!r) { out.innerHTML = '<section class="panel"><p class="muted">Für diesen Zeitraum gibt es keine Kursdaten.</p></section>'; return; }
+      const b = btcData ? simulate(btcData, btc.current_price, { mode: f.mode, amount, startMs: r.from }) : null;
+      const late = r.from - startMs > 20 * 86_400_000;
+      const date = (ms) => new Date(ms).toLocaleDateString(settings.locale, { month: 'long', year: 'numeric' });
+      const stat = (label, value, cls = '') => `<div><div class="label">${label}</div><div class="value ${cls}">${value}</div></div>`;
+      const msg = `${c.name}: ${f.mode === 'plan' ? i18n.say('Monatlicher Sparplan') : i18n.say('Einmalanlage')} – ${signed(r.ret * 100, 1)} % · Coinweather`;
+      out.innerHTML = `<section class="panel calc-result">
+          <div class="calc-head"><img src="${esc(c.image)}" alt=""><div><h2><span translate="no">${esc(c.name)}</span> · ${f.mode === 'plan' ? 'Monatlicher Sparplan' : 'Einmalanlage'}</h2>
+            <div class="muted">Start: ${date(r.from)}${late ? ' · Kursgeschichte erst ab hier' : ''} · ${r.buys} ${r.buys === 1 ? 'Kauf' : 'Käufe'} · Kurse: ${esc(data.source ?? '–')}</div></div></div>
+          <div class="stat-grid calc-stats">
+            ${stat('Eingezahlt', money(r.invested))}
+            ${stat('Wert heute', money(r.last), tone(r.gain))}
+            ${stat('Gewinn oder Verlust', `${r.gain >= 0 ? '+' : '−'}${money(Math.abs(r.gain))}`, tone(r.gain))}
+            ${stat('Rendite', `${signed(r.ret * 100, 1)} %`, tone(r.ret))}
+            ${stat('Durchschnittlicher Kaufkurs', money(r.avg))}
+            ${stat('Tiefster Stand unterwegs', r.worst < 0 ? `${signed(r.worst * 100, 1)} %` : 'nie im Minus', r.worst < 0 ? 'down' : 'up')}
+          </div>
+          ${r.worst < 0 ? `<p class="hint">Am ${new Date(r.worstAt).toLocaleDateString(settings.locale)} lag der Wert ${num(-r.worst * 100, 0)} % unter dem eingezahlten Betrag. Wer da verkauft hätte, hätte den Verlust mitgenommen.</p>` : ''}
+          <div id="calc-chart" class="chart"></div>
+          ${b ? `<p class="calc-compare">Zum Vergleich derselbe Plan in Bitcoin: <strong class="${tone(b.ret)}">${signed(b.ret * 100, 1)} %</strong> (Wert heute ${money(b.last)}).</p>` : ''}
+          <p class="share-row hint">${shareLinks(shareUrl(location.hash), msg, 'Ergebnis teilen')}</p>
+          <p class="hint">Rückblick mit echten Tageskursen, ohne Gebühren und Steuern. Die Vergangenheit ist keine Prognose – Kryptowerte können stark fallen, bis zum Totalverlust.</p>
+        </section>
+        ${access().plan ? `<p><a class="btn ghost" href="#/coin/${encodeURIComponent(c.id)}">Signal und Aussicht für <span translate="no">${esc(c.name)}</span> ansehen</a></p>`
+          : previewCta('Und wie sieht es heute aus?', 'Mit einem kostenlosen Konto siehst du für jeden der 1000 Coins das Signal, die Aussicht für 7 und 30 Tage und den Rückblick. 30 Tage alle Funktionen, ohne Zahlungsdaten.')}`;
+      drawChart($('#calc-chart'), { t: r.days, p: r.value, overlays: [{ values: r.paid, color: 'var(--muted)', label: 'Eingezahlt' }], note: 'Wert des Bestands' });
+    } catch (err) {
+      if (mine === run) out.innerHTML = `<section class="panel"><p class="muted">Kursgeschichte nicht erreichbar: ${esc(err.message)}</p></section>`;
+    }
+  }
+
+  $('#calc-form').addEventListener('submit', (e) => { e.preventDefault(); calculate(); });
+  let started = false;
+  return {
+    calc: true,
+    update() {
+      fillCoins();
+      // Sobald die Coin-Liste da ist, gleich mit den Einstellungen aus der Adresse rechnen
+      if (!started && state.coins.length) { started = true; calculate(); }
+    },
+  };
+}
+
+let routedFor = null;   // für wen die Ansicht zuletzt aufgebaut wurde: 'wait', 'guest' oder die Konto-Kennung
 function route() {
+  routedFor = !depot.ready && maybeSignedIn() ? 'wait' : (depot.user?.uid ?? 'guest');
   const [name, arg] = location.hash.replace(/^#\/?/, '').split('/');
   const pages = ['preise', ...site.LEGAL_KINDS];
-  const section = name === 'portfolio' ? 'portfolio' : name === 'konto' ? 'account' : name === 'daytrading' ? 'trading' : name === 'admin' ? 'admin'
+  const section = name === 'portfolio' ? 'portfolio' : name === 'konto' ? 'account' : name === 'daytrading' ? 'trading' : name === 'admin' ? 'admin' : name === 'rechner' ? 'tools'
     : pages.includes(name) ? null : 'market';
   for (const a of document.querySelectorAll('nav a')) a.classList.toggle('active', a.dataset.nav === section);
   let id = arg;
   try { id = decodeURIComponent(arg ?? ''); } catch { /* fehlerhafte Adresse – unverändert verwenden */ }
-  const open = name === 'konto' || pages.includes(name);
+  const open = name === 'konto' || name === 'rechner' || pages.includes(name);
   const sales = () => site.pricingView(view, { access, user: () => depot.user, record: () => state.record });
   // Mit Bezahlschranke erst abwarten, wer angemeldet ist und ob ein Abo läuft – sonst blitzt die Verkaufsseite kurz auf
   usagePage(name || 'markt', arg);
   if (name === 'admin') current = !depot.ready ? waitView() : depot.owner ? adminView() : accountView();
-  else if (SITE.paywall && !open && (!depot.ready || (depot.user && !depot.owner && !abo.loaded))) current = waitView();
+  else if (SITE.paywall && !open && ((!depot.ready && maybeSignedIn()) || (depot.user && !depot.owner && !abo.loaded))) current = waitView();
   // Ohne Abo: Markt als kostenlose Vorschau, Bitcoin und Ethereum als Beispiel, sonst das Angebot
   else if (!open && !access().plan) {
     current = name === 'coin' && id ? (SAMPLES.includes(id) ? detailView(id) : lockedCoinView(id))
@@ -2602,11 +2837,24 @@ function route() {
   else if (name === 'konto') current = accountView();
   else if (name === 'daytrading') { current = fullAccess() ? tradingView() : lockedView('trading'); if (fullAccess()) tradingAck(); }
   else if (name === 'preise') current = sales();
+  else if (name === 'rechner') current = calculatorView(arg);
   else if (site.LEGAL_KINDS.includes(name)) current = site.legalView(view, name);
   else current = marketView();
   current.update();
   window.scrollTo(0, 0);
 }
+
+// Als App installierbar: Service Worker (nur über https) und ein eigener Knopf, sobald der Browser die Installation anbietet
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
+let installPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installPrompt = e; $('#install-app').hidden = false; });
+$('#install-app').addEventListener('click', async () => {
+  if (!installPrompt) return;
+  installPrompt.prompt();
+  await installPrompt.userChoice.catch(() => null);
+  installPrompt = null;
+  $('#install-app').hidden = true;
+});
 
 window.addEventListener('hashchange', route);
 route();

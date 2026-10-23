@@ -22,6 +22,9 @@
   <link rel="canonical" href="https://coinweather.github.io/">
   <link rel="alternate" type="application/rss+xml" title="Coinweather – daily crypto weather report" href="/feed.xml">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%23f7931a%27/%3E%3Cg transform=%27translate(8 8) scale(2)%27%3E%3Ccircle cx=%2715.5%27 cy=%278.5%27 r=%274.2%27 fill=%27%23fff%27 opacity=%27.55%27/%3E%3Cpath d=%27M7 19a4 4 0 0 1 .5-7.97A5.5 5.5 0 0 1 18 12.5 3.3 3.3 0 0 1 17.5 19z%27 fill=%27%23fff%27/%3E%3C/g%3E%3C/svg%3E">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="stylesheet" href="style.css">
   <!-- Die Seite erscheint erst, wenn sie in der gewählten Sprache steht – spätestens nach zwei Sekunden -->
   <script>setTimeout(function () { document.documentElement.classList.remove("i18n-wait"); }, 2000);</script>
@@ -32,6 +35,7 @@
       <a class="brand" href="#/">Coinweather</a>
       <nav>
         <a href="#/" data-nav="market">Markt</a>
+        <a href="#/rechner" data-nav="tools">Rechner</a>
         <a href="#/daytrading" data-nav="trading">Daytrading</a>
         <a href="#/portfolio" data-nav="portfolio">Portfolio</a>
         <a href="#/admin" data-nav="admin" id="nav-admin" translate="no" hidden>Admin</a>
@@ -55,6 +59,7 @@
         <a href="/crypto-weather-today/">Kryptomarkt heute</a><a href="/fear-and-greed-index/">Fear &amp; Greed Index</a><a href="/coins/">Alle Coins</a>
       </div>
       <div class="prefs" id="foot-prefs"></div>
+      <p><button type="button" class="btn ghost" id="install-app" hidden>📲 Als App installieren</button></p>
       <h2>So entstehen die Signale</h2>
       <p>
         Jeder Coin bekommt einen Score von −100 bis +100 aus Marktphase, Kursverlauf und Schwankung, geprüft an Tageskursen

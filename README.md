@@ -6,6 +6,16 @@ Live-Kurse der Top 1000 Kryptowährungen mit Prognose-Score, Kauf-/Verkaufssigna
 
 **Keine Anlageberatung.** Die Signale sind Rechenwerte aus vergangenen Kursen und können falsch liegen.
 
+## Für Besucher ohne Konto
+
+- **Das Krypto-Wetter** oben auf der Startseite: Markt-Index als Wetterlage (sonnig bis stürmisch) mit der Antwort auf „Jetzt kaufen?“ in einem Satz, Teilen-Links. Die Technik dahinter ist eingeklappt.
+- **Kostenlose Vorschau:** Großwetterlage, Zyklus, Aussicht; die Signale einzelner Coins sind verdeckt (außer Bitcoin und Ethereum).
+- **Sparplan-Rechner** (`#/rechner`): monatlicher Sparplan oder Einmalanlage im Rückblick mit echten Tageskursen, Vergleich mit Bitcoin, tiefster Stand unterwegs; die Einstellungen stehen in der Adresse und lassen sich teilen.
+- **Als App installierbar** (manifest.webmanifest, sw.js – der Service Worker lädt immer zuerst aus dem Netz).
+- **Suchmaschinen-Seiten** in 7 Sprachen (scripts/seo-pages.mjs): Kryptomarkt heute, Fear & Greed, 500 Coins, Sparpläne der 40 größten Coins.
+
+Mit kostenlosem Konto zusätzlich: alle Signale, **Favoriten** (Stern an jedem Coin, im Konto gespeichert), Portfolio.
+
 ## Lokal starten
 
 ```bash

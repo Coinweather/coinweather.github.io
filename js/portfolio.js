@@ -5,7 +5,7 @@ import * as tr from './track.js';
 const KEY = 'krypto-markt-depot';
 const LEGACY_KEY = 'krypto-markt-portfolio';   // frühere Version: nur die Liste der Positionen
 
-export const empty = () => ({ positions: [], cash: 0, cashFix: null, reservePct: null, reserveMode: 'balanced', track: tr.empty(), log: [], consent: null, prefs: null });
+export const empty = () => ({ positions: [], cash: 0, cashFix: null, reservePct: null, reserveMode: 'balanced', track: tr.empty(), log: [], consent: null, prefs: null, watch: [] });
 
 // Macht aus beliebigen gespeicherten Daten ein gültiges Portfolio
 export function normalise(data) {
@@ -30,7 +30,9 @@ export function normalise(data) {
     // Zustimmung zu AGB und Risikohinweis: Stand der Texte und Zeitpunkt
     consent: typeof data?.consent?.v === 'string' && Number.isFinite(data.consent.t) ? { v: data.consent.v, t: data.consent.t } : null,
     // Sprache und Währung der Anzeige
-    prefs: typeof data?.prefs?.lang === 'string' && typeof data.prefs.currency === 'string' ? { lang: data.prefs.lang, currency: data.prefs.currency } : null };
+    prefs: typeof data?.prefs?.lang === 'string' && typeof data.prefs.currency === 'string' ? { lang: data.prefs.lang, currency: data.prefs.currency } : null,
+    // Favoriten: Coin-Kennungen, mit Stern markiert
+    watch: Array.isArray(data?.watch) ? [...new Set(data.watch.filter((x) => typeof x === 'string' && x.length < 100))].slice(0, 200) : [] };
 }
 
 export function load() {

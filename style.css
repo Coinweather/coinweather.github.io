@@ -566,3 +566,71 @@ html.i18n-wait body { visibility: hidden; }
 .share-row { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin: 4px 0 14px; }
 .share-row a, .share-row .link-btn { font-weight: 700; }
 .share-row .link-btn { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; font-weight: 700; }
+
+/* Das Krypto-Wetter: große Karte ganz oben – die Antwort auf „Jetzt kaufen?“ in einem Satz */
+.weather { display: grid; grid-template-columns: 150px 1fr; gap: 8px 24px; align-items: center; margin: 22px 0 16px; padding: 22px 26px;
+  background: radial-gradient(520px 240px at 0% 0%, var(--bg-glow), transparent 70%), var(--panel); }
+.weather.sun, .weather.partly { border-color: color-mix(in srgb, var(--up) 45%, var(--line)); }
+.weather.rain, .weather.storm { border-color: color-mix(in srgb, var(--down) 45%, var(--line)); }
+.weather-icon .sky { width: 150px; height: 160px; display: block; }
+.weather-title { margin: 4px 0 6px; font-size: clamp(30px, 5vw, 44px); line-height: 1.05; letter-spacing: -.03em; }
+.weather-answer { margin: 0 0 12px; font-size: 17px; line-height: 1.45; }
+.weather-stats { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14.5px; color: var(--muted); align-items: center; }
+.weather-stats strong { color: var(--text); }
+.weather .share-row { margin: 14px 0 0; }
+@media (max-width: 560px) {
+  .weather { grid-template-columns: 1fr; text-align: left; padding: 18px; }
+  .weather-icon { position: absolute; right: 14px; top: 10px; }
+  .weather { position: relative; }
+  .weather-icon .sky { width: 86px; height: 92px; }
+  .weather-main { padding-right: 0; }
+  .weather-title { padding-right: 92px; }
+}
+/* Eingeklappte Erklärungen: Technik nur auf Wunsch */
+details.fold > summary { cursor: pointer; font-size: 12.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); list-style: revert; }
+details.fold[open] > summary { margin-bottom: 10px; }
+.gauge-panel details.fold { margin-top: 12px; text-align: left; width: 100%; }
+.toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--muted); cursor: pointer; }
+.toggle input { accent-color: var(--accent); }
+.d-summary { grid-column: 1 / -1; margin: 6px 0 0; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--panel-2); line-height: 1.5; }
+.d-summary span { margin-right: 4px; }
+.d-share { grid-column: 1 / -1; margin: 4px 0 0; }
+details.d-fold { margin: 22px 0 8px; }
+details.d-fold > summary { font-size: 15px; letter-spacing: 0; text-transform: none; color: var(--text); }
+
+/* Rechner: Sparplan und Einmalanlage */
+.calc { margin-top: 22px; }
+.calc .page-title { margin: 6px 0 6px; }
+.calc-form { display: grid; grid-template-columns: 1.4fr 1.2fr 1fr 1fr auto; gap: 12px; align-items: end; margin-top: 16px; }
+.calc-form label { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.calc-form input, .calc-form select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font: inherit; font-size: 15px; }
+.calc-form .btn { height: 44px; }
+.calc-head { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.calc-head img { width: 36px; height: 36px; border-radius: 50%; }
+.calc-head h2 { margin: 0; font-size: 19px; }
+.calc-stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin: 14px 0; }
+.calc-compare { margin: 10px 0 0; }
+@media (max-width: 760px) { .calc-form { grid-template-columns: 1fr 1fr; } .calc-form label:first-of-type { grid-column: 1 / -1; } .calc-form .btn { grid-column: 1 / -1; } }
+/* Schmale Bildschirme: Menü in einer Zeile, waagrecht wischbar statt umzubrechen */
+@media (max-width: 560px) {
+  nav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  nav::-webkit-scrollbar { display: none; }
+  nav a { flex: 0 0 auto; white-space: nowrap; }
+}
+
+/* Favoriten */
+.coin-line { display: flex; align-items: center; gap: 4px; }
+.star { background: none; border: 0; padding: 2px 4px; font-size: 17px; line-height: 1; color: var(--muted); cursor: pointer; border-radius: 6px; }
+.star:hover { color: var(--accent); background: var(--panel-2); }
+.star.on { color: var(--accent); }
+.d-name .star { font-size: 22px; vertical-align: middle; }
+#favs { margin-top: 26px; }
+.fav-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 10px; }
+.fav { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 12px 14px; color: inherit; text-decoration: none; }
+.fav:hover { border-color: var(--accent); }
+.fav-num { display: flex; flex-direction: column; align-items: flex-end; font-size: 13.5px; }
+.calc-teaser { display: flex; align-items: center; gap: 14px; margin: 16px 0; color: inherit; text-decoration: none; }
+.calc-teaser:hover { border-color: var(--accent); }
+.calc-teaser > span:nth-child(2) { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.calc-icon { font-size: 26px; }
+@media (max-width: 560px) { .calc-teaser .btn { display: none; } }
