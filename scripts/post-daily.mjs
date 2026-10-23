@@ -474,8 +474,8 @@ async function instagramReel(jpgs) {
     return r;
   };
   const params = { media_type: 'REELS', caption: text.instagram, share_to_feed: 'true' };
-  // Wege der Reihe nach: direkt hochladen (Instagram verlangt dafür oft den Benutzer-Token), sonst das Video
-  // von der öffentlichen Adresse holen lassen, die der Ablauf im Zweig "media" bereitstellt
+  // Wege der Reihe nach: das Video von der öffentlichen Adresse holen lassen, die der Ablauf im Zweig "media" bereitstellt
+  // (bewährt), sonst direkt hochladen
   const ways = [];
   for (const token of [...new Set([env.FACEBOOK_PAGE_TOKEN, meta.token])]) {
     ways.push(['Hochladen', token, async () => {
@@ -484,7 +484,7 @@ async function instagramReel(jpgs) {
       return made.id;
     }]);
   }
-  if (env.REEL_URL) ways.push(['Adresse', meta.token, async () => (await call(meta.token, 'Anlegen', `${ig}/media`, { ...params, video_url: env.REEL_URL }, 'POST')).id]);
+  if (env.REEL_URL) ways.unshift(['Adresse', meta.token, async () => (await call(meta.token, 'Anlegen', `${ig}/media`, { ...params, video_url: env.REEL_URL }, 'POST')).id]);
   const errors = [];
   for (const [way, token, create] of ways) {
     try {
