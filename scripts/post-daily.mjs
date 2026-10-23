@@ -186,7 +186,11 @@ const H = {
     tagsIg: '#bitcoin #krypto #crypto #kryptowährung #btc',
   },
 }[lang];
-const hook = fng && Number.isFinite(fng.week) && Math.abs(fng.value - fng.week) >= 8 ? H.mood(fng.week, fng.value)
+// Abend-Ausgabe (EDITION=evening): nur ein Reel mit den größten Bewegungen des Tages vorne – eine zweite Chance am Tag,
+// Leuten angezeigt zu werden, die dem Konto noch nicht folgen
+const evening = env.EDITION === 'evening';
+const EVENING = { en: 'Today’s biggest crypto movers', de: 'Die größten Krypto-Bewegungen heute' }[lang];
+const hook = evening ? EVENING : fng && Number.isFinite(fng.week) && Math.abs(fng.value - fng.week) >= 8 ? H.mood(fng.week, fng.value)
   : Math.abs(btcDay) >= 3 ? H.btc(btcDay) : H.plain[daily % H.plain.length];
 const ask = H.ask[daily % H.ask.length];
 // X erlaubt 280 Zeichen (Links zählen 23, Emojis doppelt), Bluesky 300 – notfalls entfällt die Frage, dann die Hashtags
@@ -236,7 +240,7 @@ function richX() {
 // Länge kostet dort nichts. Die Einordnung nennt eine Häufigkeit aus den Tests seit 2018 – ausdrücklich keine Zusage.
 const M = {
   en: {
-    top: 'Top gainer (top 100)', flop: 'Biggest drop (top 100)', cycle: 'Cycle', signals: (n, of) => `Buy signals: ${n} of ${of} coins`,
+    top: 'Top gainer (top 100)', flop: 'Biggest drop (top 100)', movesHead: 'Biggest moves of the top 100 in 24 h:', obs: 'Observations, not recommendations.', cycle: 'Cycle', signals: (n, of) => `Buy signals: ${n} of ${of} coins`,
     odds: (up, days) => `📈 After comparable market days since 2018, Bitcoin was higher ${days} days later in ${up} of 100 cases – a tendency, not a promise.`,
     more: { facebook: '📸 More in the photos: the outlook and today’s top movers.', instagram: '👉 Swipe for the outlook and today’s top movers.' },
     vote: 'Comment your move: 🟢 buying · 🟡 holding · 🔴 selling',
@@ -245,7 +249,7 @@ const M = {
     follow: { facebook: '🔔 Follow the page for your crypto weather every morning.', instagram: '🔔 Follow for your crypto weather every morning.' },
   },
   de: {
-    top: 'Top-Gewinner (Top 100)', flop: 'Größter Verlierer (Top 100)', cycle: 'Zyklus', signals: (n, of) => `Kaufsignale: ${n} von ${of} Coins`,
+    top: 'Top-Gewinner (Top 100)', flop: 'Größter Verlierer (Top 100)', movesHead: 'Größte Bewegungen der Top 100 in 24 h:', obs: 'Beobachtungen, keine Empfehlungen.', cycle: 'Zyklus', signals: (n, of) => `Kaufsignale: ${n} von ${of} Coins`,
     odds: (up, days) => `📈 Nach vergleichbaren Markttagen seit 2018 stand Bitcoin ${days} Tage später in ${up} von 100 Fällen höher – eine Tendenz, kein Versprechen.`,
     more: { facebook: '📸 Mehr auf den Bildern: die Aussicht und die größten Bewegungen des Tages.', instagram: '👉 Wischen für die Aussicht und die größten Bewegungen des Tages.' },
     vote: 'Schreib in die Kommentare: 🟢 ich kaufe · 🟡 ich halte · 🔴 ich verkaufe',
@@ -255,8 +259,12 @@ const M = {
   },
 }[lang];
 const odds = fc?.btc?.short && Number.isFinite(fc.btc.short.up) ? M.odds(fc.btc.short.up, fc.btc.short.days) : null;
-function rich(channel) {
+function rich(channel, reel = false) {
   const loser = losers[0];
+  const list = (icon, l) => l.map((c) => `${icon} ${c.symbol.toUpperCase()} ${signed(c.price_change_percentage_24h_in_currency)}`);
+  const moves = evening ? [M.movesHead, ...list('🚀', gainers), ...list('🧊', losers), M.obs]
+    : [gainer ? `🚀 ${M.top}: ${gainer.symbol.toUpperCase()} ${signed(gainer.price_change_percentage_24h_in_currency)}` : null,
+      loser ? `🧊 ${M.flop}: ${loser.symbol.toUpperCase()} ${signed(loser.price_change_percentage_24h_in_currency)}` : null];
   return [
     `${R.icon} ${hook}`, `🗓️ ${T.title} · ${day}`, '',
     `📊 ${XT.index}: ${market.value}/100 · ${R.label}`,
@@ -265,10 +273,9 @@ function rich(channel) {
     btcLine,
     market.cycle ? `🔁 ${M.cycle}: ${T.zone[market.cycle.zone] ?? market.cycle.label}` : null,
     `🎯 ${M.signals(buys, rated)}`,
-    gainer ? `🚀 ${M.top}: ${gainer.symbol.toUpperCase()} ${signed(gainer.price_change_percentage_24h_in_currency)}` : null,
-    loser ? `🧊 ${M.flop}: ${loser.symbol.toUpperCase()} ${signed(loser.price_change_percentage_24h_in_currency)}` : null,
+    ...(evening ? ['', ...moves] : moves),
     ...(odds ? ['', odds] : []),
-    '', M.more[channel],
+    ...(reel ? [] : ['', M.more[channel]]),
     '', ask, M.vote,
     '', channel === 'facebook' ? `${M.offer}:\n👉 ${link('facebook')}` : `${M.offer} 🔗 ${T.bio}`,
     '', ...(channel === 'instagram' ? [M.save] : []), M.follow[channel],
@@ -283,6 +290,8 @@ const text = {
   bluesky: short('bluesky', 300),
   facebook: rich('facebook'),
   instagram: rich('instagram'),
+  facebookReel: rich('facebook', true),
+  instagramReel: rich('instagram', true),
 };
 
 // ---------- Bilder 1080 × 1350 (Hochformat 4:5 – nimmt im Feed am meisten Platz ein) ----------
@@ -419,9 +428,11 @@ async function images() {
 // Oben steht die Frage, die neugierig macht, unten der Aufruf zum Folgen. Gebaut mit ffmpeg (auf GitHub vorhanden).
 const RW = 1080, RH = 1920, TOP = 285;
 const RT = {
-  en: { ask: ['Is now a good time', 'to buy crypto?'], follow: 'Follow for your daily crypto weather' },
-  de: { ask: ['Ist jetzt ein guter Zeitpunkt', 'für Krypto?'], follow: 'Folge für dein tägliches Krypto-Wetter' },
+  en: { ask: evening ? ['Today’s biggest', 'crypto movers'] : ['Is now a good time', 'to buy crypto?'], follow: 'Follow for your daily crypto weather' },
+  de: { ask: evening ? ['Die größten Krypto-', 'Bewegungen heute'] : ['Ist jetzt ein guter Zeitpunkt', 'für Krypto?'], follow: 'Folge für dein tägliches Krypto-Wetter' },
 }[lang];
+// Abends zuerst die Bewegungen, dann das Wetter, zum Schluss das Angebot
+const reelJpgs = (jpgs) => (evening ? [jpgs[2], jpgs[0], jpgs[3]] : jpgs);
 async function reelFrames(jpgs) {
   const back = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${RW}" height="${RH}" font-family="DejaVu Sans, Arial, sans-serif">
     <defs><radialGradient id="g" cx="0.2" cy="0.05" r="1.2"><stop offset="0" stop-color="#1b2433"/><stop offset="1" stop-color="${C.bg}"/></radialGradient></defs>
@@ -440,7 +451,7 @@ async function makeReel(jpgs, file) {
   await mkdir(dir, { recursive: true });
   const frames = await reelFrames(jpgs);
   await Promise.all(frames.map((f, i) => writeFile(`${dir}/f${i}.jpg`, f)));
-  const show = [4.5, 4.5, 4.5, 3.5], fade = 0.5;
+  const show = frames.map((_, i) => (i === frames.length - 1 ? 3.5 : 4.5)), fade = 0.5;
   const inputs = frames.flatMap((_, i) => ['-loop', '1', '-t', String(show[i]), '-i', `${dir}/f${i}.jpg`]);
   let chain = '', last = '[0:v]', at = 0;
   for (let i = 1; i < frames.length; i++) {
@@ -458,7 +469,7 @@ async function makeReel(jpgs, file) {
 }
 let reelReady;
 // Der Ablauf baut das Reel schon im Bild-Schritt (REEL_FILE) – dann wird es nur noch gelesen
-const reel = (jpgs) => (reelReady ??= readFile(env.REEL_FILE ?? 'reel.mp4').catch(() => makeReel(jpgs, env.REEL_FILE ?? 'reel.mp4')));
+const reel = (jpgs) => (reelReady ??= readFile(env.REEL_FILE ?? 'reel.mp4').catch(() => makeReel(reelJpgs(jpgs), env.REEL_FILE ?? 'reel.mp4')));
 
 // Hochladen direkt zu Meta (rupload): Instagram und Facebook brauchen dafür keine öffentliche Adresse
 async function rupload(url, token, data) {
@@ -476,7 +487,7 @@ async function instagramReel(jpgs) {
     if (r.error) throw new Error(`${step}: ${r.error.error_user_msg ?? r.error.message} (Code ${r.error.code}${r.error.error_subcode ? `/${r.error.error_subcode}` : ''})`);
     return r;
   };
-  const params = { media_type: 'REELS', caption: text.instagram, share_to_feed: 'true' };
+  const params = { media_type: 'REELS', caption: text.instagramReel, share_to_feed: 'true' };
   // Wege der Reihe nach: das Video von der öffentlichen Adresse holen lassen, die der Ablauf im Zweig "media" bereitstellt
   // (bewährt), sonst direkt hochladen
   const ways = [];
@@ -520,7 +531,7 @@ async function facebookReel(jpgs) {
   };
   const start = await call('Anlegen', { upload_phase: 'start' });
   await rupload(start.upload_url ?? `https://rupload.facebook.com/video-upload/v21.0/${start.video_id}`, token, video);
-  await call('Veröffentlichen', { upload_phase: 'finish', video_id: start.video_id, video_state: 'PUBLISHED', description: text.facebook });
+  await call('Veröffentlichen', { upload_phase: 'finish', video_id: start.video_id, video_state: 'PUBLISHED', description: text.facebookReel });
   // Facebook bestätigt das Veröffentlichen sofort, verarbeitet das Video aber erst danach – erst „fertig“ zählt
   for (let i = 0; ; i++) {
     const v = await (await fetch(`${GRAPH}/${start.video_id}?${new URLSearchParams({ fields: 'status,permalink_url', access_token: token })}`)).json();
@@ -712,10 +723,10 @@ const jpgs = await images();
 if (arg('--images')) {
   await mkdir(arg('--images'), { recursive: true });
   await Promise.all(jpgs.map((jpg, i) => writeFile(`${arg('--images')}/slide-${i + 1}.jpg`, jpg)));
-  if (args.includes('--frames')) await Promise.all((await reelFrames(jpgs)).map((f, i) => writeFile(`${arg('--images')}/reel-${i + 1}.jpg`, f)));
+  if (args.includes('--frames')) await Promise.all((await reelFrames(reelJpgs(jpgs))).map((f, i) => writeFile(`${arg('--images')}/reel-${i + 1}.jpg`, f)));
 }
 // --video <datei>: nur das Reel bauen (zum Prüfen)
-if (arg('--video')) { await makeReel(jpgs, arg('--video')); console.log(`Reel: ${arg('--video')}`); }
+if (arg('--video')) { await makeReel(reelJpgs(jpgs), arg('--video')); console.log(`Reel: ${arg('--video')}`); }
 if (args.includes('--show')) for (const [k, t] of Object.entries(text)) console.log(`--- ${k} (${[...t].length} Zeichen)\n${t}\n`);
 
 // --dry: nur die Bilder erzeugen (der Ablauf stellt sie danach öffentlich bereit, bevor gepostet wird)

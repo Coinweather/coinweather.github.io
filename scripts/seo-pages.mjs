@@ -1,7 +1,9 @@
 // Baut die Seite zum Veröffentlichen: die App-Dateien plus täglich neue, einzeln auffindbare Seiten für Suchmaschinen.
 // Die App selbst steckt in einer einzigen Seite mit #-Adressen – die kann Google kaum lesen. Darum gibt es zusätzlich:
 //   /crypto-weather-today/   der Kryptomarkt heute: Markt-Index, Fear & Greed, Zyklus, Aussicht, größte Bewegungen
-//   /coin/<id>/              je eine Seite für die 250 größten Coins: Kurs, Entwicklung, Großwetterlage, Signal (verdeckt)
+//   /fear-and-greed-index/   der Fear & Greed Index heute mit dem, was die Rückrechnung über Angst und Gier zeigt
+//   /coin/<id>/              je eine Seite für die 500 größten Coins: Kurs, Entwicklung, Großwetterlage, Signal (verdeckt)
+//   feed.xml                 RSS-Feed mit dem täglichen Bericht
 //   /coins/                  Übersicht mit Links auf alle Coin-Seiten
 //   sitemap.xml, robots.txt  damit Suchmaschinen alles finden
 // Die Seiten sind englisch (größte Suchnachfrage) und sagen klar: keine Anlageberatung. Die Signale einzelner Coins bleiben
@@ -91,7 +93,7 @@ const page = ({ path, title, description, body }) => `<!doctype html>
 <style>${CSS}</style></head>
 <body><header><div class="wrap"><a class="brand" href="/">☁️ Coinweather</a><a class="btn" href="${app()}">Open the app</a></div></header>
 <main class="wrap">${body}</main>
-<footer><div class="wrap"><p><a href="/crypto-weather-today/">Crypto market today</a> · <a href="/coins/">All coins</a> · <a href="/#/risiko">Risk notice</a> ·
+<footer><div class="wrap"><p><a href="/crypto-weather-today/">Crypto market today</a> · <a href="/fear-and-greed-index/">Fear &amp; Greed Index</a> · <a href="/coins/">All coins</a> · <a href="/#/risiko">Risk notice</a> ·
 <a href="/#/impressum">Legal notice</a> · <a href="/#/datenschutz">Privacy</a></p>
 <p class="muted">Not financial advice. Coinweather is an information service. Prices cannot be predicted reliably; probabilities are based on past
 prices and can be wrong. Crypto assets can fall sharply – up to a total loss. Updated ${esc(day)}. Data: CoinGecko, Binance, Gate.io, alternative.me.</p></div></footer>
@@ -135,7 +137,7 @@ pages.push({ path: '/crypto-weather-today/', title: `Crypto market today (${day}
   ${offer('Which coins have a buy signal today?')}` });
 
 // ---------- Coin-Seiten ----------
-const top = coins.filter((c) => isNum(c.market_cap_rank) && c.market_cap_rank <= 250).sort((a, b) => a.market_cap_rank - b.market_cap_rank);
+const top = coins.filter((c) => isNum(c.market_cap_rank) && c.market_cap_rank <= 500).sort((a, b) => a.market_cap_rank - b.market_cap_rank);
 for (const [i, c] of top.entries()) {
   const a = c.analysis ?? {}, sym = c.symbol.toUpperCase(), name = c.name;
   const sample = SAMPLES.includes(c.id);
@@ -165,10 +167,33 @@ for (const [i, c] of top.entries()) {
     <h2>Similar by market cap</h2><ul class="links">${near.map((x) => `<li><a href="/coin/${slug(x.id)}/">${esc(x.name)} (${esc(x.symbol.toUpperCase())})</a></li>`).join('')}</ul>` });
 }
 
+// ---------- Fear & Greed Index ----------
+const avg7 = market.regime?.fng?.avg7;
+if (fng) pages.push({ path: '/fear-and-greed-index/', title: `Crypto Fear and Greed Index today: ${fng.value} (${MOOD(fng.value)}) – ${day}`,
+  description: `The crypto Fear & Greed Index is at ${fng.value} today (${MOOD(fng.value)}), ${isNum(fng.week) ? `${fng.week} a week ago` : ''}. What fear and greed meant for prices since 2018 – updated daily. Not financial advice.`,
+  body: `<h1>Crypto Fear &amp; Greed Index today: ${fng.value} – ${MOOD(fng.value)}</h1><p class="muted">Updated ${esc(day)}. Source: alternative.me.</p>
+  <div class="grid"><div class="panel stat"><div class="l">Today</div><div class="v">${fng.value}</div><div>${MOOD(fng.value)}</div></div>
+    ${isNum(fng.week) ? `<div class="panel stat"><div class="l">7 days ago</div><div class="v">${fng.week}</div><div>${MOOD(fng.week)}</div></div>` : ''}
+    ${isNum(fng.month) ? `<div class="panel stat"><div class="l">30 days ago</div><div class="v">${fng.month}</div><div>${MOOD(fng.month)}</div></div>` : ''}
+    ${isNum(avg7) ? `<div class="panel stat"><div class="l">7-day average</div><div class="v">${num(avg7, 0)}</div><div>${MOOD(avg7)}</div></div>` : ''}</div>
+  <h2>What is the Fear &amp; Greed Index?</h2>
+  <p>The index measures the mood of the crypto market from 0 (extreme fear) to 100 (extreme greed), based on volatility, momentum, trading volume,
+  social media and Bitcoin dominance. Below 25 is extreme fear, 25–45 fear, 45–55 neutral, 55–75 greed and above 75 extreme greed.</p>
+  <h2>What did fear and greed mean for prices since 2018?</h2>
+  <p>Coinweather tested the daily index values since 2018 against what prices did afterwards, in two separate periods (2018–22 and 2022–26):</p>
+  <ul><li><strong>Extreme greed was a warning:</strong> when the 7-day average was between 75 and 85, the median coin was higher 30 days later in only 20–33 % of cases
+    (median about −20 %). Coinweather gives no buy signals in that zone.</li>
+  <li><strong>Long fear in a deep market was an opportunity – for Bitcoin:</strong> after long periods of fear (at least 54 of 60 days below 45) with Bitcoin
+    at least 40 % below its all-time high, Bitcoin was higher one year later in 84–100 % of cases. For the average altcoin this did not hold.</li>
+  <li><strong>On its own the index was no reliable timing signal</strong> – “buy fear, sell greed” as a simple rule did worse than following the market trend.</li></ul>
+  <p>Today’s reading: <strong>${fng.value} (${MOOD(fng.value)})</strong>${isNum(avg7) ? `, 7-day average ${num(avg7, 0)}` : ''}. ${isNum(avg7) && avg7 >= 75 && avg7 < 85 ? 'The greed brake is active.' : 'The greed brake is not active.'}
+  Coinweather’s overall market index stands at <strong>${market.value}/100 (“${esc(label)}”)</strong>. <a href="/crypto-weather-today/">Full crypto weather report →</a></p>
+  ${offer('See how fear and greed affect each of 1,000 coins')}` });
+
 // ---------- Übersicht ----------
-pages.push({ path: '/coins/', title: `Crypto prices today: the 250 largest coins – ${day}`,
-  description: `Prices, 24-hour and 7-day changes of the 250 largest cryptocurrencies, plus today’s crypto weather: market index ${market.value}/100 (${label}). Updated daily.`,
-  body: `<h1>The 250 largest coins today</h1><p class="muted">Updated ${esc(day)}. Market index today: ${market.value}/100 – ${esc(label)}.
+pages.push({ path: '/coins/', title: `Crypto prices today: the 500 largest coins – ${day}`,
+  description: `Prices, 24-hour and 7-day changes of the 500 largest cryptocurrencies, plus today’s crypto weather: market index ${market.value}/100 (${label}). Updated daily.`,
+  body: `<h1>The 500 largest coins today</h1><p class="muted">Updated ${esc(day)}. Market index today: ${market.value}/100 – ${esc(label)}.
   <a href="/crypto-weather-today/">Crypto weather report →</a></p>
   <div class="panel"><table><tr><th>#</th><th>Coin</th><th class="n">Price</th><th class="n">24 h</th><th class="n">7 days</th></tr>
   ${top.map((c) => `<tr><td>${c.market_cap_rank}</td><td><a href="/coin/${slug(c.id)}/">${esc(c.name)}</a> <span class="muted">${esc(c.symbol.toUpperCase())}</span></td>
@@ -183,5 +208,14 @@ for (const p of pages) {
 const urls = ['/', ...pages.map((p) => p.path)];
 await writeFile(`${out}/sitemap.xml`, `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${
   urls.map((u) => `<url><loc>${SITE}${u}</loc><lastmod>${iso}</lastmod><changefreq>daily</changefreq></url>`).join('\n')}\n</urlset>\n`);
+// RSS-Feed: ein Eintrag je Tag mit dem Wetterbericht – Feed-Leser sammeln die Einträge selbst
+const reportDesc = `Market index ${market.value}/100 (${label}), Fear & Greed ${fng?.value ?? '–'} (${fng ? MOOD(fng.value) : '–'}), Bitcoin ${usd(btc?.current_price)} (${pct(btc?.price_change_percentage_24h_in_currency)} in 24 h). ${odds} Not financial advice.`;
+await writeFile(`${out}/feed.xml`, `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Coinweather – daily crypto weather report</title><link>${SITE}/</link>
+<atom:link href="${SITE}/feed.xml" rel="self" type="application/rss+xml"/><description>Is now a good time to buy crypto? A daily weather report for the crypto market. Not financial advice.</description><language>en</language>
+<item><title>${esc(`Crypto weather ${day}: ${label} (${market.value}/100), Fear & Greed ${fng?.value ?? '–'}`)}</title><link>${SITE}/crypto-weather-today/</link>
+<guid isPermaLink="false">coinweather-${iso.slice(0, 10)}</guid><pubDate>${new Date(snap.time).toUTCString()}</pubDate><description>${esc(reportDesc)}</description></item>
+</channel></rss>
+`);
 await writeFile(`${out}/robots.txt`, `User-agent: *\nAllow: /\nSitemap: ${SITE}/sitemap.xml\n`);
 console.log(`${pages.length} Seiten für Suchmaschinen gebaut (${day})`);

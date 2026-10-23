@@ -5,12 +5,17 @@ name: Tägliche Beiträge
 on:
   schedule:
     - cron: '30 5 * * *'   # 05:30 UTC = 07:30 Uhr Schweizer Sommerzeit, 06:30 Uhr im Winter (GitHub startet oft etwas später)
+    - cron: '30 16 * * *'  # Abend-Ausgabe: nur ein Reel mit den größten Bewegungen des Tages
   workflow_dispatch:
     inputs:
       only:
         description: "Nur diese Kanäle (z. B. Facebook,Instagram oder Instagram-Reel,Facebook-Reel). Leer = alle."
         required: false
         default: ""
+      edition:
+        description: "Ausgabe: morning (alles) oder evening (Reel mit den größten Bewegungen)"
+        required: false
+        default: "morning"
       check:
         description: "Nur den Facebook-/Instagram-Zugang prüfen, nichts posten"
         type: boolean
@@ -25,7 +30,8 @@ jobs:
     timeout-minutes: 15
     env:
       POST_LANG: ${{ vars.POST_LANG }}
-      ONLY: ${{ github.event.inputs.only }}
+      EDITION: ${{ github.event.schedule == '30 16 * * *' && 'evening' || github.event.inputs.edition || 'morning' }}
+      ONLY: ${{ github.event.inputs.only || (github.event.schedule == '30 16 * * *' && 'Instagram-Reel,Facebook-Reel') || '' }}
       CHECK: ${{ github.event.inputs.check == 'true' }}
       HAS_INSTAGRAM: ${{ secrets.INSTAGRAM_USER_ID != '' }}
     steps:
