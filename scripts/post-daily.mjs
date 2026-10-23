@@ -461,30 +461,47 @@ const reel = (jpgs) => (reelReady ??= readFile(env.REEL_FILE ?? 'reel.mp4').catc
 async function rupload(url, token, data) {
   const r = await fetch(url, { method: 'POST', headers: { authorization: `OAuth ${token}`, offset: '0', file_size: String(data.length) }, body: data });
   const body = await r.json().catch(() => ({}));
-  if (!r.ok || body.success === false || body.error || body.debug_info) throw new Error(`Hochladen: ${body.error?.message ?? body.debug_info?.message ?? r.status}`);
+  if (!r.ok || body.success === false || body.error || body.debug_info) throw new Error(`Hochladen: ${body.error?.message ?? body.debug_info?.message ?? `HTTP ${r.status}`}`);
 }
 
 async function instagramReel(jpgs) {
   const video = await reel(jpgs);
-  const { token } = await metaToken();
+  const meta = await metaToken();
   const ig = env.INSTAGRAM_USER_ID;
-  const call = async (step, path, params, method = 'GET') => {
+  const call = async (token, step, path, params, method = 'GET') => {
     const r = await (await fetch(`${GRAPH}/${path}?${new URLSearchParams({ ...params, access_token: token })}`, { method })).json();
     if (r.error) throw new Error(`${step}: ${r.error.error_user_msg ?? r.error.message} (Code ${r.error.code}${r.error.error_subcode ? `/${r.error.error_subcode}` : ''})`);
     return r;
   };
-  const made = await call('Anlegen', `${ig}/media`, { media_type: 'REELS', upload_type: 'resumable', caption: text.instagram, share_to_feed: 'true' }, 'POST');
-  await rupload(made.uri ?? `https://rupload.facebook.com/ig-api-upload/v21.0/${made.id}`, token, video);
-  // Videos verarbeitet Instagram länger als Bilder – bis zu 5 Minuten warten
-  for (let i = 0; ; i++) {
-    const s = await call('Verarbeiten', made.id, { fields: 'status_code,status' });
-    if (s.status_code === 'FINISHED') break;
-    if (s.status_code === 'ERROR' || s.status_code === 'EXPIRED') throw new Error(`Verarbeiten: ${s.status ?? s.status_code}`);
-    if (i >= 60) throw new Error('Verarbeiten: nach 5 Minuten nicht fertig');
-    await sleep(5000);
+  const params = { media_type: 'REELS', caption: text.instagram, share_to_feed: 'true' };
+  // Wege der Reihe nach: direkt hochladen (Instagram verlangt dafür oft den Benutzer-Token), sonst das Video
+  // von der öffentlichen Adresse holen lassen, die der Ablauf im Zweig "media" bereitstellt
+  const ways = [];
+  for (const token of [...new Set([env.FACEBOOK_PAGE_TOKEN, meta.token])]) {
+    ways.push(['Hochladen', token, async () => {
+      const made = await call(token, 'Anlegen', `${ig}/media`, { ...params, upload_type: 'resumable' }, 'POST');
+      await rupload(made.uri ?? `https://rupload.facebook.com/ig-api-upload/v21.0/${made.id}`, token, video);
+      return made.id;
+    }]);
   }
-  await call('Veröffentlichen', `${ig}/media_publish`, { creation_id: made.id }, 'POST');
-  return 'gepostet (Reel)';
+  if (env.REEL_URL) ways.push(['Adresse', meta.token, async () => (await call(meta.token, 'Anlegen', `${ig}/media`, { ...params, video_url: env.REEL_URL }, 'POST')).id]);
+  const errors = [];
+  for (const [way, token, create] of ways) {
+    try {
+      const id = await create();
+      // Videos verarbeitet Instagram länger als Bilder – bis zu 5 Minuten warten
+      for (let i = 0; ; i++) {
+        const s = await call(token, 'Verarbeiten', id, { fields: 'status_code,status' });
+        if (s.status_code === 'FINISHED') break;
+        if (s.status_code === 'ERROR' || s.status_code === 'EXPIRED') throw new Error(`Verarbeiten: ${s.status ?? s.status_code}`);
+        if (i >= 60) throw new Error('Verarbeiten: nach 5 Minuten nicht fertig');
+        await sleep(5000);
+      }
+      await call(token, 'Veröffentlichen', `${ig}/media_publish`, { creation_id: id }, 'POST');
+      return `gepostet (Reel, ${way}${errors.length ? ` – vorher: ${errors.join(' / ')}` : ''})`;
+    } catch (err) { errors.push(`${way}: ${err.message}`); }
+  }
+  throw new Error(errors.join(' / '));
 }
 
 async function facebookReel(jpgs) {

@@ -66,12 +66,14 @@ jobs:
           stamp="$(date -u +%Y%m%d-%H%M)"
           cd out
           for f in slide-*.jpg; do mv "$f" "$stamp-${f#slide-}"; done
+          cp reel.mp4 "$stamp-reel.mp4"
           git init -q -b media
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ./*.jpg && git commit -q -m "Bilder vom $(date -u +%Y-%m-%d)"
+          git add ./*.jpg "$stamp-reel.mp4" && git commit -q -m "Bilder vom $(date -u +%Y-%m-%d)"
           git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" media
           echo "IMAGE_BASE=https://raw.githubusercontent.com/${{ github.repository }}/media/$stamp-" >> "$GITHUB_ENV"
+          echo "REEL_URL=https://raw.githubusercontent.com/${{ github.repository }}/media/$stamp-reel.mp4" >> "$GITHUB_ENV"
           sleep 10
       - name: Posten
         if: env.CHECK != 'true'
