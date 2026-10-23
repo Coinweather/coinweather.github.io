@@ -68,6 +68,12 @@ async function checkMeta() {
     console.log(`${label}: ${r.error ? `FEHLER – ${r.error.message}` : `erreichbar (${r[fields]})`}`);
     if (r.error) process.exitCode = 1;
   }
+  if (env.INSTAGRAM_USER_ID) {
+    const media = await graph(`${env.INSTAGRAM_USER_ID}/media`, { fields: 'timestamp,media_type,permalink', limit: '5', access_token: meta.token });
+    for (const m of media.data ?? []) console.log(`  Instagram-Beitrag: ${new Date(m.timestamp).toLocaleString('de-CH', { timeZone: 'Europe/Zurich' })} · ${m.media_type} · ${m.permalink}`);
+    const limit = await graph(`${env.INSTAGRAM_USER_ID}/content_publishing_limit`, { fields: 'quota_usage,config', access_token: meta.token });
+    if (limit.data?.[0]) console.log(`  Instagram-Tageslimit: ${limit.data[0].quota_usage} von ${limit.data[0].config?.quota_total ?? '?'} Beiträgen in 24 h`);
+  }
   if (!used?.is_valid || (used.type === 'PAGE' && used.expires_at)) process.exitCode = 1;
 }
 if (args.includes('--check')) { await checkMeta(); process.exit(); }
@@ -470,37 +476,78 @@ async function facebook(jpgs) {
 
 // Instagram holt die Bilder selbst von öffentlichen Adressen (IMAGE_BASE + 1.jpg … 4.jpg, vom Ablauf bereitgestellt)
 // und zeigt sie als Karussell. Ohne IMAGE_BASE, aber mit IMAGE_URL, kommt nur das Hauptbild.
+// Instagram meldet ab und zu vorübergehende Fehler („An unknown error has occurred“) oder braucht für die Bilder länger.
+// Darum: jeder Schritt mit Wiederholung, Warten bis zu 5 Minuten, vor einem zweiten Veröffentlichen prüfen, ob der Beitrag
+// schon da ist (sonst gäbe es ihn doppelt), und falls das Karussell gar nicht geht, wenigstens das Hauptbild.
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function instagram() {
   const urls = env.IMAGE_BASE ? Array.from({ length: SLIDES }, (_, i) => `${env.IMAGE_BASE}${i + 1}.jpg`) : env.IMAGE_URL ? [env.IMAGE_URL] : [];
   if (!urls.length) throw new Error('Keine öffentliche Bildadresse (IMAGE_BASE)');
   const { token } = await metaToken();
-  const q = (p) => new URLSearchParams({ ...p, access_token: token });
-  const create = async (p) => {
-    const r = await (await fetch(`${GRAPH}/${env.INSTAGRAM_USER_ID}/media?${q(p)}`, { method: 'POST' })).json();
-    if (!r.id) throw new Error(r.error?.message ?? 'Bild abgelehnt');
-    return r.id;
+  const ig = env.INSTAGRAM_USER_ID, started = Date.now();
+  const call = async (step, path, params, method = 'GET') => {
+    const r = await (await fetch(`${GRAPH}/${path}?${new URLSearchParams({ ...params, access_token: token })}`, { method })).json();
+    if (r.error) {
+      const e = r.error;
+      const err = new Error(`${step}: ${e.error_user_msg ?? e.message} (Code ${e.code}${e.error_subcode ? `/${e.error_subcode}` : ''})`);
+      err.transient = e.is_transient || [1, 2, 4, 17, 32, 341, -1, -2].includes(e.code);
+      throw err;
+    }
+    return r;
   };
-  // Instagram verarbeitet jedes Bild erst, bevor es weiterverwendet werden kann
-  const ready = async (id) => {
-    for (let i = 0; i < 20; i++) {
-      const s = await (await fetch(`${GRAPH}/${id}?${q({ fields: 'status_code' })}`)).json();
-      if (s.status_code === 'FINISHED') return;
-      if (s.status_code === 'ERROR') throw new Error('Instagram konnte ein Bild nicht verarbeiten');
-      await new Promise((r) => setTimeout(r, 3000));
+  const retry = async (fn, tries = 3) => {
+    for (let i = 1; ; i++) {
+      try { return await fn(); } catch (err) {
+        if (!err.transient || i >= tries) throw err;
+        console.log(`Instagram: ${err.message} – neuer Versuch in ${15 * i} s`);
+        await sleep(15_000 * i);
+      }
     }
   };
-  let post;
-  if (urls.length === 1) post = await create({ image_url: urls[0], caption: text.instagram });
-  else {
+  const create = (step, p) => retry(async () => (await call(step, `${ig}/media`, p, 'POST')).id);
+  // Instagram verarbeitet jedes Bild erst, bevor es weiterverwendet werden kann
+  const ready = async (step, id) => {
+    for (let i = 0; i < 60; i++) {
+      const s = await retry(() => call(step, id, { fields: 'status_code,status' }));
+      if (s.status_code === 'FINISHED') return;
+      if (s.status_code === 'ERROR' || s.status_code === 'EXPIRED') throw new Error(`${step}: Instagram konnte es nicht verarbeiten (${s.status ?? s.status_code})`);
+      await sleep(5000);
+    }
+    throw new Error(`${step}: nach 5 Minuten noch nicht verarbeitet`);
+  };
+  const latest = async () => (await call('Kontrolle', `${ig}/media`, { fields: 'timestamp', limit: '1' })).data?.[0];
+  const publish = (id) => retry(async () => {
+    try { await call('Veröffentlichen', `${ig}/media_publish`, { creation_id: id }, 'POST'); }
+    catch (err) {
+      // Manchmal meldet Instagram einen Fehler, obwohl der Beitrag erschienen ist
+      await sleep(10_000);
+      const last = await latest().catch(() => null);
+      if (last && Date.parse(last.timestamp) >= started - 60_000) return;
+      throw err;
+    }
+  });
+  const single = async () => {
+    const id = await create('Hauptbild', { image_url: urls[0], caption: text.instagram });
+    await ready('Hauptbild', id);
+    await publish(id);
+  };
+  if (urls.length === 1) { await single(); return 'gepostet'; }
+  try {
     const children = [];
-    for (const url of urls) children.push(await create({ image_url: url, is_carousel_item: 'true' }));
-    for (const id of children) await ready(id);
-    post = await create({ media_type: 'CAROUSEL', children: children.join(','), caption: text.instagram });
+    for (const [i, url] of urls.entries()) children.push(await create(`Bild ${i + 1}`, { image_url: url, is_carousel_item: 'true' }));
+    for (const [i, id] of children.entries()) await ready(`Bild ${i + 1}`, id);
+    const post = await create('Karussell', { media_type: 'CAROUSEL', children: children.join(','), caption: text.instagram });
+    await ready('Karussell', post);
+    await publish(post);
+    return `gepostet (Karussell mit ${urls.length} Bildern)`;
+  } catch (err) {
+    // Ist der Beitrag trotz Fehler erschienen, nicht noch einmal posten
+    const last = await latest().catch(() => null);
+    if (last && Date.parse(last.timestamp) >= started - 60_000) return `gepostet (Meldung unterwegs: ${err.message})`;
+    console.log(`Instagram: Karussell ging nicht (${err.message}) – versuche das Hauptbild allein`);
+    await single();
+    return 'gepostet (nur Hauptbild)';
   }
-  await ready(post);
-  const done = await (await fetch(`${GRAPH}/${env.INSTAGRAM_USER_ID}/media_publish?${q({ creation_id: post })}`, { method: 'POST' })).json();
-  if (!done.id) throw new Error(done.error?.message ?? 'Veröffentlichen abgelehnt');
-  return urls.length > 1 ? `gepostet (Karussell mit ${urls.length} Bildern)` : 'gepostet';
 }
 
 const CHANNELS = [
