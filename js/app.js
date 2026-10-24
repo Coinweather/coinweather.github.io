@@ -473,7 +473,7 @@ function fngEffect(regime) {
   const fearDays = Math.round((f.fearShare60 ?? 0) * 60);
   const tilt = fngTilt(regime);
   const [cls, title, text] = greedZone(regime)
-    ? ['down', 'Gier-Bremse aktiv', `7-Tage-Schnitt ${num(f.avg7, 0)}: keine Kaufsignale. Nach solchen Phasen stand der mittlere Coin 30 Tage später nur in rund jedem vierten Fall höher.`]
+    ? ['down', 'Gier-Bremse aktiv', `7-Tage-Schnitt ${num(f.avg7, 0)}: Der Trend der Altcoins wird gedeckelt. Nach solchen Phasen stand der mittlere Coin 30 Tage später nur in rund jedem vierten Fall höher.`]
     : tilt.fear > 0
       ? ['up', 'Angst-Käufe aktiv', `${fearDays} der letzten 60 Tage in der Angstzone, Bitcoin tief unter dem Allzeithoch: Der Reserve-Vorschlag sinkt, aufgestockt werden Bitcoin und Ethereum.`]
       : ['muted', 'Derzeit ohne Sonderwirkung', `7-Tage-Schnitt ${num(f.avg7, 0)}, ${fearDays} der letzten 60 Tage in der Angstzone. Gier-Bremse ab 75, Angst-Käufe ab 54 von 60 Tagen unter 45.`];
@@ -503,9 +503,9 @@ const INFO = {
     <ul><li><strong>Bitcoin und Ethereum:</strong> Ihr Score besteht zu 80 % aus dem Kauf-Score (100 − Zyklus-Risiko) und zu 20 % aus ihrem Trend. Ihr Signal gilt für 12 Monate und länger.</li>
       <li><strong>Altcoins:</strong> Ihr Score ist ihr Trend plus ein Zyklus-Bonus: je Kauf-Score-Punkt über 50 kommen 0,6 Punkte dazu (bei 69 also +12).
         Dazu nie gegen den Kompass: Bei günstigem Zyklus (ab 62) gibt es kein Verkaufssignal, bei teurem (unter 45) höchstens „Eher kaufen“.</li>
-      <li><strong>Bärenmarkt und Gier-Bremse:</strong> Liegt Bitcoin unter seinem 200-Tage-Schnitt im Abwärtstrend oder Fear &amp; Greed im 7-Tage-Schnitt bei 75–85, bekommen Altcoins keine Kaufsignale.</li></ul>
-    <p>Rückrechnung des Portfolio-Managers mit genau diesen Regeln: 79 % pro Jahr seit 2018, seit 2022 42 %, größter Rückgang −43 %
-      (nur nach dem Trend: 73 %, 43 %, −40 %). Ein Abzug bei teurem Zyklus hätte viel gekostet (60 % pro Jahr) – deshalb dort nur die Obergrenze.</p>
+      <li><strong>Bärenmarkt und Gier-Bremse:</strong> Liegt Bitcoin unter seinem 200-Tage-Schnitt im Abwärtstrend oder Fear &amp; Greed im 7-Tage-Schnitt bei 75–85, wird der Trend der Altcoins gedeckelt – ein Kaufsignal entsteht dann nur noch über den Zyklus-Bonus.</li></ul>
+    <p>Rückrechnung des Portfolio-Managers mit genau diesen Regeln und der Reserve nach Kompass und Trend (Mittel aus 7 Starttagen): 81 % pro Jahr seit 2018, seit 2022 43 %, größter Rückgang −46 %
+      (früher nur nach dem Trend: 73 %, 43 %, −40 %). Ein Abzug bei teurem Zyklus hätte viel gekostet (60 % pro Jahr) – deshalb dort nur die Obergrenze.</p>
     <p>Bärenmarkt und Gier-Bremse steuern auch das Reserve-Ziel im Portfolio. Eigene Regeln je Altcoin (kein Kauf im eigenen Abwärtstrend, kein Kauf nach eigener Gier, Kauf nach eigener Angst)
       halfen in der Prüfung jeweils nur in einem von zwei Zeiträumen und sind deshalb nicht eingebaut.</p>
     <h3>Grundlage</h3>
@@ -535,7 +535,7 @@ const INFO = {
       <li><strong>12-Monats-Sicht</strong> auf der Startseite und bei jedem Coin.</li>
       <li><strong>Portfolio-Manager und Modell-Portfolio:</strong> rechnen mit genau diesen Signalen.</li>
       <li><strong>Zyklus-Kompass:</strong> Das Zyklus-Risiko ist 100 minus Kauf-Score.</li></ul>
-    <p>Geprüft an 84 Coins seit 2018, wöchentlich gehandelt, mit Gebühren: So kam der Portfolio-Manager auf 79 % pro Jahr. Hätten alle Coins zu 60 % direkt dem Kauf-Score
+    <p>Geprüft an 84 Coins seit 2018, wöchentlich gehandelt, mit Gebühren: So kam der Portfolio-Manager auf 81 % pro Jahr. Hätten alle Coins zu 60 % direkt dem Kauf-Score
       gefolgt, wären es nur 38 % gewesen – nach günstigen Ständen fielen viele Altcoins zunächst weiter.</p>${LIMITS}` },
 
   weather: { title: 'Das Krypto-Wetter', body: () => `
@@ -589,7 +589,7 @@ const INFO = {
     <p><strong>Das spricht dafür / dagegen:</strong> die Merkmale mit dem größten Beitrag zum Score, in Punkten.</p>${LIMITS}` },
 
   horizons: { title: 'So entsteht der Score', body: () => `
-    <p>Der Score ist die gewichtete Summe aus vier Bausteinen. Jeder bewertet einen Ausschnitt des bisherigen Kursverlaufs von −100 (klar negativ) bis +100 (klar positiv):</p>
+    <p>Der Trend-Teil des Kauf-Scores ist die gewichtete Summe aus vier Bausteinen. Jeder bewertet einen Ausschnitt des bisherigen Kursverlaufs; auf der Skala 0–100 steht 50 für neutral:</p>
     <ul><li><strong>Kurzfristig (20 %):</strong> die letzten Tage – vor allem Erholung nach einem Ausverkauf.</li>
       <li><strong>Mittelfristig (25 %):</strong> Schwung über 2–4 Wochen und Handelsvolumen.</li>
       <li><strong>Langfristig (10 %):</strong> Trend über 200 Tage bis ein Jahr.</li>
@@ -648,7 +648,7 @@ const INFO = {
       in den vier Zeitabschnitten ${s.blocks.map((b) => signed(b, 1) + ' %').join(', ')}. ${esc(s.caveat)}</li>`;
     return `<p>Ein Muster kommt nur auf die Seite, wenn es in allen vier Zwei-Jahres-Abschnitten seit 2018 nach Gebühren im Plus lag. Das schaffen zwei:</p>
       <ul>${row(TRADE_SETUPS.selloff, `Der Coin ist in 7 Tagen um mindestens ${-TRADE_LIMITS.selloff} % gefallen, der mittlere Coin am Markt um mindestens ${-TRADE_LIMITS.market} %, es herrscht kein Bärenmarkt und Fear &amp; Greed steht im 7-Tage-Schnitt bei mindestens ${TRADE_LIMITS.fng}.`)}
-        ${row(TRADE_SETUPS.score, `Der Prognose-Score liegt bei mindestens +${TRADE_LIMITS.score}.`)}</ul>
+        ${row(TRADE_SETUPS.score, `Der Trend-Score (ohne Zyklus-Kompass, −100 bis +100) liegt bei mindestens +${TRADE_LIMITS.score}.`)}</ul>
       <p>Geprüft an Tageskursen mit Hoch und Tief von 84 Coins, mit 0,5 % Gebühren je Handel. Trifft eine Tageskerze Ziel und Stopp, zählt der Stopp.
         Vorschläge gibt es nur für Coins mit Tageskursen von Binance und genug Handelsvolumen. Sie gelten für Tage, nicht für Minuten:
         Für Handeln im Minutentakt gibt es hier keine geprüfte Grundlage.</p>${LIMITS}`; } },
@@ -664,18 +664,22 @@ const INFO = {
       <p>Was die Daten stützen, steckt stattdessen in der Gier-Bremse (keine Käufe bei extremer Gier) und in der Reserve-Strategie „Antizyklisch“.</p>`; } },
 
   reserve: { title: 'Reserve-Ziel und Strategien', body: () => `
-    <p>Das Reserve-Ziel sagt, wie viel des Portfolios als Bargeld oder Stablecoins liegen soll. Es folgt denselben Regeln wie die Kaufscores:</p>
-    <ul><li><strong>Trend:</strong> Je stärker die Marktphase, desto weniger Reserve.</li>
+    <p>Das Reserve-Ziel sagt, wie viel des Portfolios als Bargeld oder Stablecoins liegen soll. Es folgt dem Zyklus-Kompass und der Marktphase:</p>
+    <ul><li><strong>Zyklus-Kompass:</strong> Ab einem Kauf-Score von 62 sinkt die Reserve um bis zu 20 Punkte (voll bei 85) – solange kein Bärenmarkt herrscht.</li>
+      <li><strong>Marktphase:</strong> Je stärker der Trend, desto weniger Reserve.</li>
       <li><strong>Bärenbremse:</strong> Im Bärenmarkt bleiben höchstens 15 % investiert. Die Bremse greift über 5 Tage verteilt, damit der Wert nicht springt.</li>
       <li><strong>Angst-Käufe:</strong> Nach langer Angst tief im Zyklus sinkt die Reserve; gekauft werden Bitcoin und Ethereum.</li>
-      <li><strong>Gier:</strong> Bei extremer Gier gibt es keine Kaufsignale.</li>
-      <li><strong>Kauf-Score (nur „Antizyklisch“):</strong> Ab 75 bis zu 40 Punkte weniger Reserve, aufgestockt werden Bitcoin und Ethereum; unter 35 20 Punkte mehr Reserve.</li></ul>
+      <li><strong>Gier:</strong> Bei extremer Gier wird der Trend der Altcoins gedeckelt.</li>
+      <li><strong>Strategie „Antizyklisch“:</strong> Folgt dem Kompass stärker – ab 62 bis zu 40 Punkte weniger Reserve (außerhalb von Bärenmärkten), ab 75 werden Bitcoin und Ethereum aufgestockt; unter 35 20 Punkte mehr Reserve.</li></ul>
+    <p>Warum der Kompass die Reserve im Bärenmarkt nicht senkt: Im Bärenmarkt ist der Zyklus oft monatelang günstig, während die Kurse weiter fallen (2022).
+      Mit Zuschlag auch dort lag der größte Rückgang bei −48 bis −54 % statt −46 %.</p>
     <h3>Rückrechnung seit März 2018</h3>
     <div class="table-wrap"><table class="fc-table"><thead><tr><th>Strategie</th><th class="num">pro Jahr</th><th class="num">seit 2022</th><th class="num">größter Rückgang</th></tr></thead>
       <tbody>${Object.entries(RESERVE_MODES).map(([k, m]) => `<tr><td>${m.label}</td><td class="num up">+${RESERVE_BACKTEST[k].perYear} %</td><td class="num up">+${RESERVE_BACKTEST[k].recent} %</td><td class="num">−${RESERVE_BACKTEST[k].drawdown} %</td></tr>`).join('')}
         <tr><td>Bitcoin halten</td><td class="num up">+${HOLD_BACKTEST.perYear} %</td><td class="num up">+${HOLD_BACKTEST.recent} %</td><td class="num">−${HOLD_BACKTEST.drawdown} %</td></tr></tbody></table></div>
     <p class="muted">84 Coins, mit 0,25 % Gebühr je Handel, wöchentlich geprüft, Mittel aus 7 Starttagen. Je nach Starttag schwankt das Ergebnis um rund ±10 Punkte pro Jahr.
-      Geprüft wurde auch eine Reserve nur nach dem Kauf-Score: +30 % pro Jahr bei −60 % Rückgang – deutlich schlechter, deshalb nur als Zu- und Abschlag in „Antizyklisch“.</p>${LIMITS}` },
+      Geprüft wurde auch eine Reserve nur nach dem Kauf-Score: +59 % pro Jahr bei −60 % Rückgang – deutlich schlechter. Der Zuschlag nach dem Kompass hob die Rendite
+      in beiden Zeiträumen leicht (seit 2022 43 % statt 41,5 %), der größte Rückgang stieg dabei von −43 % auf −46 %.</p>${LIMITS}` },
 
   manager: { title: 'So arbeitet der Portfolio-Manager', body: () => `
     <ul><li><strong>Feste Vorschläge:</strong> Sie werden einmal berechnet und bleiben stehen, bis du etwas am Portfolio änderst oder „Neu berechnen“ wählst.</li>
@@ -1073,7 +1077,7 @@ function marketView(preview = false) {
   function noPicks() {
     if (!state.coins.length) return '<p class="muted">Lade Kurse …</p>';
     const m = state.market, r = m?.regime;
-    const why = r?.bear ? 'Bitcoin liegt unter seinem 200-Tage-Schnitt im Abwärtstrend – dann gibt das Modell keine Kaufsignale für die nächsten Wochen.'
+    const why = r?.bear ? 'Bitcoin liegt unter seinem 200-Tage-Schnitt im Abwärtstrend – das bremst die Signale der Altcoins.'
       : greedZone(r) ? 'Die Gier-Bremse ist aktiv – nach solchen Phasen fielen die meisten Coins.' : 'Kein Coin erfüllt gerade die Kriterien.';
     return `<div class="panel no-picks"><p><strong>Aktuell kein Kaufsignal für die nächsten Wochen.</strong> ${why}</p>
       ${m?.buy && m.value >= 62 ? `<p>Für Käufe in Raten mit Blick auf 12 Monate und mehr zählt der Kauf-Score oben (${m.value}/100). Nach solchen Ständen stand Bitcoin seit 2022 ein Jahr später meist höher – kurzfristig kann der Kurs trotzdem weiter fallen.</p>` : ''}</div>`;
@@ -1947,7 +1951,7 @@ function tradingView() {
 
   function update() {
     const list = state.coins.filter((c) => c.analysis.trade?.kind && liquid(c))
-      .sort((a, b) => (a.analysis.trade.kind === b.analysis.trade.kind ? b.analysis.score - a.analysis.score : a.analysis.trade.kind === 'selloff' ? -1 : 1));
+      .sort((a, b) => (a.analysis.trade.kind === b.analysis.trade.kind ? (b.analysis.trendScore ?? b.analysis.score) - (a.analysis.trendScore ?? a.analysis.score) : a.analysis.trade.kind === 'selloff' ? -1 : 1));
     const regime = state.market?.regime;
     const why = !state.coins.length ? 'Lade Kurse …'
       : regime?.bear ? 'Im Bärenmarkt entfallen beide Muster: Ausverkäufe gingen dort öfter weiter, und der Score erreicht die Schwelle nicht.'
@@ -1958,7 +1962,7 @@ function tradingView() {
       const until = new Date(t.time + t.days * 86_400_000).toLocaleDateString(settings.locale, { weekday: 'short', day: 'numeric', month: 'short' });
       return `<div class="panel trade">
         <div class="panel-top">${coinCell(c)}<span class="badge buy">Long</span></div>
-        <div class="trade-why">${esc(s.label)}${t.kind === 'selloff' ? ` · ${signed(t.r7, 0)} % in 7 Tagen, zusammen mit dem Markt` : ` · Score ${signed(c.analysis.score, 0)}`}</div>
+        <div class="trade-why">${esc(s.label)}${t.kind === 'selloff' ? ` · ${signed(t.r7, 0)} % in 7 Tagen, zusammen mit dem Markt` : ` · Trend-Score ${signed(c.analysis.trendScore ?? c.analysis.score, 0)}`}</div>
         <dl class="trade-grid">
           <div><dt>Einstieg</dt><dd>${money(t.entry)}</dd><dd class="muted">jetzt ${money(c.current_price)}</dd></div>
           <div><dt>Ziel – verkaufen bei</dt><dd class="up">${money(t.target)}</dd><dd class="muted">+${num(t.targetPct, 1)} %</dd></div>
@@ -1982,7 +1986,8 @@ function tradingView() {
       const blocked = t.blocked === 'alone' ? { gap: 0.05, text: `${signed(t.r7, 0)} % in 7 Tagen, aber der Markt fiel nicht mit – fällt ein Coin allein, gab es keinen Vorteil` }
         : t.blocked === 'fear' ? { gap: 0.05, text: `${signed(t.r7, 0)} % in 7 Tagen, aber der Markt steht in der Angstzone – dort ging es nach Ausverkäufen öfter weiter abwärts` } : null;
       const drop = !blocked && t.r7 !== null && t.r7 <= -15 ? { gap: (TRADE_LIMITS.selloff - t.r7) / -10, text: `${signed(t.r7, 0)} % in 7 Tagen – Muster ab ${TRADE_LIMITS.selloff} %` } : null;
-      const strong = c.analysis.score >= 28 ? { gap: (TRADE_LIMITS.score - c.analysis.score) / 12, text: `Score ${signed(c.analysis.score, 0)} – Muster ab +${TRADE_LIMITS.score}` } : null;
+      const ts = c.analysis.trendScore ?? c.analysis.score;
+      const strong = ts >= 28 ? { gap: (TRADE_LIMITS.score - ts) / 12, text: `Trend-Score ${signed(ts, 0)} – Muster ab +${TRADE_LIMITS.score}` } : null;
       const best = [blocked, drop, strong].filter(Boolean).sort((x, y) => x.gap - y.gap)[0];
       return best ? { c, ...best } : null;
     }).filter(Boolean).sort((x, y) => x.gap - y.gap).slice(0, 8);
@@ -2145,6 +2150,7 @@ function portfolioView() {
       </div>
     </div>
     <p id="p-msg" class="notice" hidden></p>
+    <section class="panel p-next" id="p-next" hidden></section>
     <div id="p-empty"></div>
     <div id="p-body">
       <section id="p-summary" class="summary"></section>
@@ -2159,7 +2165,7 @@ function portfolioView() {
       <h2>Bestand</h2>
       <div class="table-wrap"><table>
         <thead><tr><th class="col-coin">Coin</th><th class="num">Menge</th><th class="num col-7d">Kurs</th><th class="num">24 h</th><th class="num">Wert</th><th class="num col-cap">Anteil</th>
-          <th class="num col-30d">Ø Kaufpreis</th><th class="num">Gewinn / Verlust</th><th class="col-score">Prognose</th><th>Signal</th><th></th></tr></thead>
+          <th class="num col-30d">Ø Kaufpreis</th><th class="num">Gewinn / Verlust</th><th class="col-score">Kauf-Score</th><th>Signal</th><th></th></tr></thead>
         <tbody id="p-rows"></tbody>
       </table></div>
       <p class="foot-actions"><button class="link" id="p-export" type="button">Als CSV exportieren</button> · <button class="link" id="p-clear" type="button">Portfolio leeren</button></p>
@@ -2810,7 +2816,19 @@ function portfolioView() {
         </dl>
         <button class="btn small" data-move="${i}">Als umgesetzt eintragen</button>
       </article>`).join('');
-    const holds = p.holds.length ? `<p><strong>Halten:</strong> ${p.holds.map((h) => `${esc(h.name)} (${signed(h.score, 0)})`).join(', ')} – hier lohnt im Moment kein Handel.</p>` : '';
+    const holds = p.holds.length ? `<p><strong>Halten:</strong> ${p.holds.map((h) => `${esc(h.name)} (${to100(h.score)}/100)`).join(', ')} – hier lohnt im Moment kein Handel.</p>` : '';
+    // Oben auf der Seite: die nächsten Schritte in einem Satz, mit Sprung zu den Vorschlägen
+    const next = $('#p-next');
+    if (next) {
+      const buys = p.moves.filter((m) => ['buy', 'add'].includes(m.type)).length, sells = p.moves.filter((m) => ['sell', 'reduce', 'profit'].includes(m.type)).length, swaps = p.moves.filter((m) => m.type === 'swap').length;
+      next.hidden = false;
+      next.innerHTML = `<div><div class="label">Nächste Schritte</div><strong>${p.moves.length
+        ? [buys ? `${buys} ${buys === 1 ? 'Kauf' : 'Käufe'}` : '', sells ? `${sells} ${sells === 1 ? 'Verkauf' : 'Verkäufe'}` : '', swaps ? `${swaps} ${swaps === 1 ? 'Tausch' : 'Tausche'}` : ''].filter(Boolean).join(' · ')
+        : 'Kein Handlungsbedarf'}</strong>
+        <div class="muted">Reserve-Ziel ${num((1 - p.exposure.share) * 100, 0)} % · Kauf-Score des Markts ${state.market?.value ?? '–'}/100</div></div>
+        ${p.moves.length ? '<button class="btn small" type="button" data-goto-moves>Zu den Vorschlägen</button>' : ''}`;
+      next.querySelector('[data-goto-moves]')?.addEventListener('click', () => $('#p-manager').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
 
     el.innerHTML = `<section class="panel manager">
       <div class="panel-top"><div><h2>Vorschläge</h2><div class="muted">Stand ${advice.time.toLocaleTimeString(settings.locale, { hour: '2-digit', minute: '2-digit' })} Uhr${stale ? ' – älter als 30 Minuten' : ''}</div></div>
@@ -3116,6 +3134,8 @@ async function modelSection(el) {
       </div>
       <div class="panel-top"><span></span><div class="chips" id="m-range"><button class="chip active" data-years="4">4 Jahre</button><button class="chip" data-years="0">seit ${startYear}</button></div></div>
       <div id="m-chart" class="chart"></div>
+      <p class="hint">Diese Kurve beginnt an einem bestimmten Wochentag. Je nach Starttag schwankt das Ergebnis um rund ±10 Punkte pro Jahr – im Mittel aus 7 Starttagen:
+        +${RESERVE_BACKTEST.balanced.perYear} % pro Jahr, seit 2022 +${RESERVE_BACKTEST.balanced.recent} %, größter Rückgang −${RESERVE_BACKTEST.balanced.drawdown} %.</p>
       <p class="hint"><strong>Wichtig:</strong> Das ist eine Rückrechnung an den Kursen, an denen die Regeln entwickelt wurden. Die Zukunft fällt meist schlechter aus;
         Coins, die es nicht mehr gibt, fehlen; Steuern sind nicht berücksichtigt. Keine Anlageberatung.</p>
     </section>

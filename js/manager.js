@@ -37,12 +37,20 @@ export const DEFAULTS = {
   // Fear & Greed verschiebt die Investitionsquote (siehe fngTilt), Angaben als Anteil des Portfolios:
   fearTilt: 0.5,          // so viel mehr investieren nach langer Angst tief im Zyklus
   greedTilt: 0,           // so viel weniger investieren bei extremer Gier nahe am Allzeithoch
-  // Kauf-Score als Zu- oder Abschlag (nur Strategie „Antizyklisch“, siehe buyTiltOf):
-  buyTilt: 0,             // so viel mehr investieren, wenn der Kauf-Score von buyTiltFrom bis buyTiltFull steigt
-  buyTiltFrom: 75, buyTiltFull: 90,
+  // Zyklus-Kompass in der Reserve (siehe buyTiltOf): Ab Kauf-Score 62 bis zu 20 Punkte weniger Reserve, solange kein
+  // Bärenmarkt herrscht – im Bärenmarkt schützt die Bärenbremse. Rückrechnung (7 Starttage, Oktober 2026): 80,8 % pro Jahr
+  // statt 78,7 %, 2018–21 143 % statt 140 %, seit 2022 43,1 % statt 41,5 %, größter Rückgang −45,5 % statt −42,6 %.
+  // Geprüft und schlechter: Reserve ganz nach dem Kauf-Score (59 %, −60 %), halb gemischt, Zuschlag auch im Bärenmarkt
+  // (−48 bis −54 % Rückgang), Abschlag bei teurem Zyklus (70–75 %, verpasst den Anstieg 2020/21).
+  buyTilt: 0.2,           // so viel mehr investieren, wenn der Kauf-Score von buyTiltFrom bis buyTiltFull steigt
+  buyTiltFrom: 62, buyTiltFull: 85,
+  buyTiltBullOnly: true,  // der Zuschlag gilt nicht im Bärenmarkt
   buyCutBelow: null,      // unter diesem Kauf-Score …
   buyCut: 0,              // … so viel weniger investieren
+  buyBlend: 0,            // Anteil der Investitionsquote, der direkt dem Kauf-Score folgt (BUY_EXPOSURE), Rest der Marktphase
 };
+// Investitionsquote allein nach dem Kauf-Score: [Kauf-Score, Anteil investiert]
+export const BUY_EXPOSURE = [[35, 0.15], [45, 0.35], [55, 0.55], [62, 0.75], [75, 1]];
 
 const CORE = CORE_IDS;
 const RISK_WEIGHT = [1, 0.9, 0.75, 0.55];
@@ -78,19 +86,19 @@ export const EXPOSURE_CURVE = EXPOSURE_CURVES.balanced;
 
 // Die drei wählbaren Strategien für das Reserve-Ziel
 export const RESERVE_MODES = {
-  balanced: { label: 'Mit dem Trend', options: {},
-    text: 'Folgt der Marktphase, bremst im Bärenmarkt und kauft nach langer Angst tief im Zyklus Bitcoin und Ethereum nach.' },
-  contrarian: { label: 'Antizyklisch', options: { fearTilt: 0.85, greedTilt: 0, coreFillBuy: 75, buyTilt: 0.4, buyTiltFrom: 75, buyTiltFull: 90, buyCutBelow: 35, buyCut: 0.2 },
-    text: 'Folgt dem Kauf-Score: Ist der Zyklus günstig (ab 75), wird mehr investiert und Bitcoin und Ethereum werden aufgestockt; ist er teuer (unter 35), bleibt mehr in Reserve.' },
+  balanced: { label: 'Kompass und Trend', options: {},
+    text: 'Folgt dem Zyklus-Kompass (günstiger Zyklus: weniger Reserve) und der Marktphase, bremst im Bärenmarkt und kauft nach langer Angst Bitcoin und Ethereum nach.' },
+  contrarian: { label: 'Antizyklisch', options: { fearTilt: 0.85, greedTilt: 0, coreFillBuy: 75, buyTilt: 0.4, buyTiltFrom: 62, buyTiltFull: 85, buyTiltBullOnly: true, buyCutBelow: 35, buyCut: 0.2 },
+    text: 'Folgt dem Zyklus-Kompass stärker: ab Kauf-Score 62 bis zu 40 Punkte weniger Reserve (außerhalb von Bärenmärkten), ab 75 werden Bitcoin und Ethereum aufgestockt; unter 35 bleibt mehr in Reserve.' },
   cautious: { label: 'Vorsichtig', options: { exposureCurve: EXPOSURE_CURVES.cautious, fearTilt: 0.3 },
     text: 'Hält deutlich mehr Reserve und investiert erst bei sehr starker Marktphase voll.' },
 };
 // Rückrechnung mit scripts/model-curve.mjs (84 Coins, wöchentlich, 0,25 % Gebühr), Mittel aus 7 Starttagen, Oktober 2026.
 // perYear/drawdown: März 2018 bis heute; recent: seit Januar 2022. HOLD_BACKTEST: Bitcoin im selben Zeitraum gehalten.
 export const RESERVE_BACKTEST = {
-  balanced: { perYear: 73, recent: 43, drawdown: 40 },
-  contrarian: { perYear: 72, recent: 39, drawdown: 44 },
-  cautious: { perYear: 52, recent: 27, drawdown: 25 },
+  balanced: { perYear: 81, recent: 43, drawdown: 46 },
+  contrarian: { perYear: 78, recent: 44, drawdown: 51 },
+  cautious: { perYear: 60, recent: 31, drawdown: 30 },
 };
 export const HOLD_BACKTEST = { perYear: 25, recent: 12, drawdown: 77 };
 
@@ -113,7 +121,11 @@ export function reserveAdvice(regime) {
 
 // Vorgeschlagene Investitionsquote nach den gewählten Einstellungen
 export function suggestedExposure(regime, o = DEFAULTS) {
-  const base = exposureFor(regime, o.exposureCurve, o.bearShare);
+  let base = exposureFor(regime, o.exposureCurve, o.bearShare);
+  if (o.buyBlend && Number.isFinite(regime?.buy)) {
+    const share = Math.round(((1 - o.buyBlend) * base.share + o.buyBlend * interpolate(regime.buy, BUY_EXPOSURE)) * 20) / 20;
+    base = { ...base, share };
+  }
   const tilt = fngTilt(regime, o), b = buyTiltOf(regime, o);
   if (!tilt.delta && !b.delta) return base;
   const share = Math.round(Math.min(1, Math.max(0, base.share + tilt.delta + b.delta)) * 20) / 20;
@@ -126,11 +138,11 @@ export function suggestedExposure(regime, o = DEFAULTS) {
 export function buyTiltOf(regime, o = DEFAULTS) {
   const v = regime?.buy;
   if (!Number.isFinite(v) || (!o.buyTilt && !o.buyCut)) return { delta: 0, text: '' };
-  let delta = (o.buyTilt ?? 0) * unit((v - o.buyTiltFrom) / (o.buyTiltFull - o.buyTiltFrom));
+  let delta = o.buyTiltBullOnly && (regime?.bearShare ?? (regime?.bear ? 1 : 0)) > 0 ? 0 : (o.buyTilt ?? 0) * unit((v - o.buyTiltFrom) / (o.buyTiltFull - o.buyTiltFrom));
   if (o.buyCutBelow !== null && o.buyCutBelow !== undefined && v < o.buyCutBelow) delta -= o.buyCut;
   if (!delta) return { delta: 0, text: '' };
   const points = Math.round(Math.abs(delta) * 100);
-  return { delta, text: delta > 0 ? `Kauf-Score ${Math.round(v)}: Der Zyklus ist günstig – ${points} Punkte weniger Reserve, aufgestockt werden Bitcoin und Ethereum.`
+  return { delta, text: delta > 0 ? `Kauf-Score ${Math.round(v)}: Der Zyklus ist günstig – ${points} Punkte weniger Reserve.`
     : `Kauf-Score ${Math.round(v)}: Der Zyklus ist teuer – ${points} Punkte mehr Reserve.` };
 }
 
@@ -355,7 +367,7 @@ export function plan({ holdings, cash = 0, candidates = [], core = [], regime, o
       const part = c.target > 0;
       if (c.why === 'signal') moves.push({ ...base, type: 'sell', title: `${c.name} verkaufen`,
         goal: 'Verluste begrenzen und Kapital für bessere Chancen frei machen.',
-        reason: `Verkaufssignal (Score ${fmt(score(c))}). ${factorHint(a)}`,
+        reason: `Verkaufssignal (Kauf-Score ${k100(score(c))}). ${factorHint(a)}`,
         horizon: 'In den nächsten Tagen umsetzen.', review: review(14),
         reviewText: 'Wieder einsteigen erst, wenn das Signal auf „Kaufen“ dreht.' });
       else if (c.why === 'stop') moves.push({ ...base, type: 'sell', title: `${c.name} verkaufen`,
@@ -369,7 +381,7 @@ export function plan({ holdings, cash = 0, candidates = [], core = [], regime, o
         horizon: 'In den nächsten Tagen umsetzen.', review: review(14), reviewText: 'Restposition in 2 Wochen erneut prüfen.' });
       else if (c.why === 'swap') moves.push({ ...base, type: 'sell', title: `${c.name} verkaufen`,
         goal: 'Kapital aus einer schwachen in eine deutlich stärkere Position umschichten.',
-        reason: `${c.name} hat kein Kaufsignal mehr (Score ${fmt(score(c))}), ${c.swapTo.name} steht bei ${fmt(score(c.swapTo))} – der Abstand ist groß genug, um die doppelte Gebühr zu rechtfertigen.`,
+        reason: `${c.name} hat kein Kaufsignal mehr (Kauf-Score ${k100(score(c))}), ${c.swapTo.name} steht bei ${k100(score(c.swapTo))} – der Abstand ist groß genug, um die doppelte Gebühr zu rechtfertigen.`,
         horizon: 'In den nächsten Tagen umsetzen.', review: review(7) });
       else if (c.why === 'cap') moves.push({ ...base, type: 'reduce', title: `${c.name} reduzieren`,
         goal: 'Klumpenrisiko senken: Keine einzelne Position soll das Portfolio dominieren.',
@@ -386,7 +398,7 @@ export function plan({ holdings, cash = 0, candidates = [], core = [], regime, o
         horizon: 'Haltedauer: mindestens 12 Monate.', review: review(30), reviewText: 'In Raten kaufen und monatlich prüfen.' });
       else moves.push({ ...base, type: c.held ? 'add' : 'buy', title: c.held ? `${c.name} nachkaufen` : `${c.name} kaufen`,
         goal: c.held ? 'Eine starke Position ausbauen, solange das Kaufsignal steht.' : 'Freie Reserve in einen Coin mit starkem Signal investieren.',
-        reason: `Kaufsignal (Score ${fmt(score(c))}, Risiko ${a.risk?.label ?? 'unbekannt'}). ${factorHint(a)}`,
+        reason: `Kaufsignal (Kauf-Score ${k100(score(c))}, Risiko ${a.risk?.label ?? 'unbekannt'}). ${factorHint(a)}`,
         horizon: `Haltedauer: ${a.horizon ?? '2–4 Wochen'}.`, review: review(REVIEW_DAYS[a.horizon] ?? 7) });
     }
   }
@@ -438,9 +450,13 @@ export function plan({ holdings, cash = 0, candidates = [], core = [], regime, o
 
 const ORDER = { sell: 0, profit: 1, reduce: 2, swap: 3, buy: 4, add: 5 };
 const fmt = (v) => (v > 0 ? '+' : '') + Math.round(v).toLocaleString(settings.locale);
+// Kauf-Score wie auf der Seite: 0–100 (intern −100 … +100)
+const k100 = (v) => `${Math.round(50 + v / 2)}/100`;
 
 // Der stärkste Einzelfaktor als kurze Begründung
 function factorHint(a) {
+  // Trägt der Zyklus-Kompass das Signal, ist er der wichtigste Grund
+  if (a.byCycle || a.cycleLed) return `Wichtigster Grund: Zyklus-Kompass – Kauf-Score des Markts ${a.regime?.buy}/100, der Zyklus ist günstig.`;
   const all = [a.short, a.medium, a.long, a.regime].flatMap((h) => h?.factors ?? []);
   if (!all.length) return '';
   const top = [...all].sort((x, y) => Math.abs(y.score * y.weight) - Math.abs(x.score * x.weight))[0];

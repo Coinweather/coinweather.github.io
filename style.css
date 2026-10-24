@@ -817,3 +817,6 @@ details.d-fold > summary { font-size: 15px; letter-spacing: 0; text-transform: n
   .todo-list li { grid-template-columns: 28px 1fr; }
   .todo-list li .btn { grid-column: 2; justify-self: start; }
 }
+.p-next { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; margin-top: 16px; border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.p-next strong { font-size: 18px; }
+#p-manager { scroll-margin-top: 90px; }
