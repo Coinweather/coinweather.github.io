@@ -460,13 +460,13 @@ const RT = {
 }[lang];
 // Abends zuerst die Bewegungen, dann das Wetter, zum Schluss das Angebot
 const reelJpgs = (jpgs) => (evening ? [jpgs[2], jpgs[0], jpgs[3]] : jpgs);
-async function reelFrames(jpgs) {
+async function reelFrames(jpgs, withFollow = true, withHook = true) {
   const back = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${RW}" height="${RH}" font-family="DejaVu Sans, Arial, sans-serif">
     <defs><radialGradient id="g" cx="0.2" cy="0.05" r="1.2"><stop offset="0" stop-color="#1b2433"/><stop offset="1" stop-color="${C.bg}"/></radialGradient></defs>
     <rect width="${RW}" height="${RH}" fill="url(#g)"/>
-    <text x="540" y="140" font-size="64" fill="${C.text}" font-weight="700" text-anchor="middle">${esc(RT.ask[0])}</text>
-    <text x="540" y="225" font-size="64" fill="${C.sun}" font-weight="700" text-anchor="middle">${esc(RT.ask[1])}</text>
-    <text x="540" y="${TOP + HGT + 95}" font-size="40" fill="${C.text}" font-weight="700" text-anchor="middle">${esc(RT.follow)}</text>
+    ${withHook ? `<text x="540" y="140" font-size="64" fill="${C.text}" font-weight="700" text-anchor="middle">${esc(RT.ask[0])}</text>
+    <text x="540" y="225" font-size="64" fill="${C.sun}" font-weight="700" text-anchor="middle">${esc(RT.ask[1])}</text>` : ''}
+    ${withFollow ? `<text x="540" y="${TOP + HGT + 95}" font-size="40" fill="${C.text}" font-weight="700" text-anchor="middle">${esc(RT.follow)}</text>` : ''}
   </svg>`);
   return Promise.all(jpgs.map((jpg) => sharp(back).composite([{ input: jpg, top: TOP, left: 0 }]).jpeg({ quality: 92 }).toBuffer()));
 }
@@ -494,9 +494,183 @@ async function makeReel(jpgs, file) {
   await new Promise((ok, fail) => execFile(env.FFMPEG ?? 'ffmpeg', argv, { maxBuffer: 1 << 24 }, (err, _o, e) => (err ? fail(new Error(`ffmpeg: ${String(e).slice(-300)}`)) : ok())));
   return readFile(file);
 }
+// ---------- Reel mit KI-Sprecher: Piper (offene Sprach-KI, läuft im Ablauf ohne Konto) ----------
+// PIPER_MODEL zeigt auf eine Piper-Stimme (.onnx). Gewählt: en_US-joe-medium (Datensatz CC0) bzw. de_DE-thorsten (CC0) –
+// beide dürfen für Werbung genutzt werden. Die Bilder zoomen langsam, Untertitel laufen synchron zur Stimme.
+// Fehlt die Stimme oder scheitert etwas, entsteht wie bisher das stille Reel (makeReel).
+const SAY = {
+  en: {
+    sky: ['stormy', 'rainy', 'cloudy', 'partly cloudy', 'sunny'],
+    mood: ['The market is falling hard and the mood is bad.', 'The market is weak and many investors are scared.', 'The market has no clear direction.', 'The market is friendly.', 'The market is strong and the mood is great.'],
+    label: { 'Kaufen': 'buy', 'Eher kaufen': 'lean buy', 'Halten': 'hold', 'Eher verkaufen': 'lean sell', 'Verkaufen': 'sell' },
+    open: (d) => `Your crypto weather for ${d}.`,
+    sky2: (s, m) => `Today it is ${s}. ${m}`,
+    score: (v, l) => `But here is the twist. The Coinweather buy score is ${v} out of 100. That means: ${l}.`,
+    scoreFlat: (v, l) => `The Coinweather buy score is ${v} out of 100. That means: ${l}.`,
+    rain: 'Rain is buying weather. When everyone is scared, Bitcoin is usually cheap.',
+    sun: 'Sunshine is expensive. When everyone is greedy, the cycle is hot.',
+    year: (b, e, a) => `Since 2022, after readings like this, Bitcoin was higher one year later in ${b} out of 100 cases. Ethereum in ${e}. The typical altcoin only in ${a}.`,
+    end: 'Not financial advice. Follow for your daily crypto weather.',
+    movers: 'Today’s biggest crypto movers.',
+    up: (s, v) => `${s} up ${v} percent.`, down: (s, v) => `${s} down ${v} percent.`,
+    locale: 'en-US',
+  },
+  de: {
+    sky: ['stürmisch', 'regnerisch', 'bewölkt', 'heiter bis wolkig', 'sonnig'],
+    mood: ['Der Markt fällt deutlich, die Stimmung ist schlecht.', 'Der Markt ist schwach, viele Anleger haben Angst.', 'Der Markt hat keine klare Richtung.', 'Der Markt ist freundlich.', 'Der Markt ist stark, die Stimmung ist bestens.'],
+    label: { 'Kaufen': 'kaufen', 'Eher kaufen': 'eher kaufen', 'Halten': 'halten', 'Eher verkaufen': 'eher verkaufen', 'Verkaufen': 'verkaufen' },
+    open: (d) => `Dein Krypto-Wetter für den ${d}.`,
+    sky2: (s, m) => `Heute ist es ${s}. ${m}`,
+    score: (v, l) => `Aber jetzt kommt’s: Der Kauf-Score von Coinweather steht bei ${v} von 100. Das heißt: ${l}.`,
+    scoreFlat: (v, l) => `Der Kauf-Score von Coinweather steht bei ${v} von 100. Das heißt: ${l}.`,
+    rain: 'Regen ist Kaufwetter. Wenn alle Angst haben, ist Bitcoin meist günstig.',
+    sun: 'Sonne ist teuer. Wenn alle gierig sind, ist der Zyklus heiß.',
+    year: (b, e, a) => `Seit 2022 stand Bitcoin nach solchen Ständen ein Jahr später in ${b} von 100 Fällen höher. Ethereum in ${e}. Der typische Altcoin nur in ${a}.`,
+    end: 'Keine Anlageberatung. Folge uns für dein tägliches Krypto-Wetter.',
+    movers: 'Die größten Krypto-Bewegungen heute.',
+    up: (s, v) => `${s} plus ${v} Prozent.`, down: (s, v) => `${s} minus ${v} Prozent.`,
+    locale: 'de-CH',
+  },
+}[lang];
+
+// Sätze und das Bild, zu dem sie gehören (Index in reelJpgs)
+function reelScript() {
+  const day = new Date(snap.time).toLocaleDateString(SAY.locale, { day: 'numeric', month: 'long', timeZone: 'Europe/Zurich' });
+  const label = SAY.label[market.label] ?? market.label;
+  const rain = market.buy && skyI <= 1 && market.value >= 62, sun = market.buy && skyI >= 3 && market.value < 45;
+  if (evening) {
+    const pctWord = (v) => Math.abs(v).toLocaleString(SAY.locale, { maximumFractionDigits: 0 });
+    return [
+      [0, SAY.movers],
+      ...gainers.slice(0, 2).map((c) => [0, SAY.up(c.name, pctWord(c.price_change_percentage_24h_in_currency))]),
+      ...losers.slice(0, 1).map((c) => [0, SAY.down(c.name, pctWord(c.price_change_percentage_24h_in_currency))]),
+      [1, (rain || sun ? SAY.score : SAY.scoreFlat)(market.value, label)],
+      ...(rain ? [[1, SAY.rain]] : sun ? [[1, SAY.sun]] : []),
+      [2, SAY.end],
+    ];
+  }
+  return [
+    [0, SAY.open(day)],
+    [0, SAY.sky2(SAY.sky[skyI], SAY.mood[skyI])],
+    [0, (rain || sun ? SAY.score : SAY.scoreFlat)(market.value, label)],
+    ...(rain ? [[0, SAY.rain]] : sun ? [[0, SAY.sun]] : []),
+    ...(year ? [[1, SAY.year(year.btc.up, year.eth.up, year.alt.up)]] : []),
+    [3, SAY.end],
+  ];
+}
+
+// Ein Satz als WAV über Piper (python -m piper); liefert Dauer in Sekunden und PCM-Daten
+async function speak(text, file) {
+  const { spawn } = await import('node:child_process');
+  await new Promise((ok, fail) => {
+    const p = spawn(env.PYTHON ?? 'python', ['-m', 'piper', '-m', env.PIPER_MODEL, '-f', file], { stdio: ['pipe', 'ignore', 'pipe'] });
+    let err = ''; p.stderr.on('data', (d) => { err += d; });
+    p.on('close', (code) => (code === 0 ? ok() : fail(new Error(`piper: ${err.slice(-300)}`))));
+    p.stdin.end(text);
+  });
+  const buf = await readFile(file);
+  const rate = buf.readUInt32LE(24), bytesPerSample = buf.readUInt16LE(34) / 8 * buf.readUInt16LE(22);
+  let at = 12; while (at < buf.length - 8 && buf.toString('ascii', at, at + 4) !== 'data') at += 8 + buf.readUInt32LE(at + 4);
+  const pcm = buf.subarray(at + 8, at + 8 + buf.readUInt32LE(at + 4));
+  return { pcm, rate, bytesPerSample, seconds: pcm.length / bytesPerSample / rate, header: buf.subarray(0, at + 8) };
+}
+
+// Untertitel als Bild: weiße, fette Schrift auf halbdurchsichtigem Kasten, bis zu drei Zeilen
+function captionPng(text) {
+  const words = text.split(' '), lines = [];
+  for (const w of words) { const last = lines[lines.length - 1]; if (last && (last + ' ' + w).length <= 30) lines[lines.length - 1] = last + ' ' + w; else lines.push(w); }
+  const shown = lines.slice(0, 4), lh = 62, h = shown.length * lh + 50;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${RW}" height="${h}" font-family="DejaVu Sans, Arial, sans-serif">
+    <rect x="60" y="0" width="${RW - 120}" height="${h}" rx="28" fill="#000000" fill-opacity="0.55"/>
+    ${shown.map((l, i) => `<text x="${RW / 2}" y="${55 + i * lh}" font-size="48" font-weight="700" fill="${i === 0 && /Rain|Regen|Sunshine|Sonne/.test(text) ? C.sun : '#ffffff'}" text-anchor="middle">${esc(l)}</text>`).join('')}
+  </svg>`;
+  return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
+async function makeVoiceReel(jpgs, file) {
+  const { execFile } = await import('node:child_process');
+  const { tmpdir } = await import('node:os');
+  const dir = `${tmpdir()}/coinweather-voice`;
+  await mkdir(dir, { recursive: true });
+  const script = reelScript();
+  // Stimme: Satz für Satz, mit kurzer Pause dazwischen
+  const parts = [];
+  for (let i = 0; i < script.length; i++) parts.push(await speak(script[i][1], `${dir}/s${i}.wav`));
+  const { rate, bytesPerSample, header } = parts[0];
+  const gap = Buffer.alloc(Math.round(rate * 0.3) * bytesPerSample), lead = Buffer.alloc(Math.round(rate * 0.4) * bytesPerSample);
+  const times = []; let t = lead.length / bytesPerSample / rate;
+  const chunks = [lead];
+  for (const p of parts) { times.push([t, t + p.seconds]); chunks.push(p.pcm, gap); t += p.seconds + gap.length / bytesPerSample / rate; }
+  const pcm = Buffer.concat(chunks), total = t + 0.6;
+  const head = Buffer.from(header); head.writeUInt32LE(36 + pcm.length, 4); head.writeUInt32LE(pcm.length, head.length - 4);
+  await writeFile(`${dir}/voice.wav`, Buffer.concat([head, pcm]));
+  // Bilder: jedes so lange, wie über es gesprochen wird; langsamer Zoom, weiche Überblendung
+  const frames = await reelFrames(jpgs, false, false);
+  const used = [...new Set(script.map(([k]) => k))];
+  const span = used.map((k, n) => {
+    const idx = script.map(([kk], i) => (kk === k ? i : -1)).filter((i) => i >= 0);
+    const start = n === 0 ? 0 : times[idx[0]][0] - 0.3, end = n === used.length - 1 ? total : times[script.findIndex(([kk]) => kk === used[n + 1])][0] - 0.3;
+    return { k, start, end };
+  });
+  const fade = 0.5;
+  await Promise.all(used.map((k, n) => writeFile(`${dir}/f${n}.jpg`, frames[k])));
+  // Untertitel: jeder Satz in Häppchen von höchstens rund 55 Zeichen, Zeit nach Länge verteilt
+  const cues = [];
+  script.forEach(([, text], i) => {
+    const bits = []; for (const w of text.split(' ')) { const l = bits[bits.length - 1]; if (l && (l + ' ' + w).length <= 55) bits[bits.length - 1] = l + ' ' + w; else bits.push(w); }
+    const [a, b] = times[i], len = bits.reduce((x, y) => x + y.length, 0); let at = a;
+    for (const bit of bits) { const d = (b - a) * bit.length / len; cues.push([at, at + d, bit]); at += d; }
+  });
+  const caps = await Promise.all(cues.map(([, , text]) => captionPng(text)));
+  await Promise.all(caps.map((c, i) => writeFile(`${dir}/c${i}.png`, c)));
+  // Die Frage oben bleibt fest stehen, nur die Grafik darunter zoomt
+  const hook = await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${RW}" height="${TOP - 20}" font-family="DejaVu Sans, Arial, sans-serif">
+    <defs><linearGradient id="h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C.bg}"/><stop offset="0.85" stop-color="${C.bg}"/><stop offset="1" stop-color="${C.bg}" stop-opacity="0"/></linearGradient></defs>
+    <rect width="${RW}" height="${TOP - 20}" fill="url(#h)"/>
+    <text x="540" y="140" font-size="64" fill="${C.text}" font-weight="700" text-anchor="middle">${esc(RT.ask[0])}</text>
+    <text x="540" y="225" font-size="64" fill="${C.sun}" font-weight="700" text-anchor="middle">${esc(RT.ask[1])}</text></svg>`)).png().toBuffer();
+  await writeFile(`${dir}/hook.png`, hook);
+  const inputs = [], filters = [];
+  span.forEach((sp, n) => {
+    const dur = sp.end - sp.start + (n < span.length - 1 ? fade : 0);
+    const nf = Math.ceil(dur * 30);
+    inputs.push('-i', `${dir}/f${n}.jpg`);
+    filters.push(`[${n}:v]scale=1188:2112,zoompan=z='min(1+0.0009*on,1.10)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${nf}:s=${RW}x${RH}:fps=30,trim=duration=${dur.toFixed(2)},setsar=1[z${n}]`);
+  });
+  let last = '[z0]', at = 0;
+  for (let n = 1; n < span.length; n++) {
+    at = span[n].start;
+    filters.push(`${last}[z${n}]xfade=transition=smoothup:duration=${fade}:offset=${(at).toFixed(2)}[x${n}]`);
+    last = `[x${n}]`;
+  }
+  const capBase = span.length;
+  caps.forEach((_, i) => inputs.push('-i', `${dir}/c${i}.png`));
+  cues.forEach(([a, b], i) => {
+    filters.push(`${last}[${capBase + i}:v]overlay=x=0:y=${RH - 300}:enable='between(t,${a.toFixed(2)},${(b + 0.05).toFixed(2)})'[o${i}]`);
+    last = `[o${i}]`;
+  });
+  const hookIn = capBase + caps.length;
+  inputs.push('-i', `${dir}/hook.png`);
+  filters.push(`${last}[${hookIn}:v]overlay=x=0:y=0[hk]`, '[hk]format=yuv420p[out]');
+  const voiceIn = hookIn + 1;
+  inputs.push('-i', `${dir}/voice.wav`);
+  const argv = ['-y', ...inputs, '-filter_complex', filters.join(';'), '-map', '[out]', '-map', `${voiceIn}:a`,
+    '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,apad', '-ar', '48000', '-t', total.toFixed(2),
+    '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-profile:v', 'high', '-r', '30', '-c:a', 'aac', '-b:a', '160k', '-ac', '2',
+    '-movflags', '+faststart', file];
+  await new Promise((ok, fail) => execFile(env.FFMPEG ?? 'ffmpeg', argv, { maxBuffer: 1 << 25 }, (err, _o, e) => (err ? fail(new Error(`ffmpeg: ${String(e).slice(-600)}`)) : ok())));
+  console.log(`Reel mit KI-Stimme: ${total.toFixed(1)} s, ${script.length} Sätze`);
+  return readFile(file);
+}
+const buildReel = async (jpgs, file) => {
+  if (env.PIPER_MODEL) {
+    try { return await makeVoiceReel(jpgs, file); } catch (err) { console.warn(`Reel mit Stimme gescheitert, stilles Reel: ${err.message}`); }
+  }
+  return makeReel(jpgs, file);
+};
 let reelReady;
 // Der Ablauf baut das Reel schon im Bild-Schritt (REEL_FILE) – dann wird es nur noch gelesen
-const reel = (jpgs) => (reelReady ??= readFile(env.REEL_FILE ?? 'reel.mp4').catch(() => makeReel(reelJpgs(jpgs), env.REEL_FILE ?? 'reel.mp4')));
+const reel = (jpgs) => (reelReady ??= readFile(env.REEL_FILE ?? 'reel.mp4').catch(() => buildReel(reelJpgs(jpgs), env.REEL_FILE ?? 'reel.mp4')));
 
 // Hochladen direkt zu Meta (rupload): Instagram und Facebook brauchen dafür keine öffentliche Adresse
 async function rupload(url, token, data) {
@@ -753,7 +927,7 @@ if (arg('--images')) {
   if (args.includes('--frames')) await Promise.all((await reelFrames(reelJpgs(jpgs))).map((f, i) => writeFile(`${arg('--images')}/reel-${i + 1}.jpg`, f)));
 }
 // --video <datei>: nur das Reel bauen (zum Prüfen)
-if (arg('--video')) { await makeReel(reelJpgs(jpgs), arg('--video')); console.log(`Reel: ${arg('--video')}`); }
+if (arg('--video')) { await buildReel(reelJpgs(jpgs), arg('--video')); console.log(`Reel: ${arg('--video')}`); }
 if (args.includes('--show')) for (const [k, t] of Object.entries(text)) console.log(`--- ${k} (${[...t].length} Zeichen)\n${t}\n`);
 
 // --dry: nur die Bilder erzeugen (der Ablauf stellt sie danach öffentlich bereit, bevor gepostet wird)

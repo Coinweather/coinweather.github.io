@@ -48,6 +48,23 @@ jobs:
         # Fertige ffmpeg-Datei aus npm: lädt in Sekunden (apt-get brauchte einmal 14 Minuten)
         run: |
           echo "FFMPEG=$(node -p "require('ffmpeg-static')")" >> "$GITHUB_ENV"
+      # KI-Sprecher für das Reel: Piper (offene Sprach-KI, läuft hier ohne Konto). Stimmen mit freien Datensätzen:
+      # en_US-joe (CC0), de_DE-thorsten (CC0). Klappt das nicht, entsteht wie bisher ein stilles Reel.
+      - uses: actions/setup-python@v5
+        if: env.CHECK != 'true'
+        with:
+          python-version: '3.11'
+      - name: KI-Stimme bereitstellen
+        if: env.CHECK != 'true'
+        continue-on-error: true
+        run: |
+          pip install --quiet piper-tts==1.8.0
+          if [ "$POST_LANG" = "de" ]; then v=de/de_DE/thorsten/medium/de_DE-thorsten-medium; else v=en/en_US/joe/medium/en_US-joe-medium; fi
+          mkdir -p voices
+          curl -sfL -o voices/voice.onnx "https://huggingface.co/rhasspy/piper-voices/resolve/main/$v.onnx"
+          curl -sfL -o voices/voice.onnx.json "https://huggingface.co/rhasspy/piper-voices/resolve/main/$v.onnx.json"
+          echo "Kurzer Test" | python -m piper -m voices/voice.onnx -f voices/test.wav
+          echo "PIPER_MODEL=$PWD/voices/voice.onnx" >> "$GITHUB_ENV"
       - name: Zugang prüfen (ohne zu posten)
         if: env.CHECK == 'true'
         run: node scripts/post-daily.mjs --check
