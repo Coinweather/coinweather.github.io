@@ -1736,4 +1736,6 @@ export default {
   "Stufen des Kauf-Scores: ab # Kaufen, #–# Eher kaufen, #–# Halten, #–# Eher verkaufen, unter # Verkaufen": "Alım skoru seviyeleri: # ve üzeri Al, #–# Almaya yakın, #–# Tut, #–# Satmaya yakın, # altı Sat",
   "Geprüft an Bitcoin-Tageskursen seit #: Ab einem Kauf-Score von # stand Bitcoin ein Jahr später in #–# % der Fälle höher, zwischen # und # nur in # %. Unter # lag der Kauf-Score seit # nie. Die Schwellen der Bausteine sind bekannte Marken aus der Literatur, nicht an diesen Daten optimiert. Trotzdem: Seit # gab es nur einen Zyklus – eine Tendenz, keine Gewissheit": "#’den beri Bitcoin günlük fiyatlarıyla test edildi: # ve üzeri alım skorunda Bitcoin bir yıl sonra vakaların % #–# kadarında daha yüksekti; # ile # arasında yalnızca % #. #’den beri alım skoru hiç # altına inmedi. Bileşen eşikleri literatürden bilinen seviyelerdir, bu verilere göre optimize edilmedi. Yine de: #’den beri yalnızca bir döngü oldu – bir eğilim, kesinlik değil",
   "Unter einem Kauf-Score von # ist „# Jahr später“ seit # gerechnet, weil es seit # zu wenige solche Tage gab": "# altındaki alım skorunda “# yıl sonra” #’den beri hesaplanır, çünkü #’den beri bu tür günler çok azdı",
+  "Soll ich jetzt Bitcoin kaufen?": "Şimdi Bitcoin almalı mıyım?",
+  "Soll ich jetzt Ethereum kaufen?": "Şimdi Ethereum almalı mıyım?",
 };

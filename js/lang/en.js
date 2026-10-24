@@ -1726,4 +1726,6 @@ export default {
   "Stufen des Kauf-Scores: ab # Kaufen, #–# Eher kaufen, #–# Halten, #–# Eher verkaufen, unter # Verkaufen": "Buy score levels: from # Buy, #–# Lean buy, #–# Hold, #–# Lean sell, below # Sell",
   "Geprüft an Bitcoin-Tageskursen seit #: Ab einem Kauf-Score von # stand Bitcoin ein Jahr später in #–# % der Fälle höher, zwischen # und # nur in # %. Unter # lag der Kauf-Score seit # nie. Die Schwellen der Bausteine sind bekannte Marken aus der Literatur, nicht an diesen Daten optimiert. Trotzdem: Seit # gab es nur einen Zyklus – eine Tendenz, keine Gewissheit": "Tested on Bitcoin daily prices since #: from a buy score of #, Bitcoin was higher one year later in #–# % of cases, between # and # only in # %. The buy score has never been below # since #. The component thresholds are well-known levels from the literature, not optimised on this data. Still: since # there has been only one cycle – a tendency, not a certainty",
   "Unter einem Kauf-Score von # ist „# Jahr später“ seit # gerechnet, weil es seit # zu wenige solche Tage gab": "Below a buy score of #, “# year later” is calculated since #, because there were too few such days since #",
+  "Soll ich jetzt Bitcoin kaufen?": "Should I buy Bitcoin now?",
+  "Soll ich jetzt Ethereum kaufen?": "Should I buy Ethereum now?",
 };
