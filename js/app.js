@@ -557,15 +557,9 @@ const INFO = {
     <p>Deshalb folgen Bitcoin und Ethereum vor allem dem Kauf-Score; bei Altcoins zählt er als Bonus zu ihrem Trend – und nie gegen den Kompass.</p>
     <p class="muted">Seit 2022 gab es nur einen Zyklus – eine Tendenz, keine Gewissheit.</p>` },
 
-  forecast: { title: 'Aussicht für den Gesamtmarkt', body: () => `
-    <p>Für jeden Zeitraum steht da, wie oft der Kurs nach vergleichbaren Marktlagen seit 2018 höher stand – und die Einordnung, die sich daraus ergibt.</p>
-    <ul><li><strong>7 und 30 Tage</strong> hängen an der Marktphase, in der Gier-Zone an den Ergebnissen dieser Zone.</li>
-      <li><strong>12 Monate</strong> folgen dem Kauf-Score, gemessen an allen Tagen seit 2022.</li></ul>
-    <p>Der mittlere Coin schnitt auf Jahressicht meist schlechter ab als Bitcoin. Kaufsignale bei einzelnen Coins beziehen sich auf die nächsten Wochen.</p>${LIMITS}` },
-
   fng: { title: 'Fear & Greed im Modell', body: () => `
     <p>Der Index misst die Stimmung am Kryptomarkt von 0 (extreme Angst) bis 100 (extreme Gier). Geprüft wurde, was seit 2018 auf Angst und Gier folgte:</p>
-    <ul><li><strong>Gier-Bremse:</strong> Lag der 7-Tage-Schnitt bei 75–85, stand der mittlere Coin 30 Tage später nur in 20–33 % der Fälle höher (im Mittel rund −20 %). Dann gibt es keine Kaufsignale.</li>
+    <ul><li><strong>Gier-Bremse:</strong> Lag der 7-Tage-Schnitt bei 75–85, stand der mittlere Coin 30 Tage später nur in 20–33 % der Fälle höher (im Mittel rund −20 %). Dann wird der Trend der Altcoins gedeckelt. Bitcoin und Ethereum folgen dem Kauf-Score, in dem Fear & Greed schon steckt.</li>
       <li><strong>Angst-Käufe:</strong> Stand der Index an mindestens 54 der letzten 60 Tage unter 45 und liegt Bitcoin mindestens 40 % unter seinem Hoch, sinkt das Reserve-Ziel,
         und Bitcoin und Ethereum bekommen ein starkes antizyklisches Kaufsignal. Ein Jahr später stand Bitcoin in 86–100 % der Fälle höher, Ethereum in 64–100 %.</li>
       <li><strong>Nicht eingebaut:</strong> Altcoins in Angst kaufen (ein Jahr später meist tiefer) und bei Gier alles verkaufen (Ende 2020 stiegen die Kurse trotz extremer Gier monatelang weiter).
@@ -1955,7 +1949,7 @@ function tradingView() {
     const regime = state.market?.regime;
     const why = !state.coins.length ? 'Lade Kurse …'
       : regime?.bear ? 'Im Bärenmarkt entfallen beide Muster: Ausverkäufe gingen dort öfter weiter, und der Score erreicht die Schwelle nicht.'
-        : greedZone(regime) ? 'Die Gier-Bremse ist aktiv (Fear & Greed im 7-Tage-Schnitt über 75) – in solchen Phasen gibt es keine Kaufsignale.'
+        : greedZone(regime) ? 'Die Gier-Bremse ist aktiv (Fear & Greed im 7-Tage-Schnitt über 75) – der Trend-Score der Altcoins ist gedeckelt und erreicht die Schwelle nicht.'
           : 'Kein Coin erfüllt im Moment eines der beiden geprüften Muster. Lieber kein Handel als ein unbegründeter.';
     $('#t-long').innerHTML = '<h2>Long – auf steigende Kurse</h2>' + (list.length ? `<div class="trades">${list.map((c) => {
       const t = c.analysis.trade, s = TRADE_SETUPS[t.kind], [cls, text] = status(c, t), lev = maxLeverage(t.stopPct);
@@ -2840,7 +2834,7 @@ function portfolioView() {
         ${p.moves.length ? `Gebühren für alle Schritte zusammen: rund ${money(p.fees)}.` : ''}</p>
       ${advice.missing ? `<p class="notice">${advice.missing} Position(en) ohne Kurs sind nicht berücksichtigt.</p>` : ''}
       ${p.unplaced ? `<p class="notice">Rund ${money(p.unplaced.usd)} bleiben in Reserve, obwohl dein Ziel niedriger liegt: ${p.unplaced.reason === 'signals'
-        ? (greedZone(state.market.regime) ? 'Die Gier-Bremse ist aktiv (Fear & Greed im 7-Tage-Schnitt über 75). In solchen Phasen gibt es keine Kaufsignale, weil die meisten Coins danach fielen.'
+        ? (greedZone(state.market.regime) ? 'Die Gier-Bremse ist aktiv (Fear & Greed im 7-Tage-Schnitt über 75). Im Moment hat kein passender Coin ein Kaufsignal – der Trend der Altcoins ist gedeckelt, weil die meisten Coins danach fielen.'
           : 'Im Moment hat kein passender Coin ein Kaufsignal. In Coins ohne Kaufsignal schlägt der Manager nichts vor.')
         : 'Die Coins mit Kaufsignal sind bis zur Obergrenze je Coin gefüllt, weitere passende gibt es gerade nicht.'}</p>` : ''}
       ${cards || '<p><strong>Im Moment kein Handlungsbedarf.</strong> Dein Portfolio passt zur gewählten Reserve und zur Marktlage; jeder Handel würde nur Gebühren kosten.</p>'}

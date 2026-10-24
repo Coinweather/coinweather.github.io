@@ -17,8 +17,8 @@ import { clamp, avg, isNum, num, signed } from './util.js';
 // Anpassungszeitraums am besten, der langfristige Baustein am schlechtesten.
 const W_SHORT = 0.2, W_MEDIUM = 0.25, W_LONG = 0.1, W_REGIME = 0.45;
 export const WEIGHTS = { short: W_SHORT, medium: W_MEDIUM, long: W_LONG, regime: W_REGIME };
-const BEAR_CAP = 0.11;          // im Bärenmarkt gibt es kein Kaufsignal
-// Gier-Bremse: Liegt der Fear-&-Greed-Index im 7-Tage-Schnitt zwischen 75 und 85, gibt es keine Kaufsignale.
+const BEAR_CAP = 0.11;          // im Bärenmarkt gibt der Trend allein kein Kaufsignal
+// Gier-Bremse: Liegt der Fear-&-Greed-Index im 7-Tage-Schnitt zwischen 75 und 85, gibt der Trend der Altcoins kein Kaufsignal.
 // Auswertung 2018–2026: In dieser Zone stand der mittlere Coin 30 Tage später nur in 20–33 % der Fälle höher
 // (Median −19 bis −21 %), und zwar in beiden Prüfzeiträumen und in jeder Marktphase. Im Portfolio blieb die Rendite
 // gleich, der größte Rückgang sank leicht. Über 85 gibt es nur eine einzige Phase (Ende 2020 bis Anfang 2021), in der
@@ -598,11 +598,11 @@ function assemble(c, short, medium, long, regime, volDaily, news) {
   // Bärenmarkt-Filter und Gier-Bremse gelten für den Trend der Altcoins. Bei Bitcoin und Ethereum steckt beides im Kauf-Score.
   if (!byCycle && greedZone(regime)) {
     raw = Math.min(raw, GREED_CAP);
-    notes.push(`Gier-Bremse aktiv: Der Fear-&-Greed-Index liegt im 7-Tage-Schnitt bei ${num(regime.fng.avg7, 0)} (extreme Gier). In solchen Phasen stand der mittlere Coin 30 Tage später nur in rund jedem vierten Fall höher – das Modell gibt dann keine Kaufsignale.`);
+    notes.push(`Gier-Bremse aktiv: Der Fear-&-Greed-Index liegt im 7-Tage-Schnitt bei ${num(regime.fng.avg7, 0)} (extreme Gier). In solchen Phasen stand der mittlere Coin 30 Tage später nur in rund jedem vierten Fall höher. Der Trend wird deshalb gedeckelt, ein Kaufsignal gibt dann nur noch der Zyklus-Kompass.`);
   }
   if (!byCycle && regime.bear) {
     raw = Math.min(raw, BEAR_CAP);
-    notes.push('Bärenmarkt-Filter aktiv: Bitcoin liegt unter seinem 200-Tage-Schnitt im Abwärtstrend. In solchen Phasen gibt das Modell keine Kaufsignale.');
+    notes.push('Bärenmarkt-Filter aktiv: Bitcoin liegt unter seinem 200-Tage-Schnitt im Abwärtstrend. Der Trend wird deshalb gedeckelt, ein Kaufsignal gibt dann nur noch der Zyklus-Kompass.');
   }
   const trendScore = Math.round(clamp(raw) * 100);
   const score = coinScore(c.id, raw, buy);

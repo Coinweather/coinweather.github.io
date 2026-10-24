@@ -2,7 +2,7 @@
 
 > Was für den Verkauf als Abo fertig ist und was noch fehlt, steht in [GO-LIVE.md](GO-LIVE.md). Name, Betreiber, Preise und Bezahlung werden in `js/config.js` eingestellt.
 
-Live-Kurse der Top 1000 Kryptowährungen mit Prognose-Score, Kauf-/Verkaufssignal, Kauf-Score, Markt-Wetter, Portfolio und Portfolio-Manager. Reine statische Website (HTML, CSS, JavaScript-Module) – kein Build-Schritt.
+Live-Kurse der Top 1000 Kryptowährungen mit Kauf-Score von 0 bis 100 je Coin (nach dem Zyklus-Kompass), Kauf-/Verkaufssignal, Markt-Wetter, Portfolio und Portfolio-Manager. Reine statische Website (HTML, CSS, JavaScript-Module) – kein Build-Schritt.
 
 **Keine Anlageberatung.** Die Signale sind Rechenwerte aus vergangenen Kursen und können falsch liegen.
 
@@ -14,7 +14,7 @@ Live-Kurse der Top 1000 Kryptowährungen mit Prognose-Score, Kauf-/Verkaufssigna
 - **Kostenlose Vorschau:** Großwetterlage, Zyklus, Aussicht; die Signale einzelner Coins sind verdeckt (außer Bitcoin und Ethereum).
 - **Sparplan- und Portfolio-Rechner** (`#/rechner`, `#/modell` springt zum Modell-Portfolio): derselbe Sparplan oder dieselbe Einmalanlage mit dem gewählten Coin, mit Bitcoin und mit dem Portfolio-Manager nebeneinander (Wert, Rendite, tiefster Stand, bestes Ergebnis markiert), darunter das Modell-Portfolio; die Einstellungen stehen in der Adresse und lassen sich teilen.
 - **Als App installierbar** (manifest.webmanifest, sw.js – der Service Worker lädt immer zuerst aus dem Netz).
-- **Suchmaschinen-Seiten** in 7 Sprachen (scripts/seo-pages.mjs): Kryptomarkt heute, Fear & Greed, 500 Coins, Sparpläne der 40 größten Coins.
+- **Suchmaschinen-Seiten** in 7 Sprachen (scripts/seo-pages.mjs): Kryptomarkt heute, „Soll ich jetzt Bitcoin kaufen?“ (mit FAQ für Google), Fear & Greed, 500 Coins, Sparpläne der 40 größten Coins, Indikatoren; dazu ein tagesaktuelles Vorschaubild je Sprache für geteilte Links.
 
 - **Zyklus-Kompass** (`#/indikatoren`, scripts/indices.mjs): Zyklus-Risiko (eigener Index aus Mayer-Multiple, 2-Jahres-MA, Pi-Cycle, Abstand zum Hoch, Fear & Greed), Altcoin-Saison-Index, Pi-Cycle-Top, Mayer-Multiple, 2-Jahres-MA-Multiplikator, Volatilität, Bitcoin-Dominanz – je mit Rückblick (Bitcoin 90 Tage / 1 Jahr später, alle Tage seit Januar 2022 – ein Zeitraum, damit sich die Zahlen nicht widersprechen). Werte frei, Verläufe und Rückblicke mit Paket. Das Zyklus-Risiko heute ist genau 100 minus Kauf-Score.
   Ergebnis seit 2022: Zyklus-Risiko unter 25 → ein Jahr später in 76 % der Fälle höher (Median +50 %), 25–37 → 71 % (+104 %), 38–54 → 48 % (−14 %); überhitzt (ab 70) gab es seit 2022 nicht.
