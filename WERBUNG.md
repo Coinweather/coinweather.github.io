@@ -4,6 +4,23 @@ Alle Texte sind zum Kopieren. Die täglichen Beiträge laufen automatisch (siehe
 hier stehen die einmaligen Beiträge zum Start. Jeder Kanal hat einen eigenen Link mit `?von=…` – so siehst du in der
 Nutzerübersicht (Admin → „Herkunft“), woher die Anmeldungen kommen. Profiltexte stehen in [SOCIAL-MEDIA.md](SOCIAL-MEDIA.md).
 
+## Neuer Aufhänger: „Regen ist Kaufwetter“ (Stand 24.10.2026, Mittag)
+
+Die Startseite trennt jetzt **Wetter** (Stimmung am Markt) und **Kauf-Score** (antizyklisch, 12 Monate). Das ergibt eine einfache,
+teilbare Botschaft: Wenn es regnet und alle Angst haben, ist Bitcoin meist günstig. Zahlen immer mit „seit 2022, ein Zyklus“.
+
+**X / Bluesky:**
+> ☔ Rain is buying weather.
+> Coinweather’s buy score rises when Bitcoin is cheap vs. its long averages, far below its high and people are scared.
+> Since 2022: at 62+ BTC was higher a year later in ~71–76 % of days. Over 90 days: no edge. One cycle – a tendency, not a promise.
+> https://coinweather.github.io/?von=x
+
+**Reddit-Kommentar (Daily Thread):**
+> I split my crypto dashboard into two things that usually get mixed up: the *weather* (how the market feels right now) and a
+> contrarian *buy score* (Mayer Multiple, 2-year MA, Pi Cycle, distance to ATH, 30-day Fear & Greed). Backtested on BTC daily data
+> since 2022: a high buy score was followed by a higher price one year later in ~3 of 4 cases – but not over 90 days, so it's for DCA,
+> not for timing the bottom. Free, no signup: https://coinweather.github.io/?von=reddit
+
 ## Neue Aufhänger (Stand 24.10.2026) – fertige Texte
 
 Seit heute gibt es drei Dinge, die sich gut teilen lassen und ohne Anmeldung funktionieren:
@@ -12,30 +29,30 @@ und das **Krypto-Wetter-Widget** für fremde Webseiten (https://coinweather.gith
 
 **Reddit r/CryptoCurrency-Daily-Thread oder r/BitcoinMarkets (Kommentar, kein Beitrag):**
 > I got tired of cycle-top dashboards that show 30 indicators but never say how often they were actually right. So I backtested a few
-> (Pi Cycle, Mayer Multiple, 2-year MA, Fear & Greed) on daily BTC since 2017, split into 2018–22 and 2022–26. Combined into one 0–100
-> "cycle risk": below 20, BTC was higher a year later in 83–100 % of cases; above 80, only in about one in four. Today it's at ~32.
-> Only two cycles, so a tendency, not a law. Free here if anyone wants to poke holes in it: https://coinweather.github.io/?von=reddit#/indikatoren
+> (Pi Cycle, Mayer Multiple, 2-year MA, Fear & Greed) on daily BTC since 2022. Combined into one 0–100
+> "cycle risk": below 38, BTC was higher a year later in 71–76 % of cases; between 38 and 54 only in 48 %. Today it's at ~31.
+> Only one cycle since 2022, so a tendency, not a law. Free here if anyone wants to poke holes in it: https://coinweather.github.io/?von=reddit#/indikatoren
 
 **Hacker News – Show HN:**
 > **Show HN: A crypto cycle compass that shows how often each indicator was right**
 > Static site + GitHub Actions. Every indicator (Pi Cycle, Mayer Multiple, 2-year MA multiplier, altcoin season) comes with a table:
-> how often was Bitcoin higher 90 days / 1 year later, split into two periods so you can see what holds. Also a DCA calculator that
+> how often was Bitcoin higher 90 days / 1 year later, measured on every day since 2022. Also a DCA calculator that
 > compares a savings plan in any coin with a rules-based model portfolio (clearly labelled as an in-sample backtest).
 > https://coinweather.github.io/?von=hn#/indikatoren
 
 **X / Bluesky (Thread-Start):**
 > Most "Bitcoin top indicators" never tell you their hit rate.
-> I measured it. 🧵 (Pi Cycle, Mayer Multiple, 2-year MA – since 2017, two separate periods)
+> I measured it. 🧵 (Pi Cycle, Mayer Multiple, 2-year MA – every day since 2022)
 
 **Widget an Blogger und Foren** (kurze Nachricht, nur an Seiten, die über Krypto schreiben):
-> Hi! I made a free, tiny "crypto weather" widget (market index, Fear & Greed, BTC – updates every 15 min). One line of code,
+> Hi! I made a free, tiny "crypto weather" widget (weather, buy score, Fear & Greed, BTC – updates every 15 min). One line of code,
 > no tracking, no ads: https://coinweather.github.io/embed/ – feel free to use it if it fits your site.
 
 ## Diese Woche: die ersten Anmeldungen (Stand 23.10.2026)
 
 **Ausgangslage:** Instagram und Facebook haben 0 Follower – die täglichen Beiträge sieht dort praktisch niemand.
 Neue Konten wachsen nicht von selbst. Die ersten 10–50 Leute kommen fast immer über **dich persönlich** und über
-Orte, wo schon Leute sind. Seit heute kann jeder die Seite **ohne Anmeldung** ansehen (Markt-Index, Fear & Greed,
+Orte, wo schon Leute sind. Seit heute kann jeder die Seite **ohne Anmeldung** ansehen (Wetter, Kauf-Score, Fear & Greed,
 Zyklus, Aussicht) – das ist der Aufhänger: „kostenlos, ohne Anmeldung“ wird in Foren viel eher angeklickt.
 
 Was automatisch läuft: täglich Beitrag + **Reel** auf Instagram und Facebook (Reels werden auch Nicht-Followern gezeigt),
@@ -135,7 +152,7 @@ Beitrag mit Umfrage auf X. Du machst nur die Punkte unten – zusammen etwa 20 M
 
 > Most crypto signal sites promise profits. I built one that shows how often it was wrong. ☀️🌧️
 >
-> Coinweather: a daily market index (0–100), Fear & Greed and signals for 1,000 coins – with an open track record.
+> Coinweather: a daily contrarian buy score (0–100), market weather, Fear & Greed and signals for 1,000 coins – with an open track record.
 >
 > 30 days free 👉 https://coinweather.github.io/?von=bluesky
 > Not financial advice.
@@ -152,7 +169,8 @@ lesen. In **r/CryptoCurrency** keine Werbung – dort nur hilfreich kommentieren
 > Hi! I built Coinweather as a side project and would love brutally honest feedback.
 >
 > **What it does**
-> - A daily market index from 0–100 based on Bitcoin’s trend, market breadth, Fear & Greed and news sentiment
+> - A daily contrarian buy score from 0–100 (Mayer Multiple, 2-year MA, Pi Cycle, distance to the all-time high, Fear & Greed) – high when Bitcoin is cheap and people are scared
+> - A “market weather” for the mood of the coming weeks (Bitcoin’s trend, market breadth, news sentiment)
 > - Signals for the top 1,000 coins. Instead of price targets, each shows how often comparable cases were higher 7 and 30 days later
 > - A public track record: every buy signal is re-measured after 7 and 30 days, including the bad ones
 > - Portfolio tracking with a reserve target that adapts to the market phase
@@ -171,7 +189,7 @@ Am besten an einem Dienstag oder Mittwoch um 09:01 Uhr kalifornischer Zeit verö
 - **Name:** Coinweather
 - **Tagline (max. 60 characters):** A daily weather report for the crypto market
 - **Description:**
-> Is now a good time to buy crypto? Coinweather turns the market into a simple daily weather report: a 0–100 market index,
+> Is now a good time to buy crypto? Coinweather turns the market into a simple daily weather report: a 0–100 contrarian buy score,
 > Fear & Greed and the market cycle at a glance, plus signals for 1,000 coins. Each signal shows how often similar cases
 > ended higher – and every buy signal is re-measured after 7 and 30 days in a public track record.
 > Try it free for 30 days, no payment details required.
@@ -185,7 +203,7 @@ Am besten an einem Dienstag oder Mittwoch um 09:01 Uhr kalifornischer Zeit verö
 
 **Title:** [ANN] Coinweather – daily crypto weather report with a public track record
 
-> Coinweather summarises the crypto market as a daily weather report: market index (0–100), Fear & Greed, cycle position
+> Coinweather summarises the crypto market as a daily weather report: buy score (0–100), market weather, Fear & Greed
 > and signals for the top 1,000 coins. Every buy signal is re-measured after 7 and 30 days and the results are shown publicly.
 > Available in English, German, Spanish, French, Italian, Portuguese and Turkish.
 > 30-day free trial, no payment details required. Not financial advice.
@@ -198,7 +216,7 @@ Am besten an einem Dienstag oder Mittwoch um 09:01 Uhr kalifornischer Zeit verö
 
 Bildschirmaufnahme der Startseite, Text als Untertitel:
 1. **Hook (first 2 seconds):** “Is now a good time to buy crypto? Here’s this week’s crypto weather.”
-2. “The market index is at 59 out of 100 – a lean buy.”
+2. “It’s rainy – but the buy score is at 69 out of 100. Rain is buying weather.”
 3. “Fear & Greed dropped from 64 to 53 – the market cooled down.”
 4. “Every signal shows how often it was right in the past – no promises.”
 5. **End:** “Not financial advice. Link in bio – 30 days free.”
@@ -212,7 +230,7 @@ Bildschirmaufnahme der Startseite, Text als Untertitel:
 
 ## 7. Friends and family (WhatsApp)
 
-> Hey! I built a website that shows the crypto market like a weather report – market index, sentiment and signals for 1,000 coins.
+> Hey! I built a website that shows the crypto market like a weather report – buy score, market weather and signals for 1,000 coins.
 > You can try everything free for 30 days, no payment details. I’d really appreciate honest feedback: what’s unclear, what’s missing?
 > https://coinweather.github.io/?von=friends
 

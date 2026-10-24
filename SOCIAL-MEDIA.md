@@ -107,7 +107,7 @@ in der Bio deines Profils ein.
 ## Was gepostet wird
 
 Vier Bilder im Hochformat (1080 × 1350 – nimmt im Feed am meisten Platz ein):
-1. **Wetterbericht:** Markt-Index mit Balken, Fear & Greed, Bitcoin, Zyklus, Zahl der Kaufsignale
+1. **Wetterbericht:** Kauf-Score mit Balken, Wetter (Stimmung), Fear & Greed, Bitcoin, Zahl der Kaufsignale für die nächsten Wochen; bei Regen und günstigem Zyklus der Hinweis „Regen ist Kaufwetter“
 2. **Aussicht:** wie oft Bitcoin und der mittlere Coin nach vergleichbaren Markttagen seit 2018 nach 7 und 30 Tagen höher standen
 3. **Größte Bewegungen:** je 3 Gewinner und Verlierer der 100 größten Coins in 24 Stunden (Beobachtung, keine Empfehlung)
 4. **Angebot:** was die Seite kann, „30 Tage kostenlos“, Link in der Bio
@@ -132,7 +132,7 @@ Profilbild: `werbung/coinweather-profilbild.jpg` · Titelbild: `werbung/coinweat
 
 **X – Bio** (max. 160 Zeichen) · Website: `https://coinweather.github.io/?von=x`
 ```
-Is now a good time to buy crypto? ☀️🌧️ Daily crypto weather: market index, Fear & Greed & signals for 1,000 coins. Probabilities, not promises. NFA
+Is now a good time to buy crypto? ☀️🌧️ Daily crypto weather: contrarian buy score, Fear & Greed & signals for 1,000 coins. Probabilities, not promises. NFA
 ```
 
 **Instagram – Bio** (max. 150 Zeichen) · Link: `https://coinweather.github.io/?von=instagram`
@@ -146,7 +146,7 @@ Is now a good time to buy crypto? ☀️🌧️ Daily crypto weather: market ind
 **Bluesky – Beschreibung** (max. 256 Zeichen) · Website im Profil: `https://coinweather.github.io/?von=bluesky`
 ```
 Is now a good time to buy crypto? ☀️🌧️
-A daily weather report for the crypto market: 0–100 market index, Fear & Greed and signals for 1,000 coins – with an open track record.
+A daily weather report for the crypto market: 0–100 contrarian buy score, Fear & Greed and signals for 1,000 coins – with an open track record.
 Probabilities, not promises. Not financial advice.
 👇 Try 30 days free
 ```
@@ -154,14 +154,14 @@ Probabilities, not promises. Not financial advice.
 **Telegram – Kanalbeschreibung** (max. 255 Zeichen)
 ```
 ☀️🌧️ The daily weather report for the crypto market.
-Every morning: market index (0–100), Fear & Greed, Bitcoin and cycle – in one short message.
+Every morning: buy score (0–100), market weather, Fear & Greed and Bitcoin – in one short message.
 Probabilities, not promises. Not financial advice.
 👉 coinweather.github.io
 ```
 
 **Facebook-Seite – Kurzbeschreibung (Intro)** (max. 101 Zeichen) · Website: `https://coinweather.github.io/?von=facebook`
 ```
-Daily crypto weather report: market index, Fear & Greed and signals for 1,000 coins. NFA.
+Daily crypto weather report: buy score, Fear & Greed and signals for 1,000 coins. NFA.
 ```
 
 **Facebook-Seite – Info (ausführlich)**
