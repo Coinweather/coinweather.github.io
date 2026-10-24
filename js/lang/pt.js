@@ -1727,4 +1727,13 @@ export default {
   "Der Trend wird deshalb gedeckelt, ein Kaufsignal gibt dann nur noch der Zyklus-Kompass": "Por isso a tendência fica limitada, e então só a Bússola do ciclo pode dar um sinal de compra",
   "Dann wird der Trend der Altcoins gedeckelt": "Então a tendência das altcoins é limitada",
   "Bitcoin und Ethereum folgen dem Kauf-Score, in dem Fear & Greed schon steckt": "Bitcoin e Ethereum seguem a pontuação de compra, que já inclui o Fear & Greed",
+  "Dazu unser eigener Index, der Kauf-Score – dieselbe Zahl wie auf der Startseite": "Além disso, o nosso próprio índice, a pontuação de compra – o mesmo número da página inicial",
+  "Zyklus-Risiko #/#": "Risco de ciclo #/#",
+  "dieselbe Rechnung, andersherum gezählt": "o mesmo cálculo, contado ao contrário",
+  "Kauf-Score und Zyklus-Risiko": "Pontuação de compra e risco de ciclo",
+  "Ein eigener Index von Coinweather aus fünf Bausteinen. Der Kauf-Score geht von # (überhitzt) bis # (tief, günstig); das Zyklus-Risiko ist dieselbe Zahl andersherum, # minus Kauf-Score": "Um índice próprio do Coinweather com cinco componentes. A pontuação de compra vai de # (superaquecido) a # (baixo, barato); o risco de ciclo é o mesmo número ao contrário, # menos a pontuação de compra",
+  "Jeder Baustein wird zuerst als Risiko von # bis # gerechnet": "Cada componente é calculado primeiro como risco de # a #",
+  "Stufen des Kauf-Scores: ab # Kaufen, #–# Eher kaufen, #–# Halten, #–# Eher verkaufen, unter # Verkaufen": "Níveis da pontuação de compra: a partir de # Comprar, #–# Mais para comprar, #–# Manter, #–# Mais para vender, abaixo de # Vender",
+  "Geprüft an Bitcoin-Tageskursen seit #: Ab einem Kauf-Score von # stand Bitcoin ein Jahr später in #–# % der Fälle höher, zwischen # und # nur in # %. Unter # lag der Kauf-Score seit # nie. Die Schwellen der Bausteine sind bekannte Marken aus der Literatur, nicht an diesen Daten optimiert. Trotzdem: Seit # gab es nur einen Zyklus – eine Tendenz, keine Gewissheit": "Verificado com preços diários do Bitcoin desde #: a partir de uma pontuação de compra de #, o Bitcoin estava mais alto um ano depois em #–# % dos casos; entre # e #, apenas em # %. Desde # a pontuação de compra nunca ficou abaixo de #. Os limites dos componentes são níveis conhecidos da literatura, não otimizados com estes dados. Mesmo assim: desde # houve apenas um ciclo – uma tendência, não uma certeza",
+  "Unter einem Kauf-Score von # ist „# Jahr später“ seit # gerechnet, weil es seit # zu wenige solche Tage gab": "Abaixo de uma pontuação de compra de #, “# ano depois” é calculado desde #, porque desde # houve poucos dias assim",
 };

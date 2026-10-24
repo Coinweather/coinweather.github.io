@@ -90,6 +90,8 @@ const slug = (id) => String(id).toLowerCase().replace(/[^a-z0-9-]/g, '');
 const iso = new Date(snap.time).toISOString();
 // Dieselbe Aussage wie die App: ein Jahr nach vergleichbaren Kauf-Scores (Zyklus-Kompass, seit 2022)
 const year = buyHistory(market.value);
+// Unter 45 ist der Rückblick seit 2018 gerechnet (seit 2022 zu wenige solche Tage) – die Texte nennen dann das richtige Jahr
+const since = (t) => (market.value < 45 ? String(t).replaceAll('2022', '2018') : t);
 const btcUp7 = year?.btc.up, btcUp30 = year?.eth.up, altUp7 = year?.alt.up;
 const buys = coins.filter((c) => c.analysis?.signal === 'buy').length;
 const rated = coins.filter((c) => c.analysis?.signal && c.analysis.signal !== 'none').length;
@@ -845,7 +847,7 @@ for (const lang of LANG_ORDER) {
         ${fng ? `<div class="panel stat"><div class="l">${esc(Q.stats.fng)}</div><div class="v">${fng.value}</div><div>${mood(fng.value)}</div></div>` : ''}</div>
       <p>${esc(Q.intro)}</p>
       <h2>${esc(Q.inputsH)}</h2><div class="panel"><table>${inputs}</table></div><p class="muted">${esc(Q.bar)}</p>
-      <h2>${esc(Q.histH)}</h2><div class="panel"><table><tr><th></th><th class="n">${esc(Q.higher)}</th><th class="n">${esc(Q.median)}</th></tr>
+      <h2>${esc(since(Q.histH))}</h2><div class="panel"><table><tr><th></th><th class="n">${esc(Q.higher)}</th><th class="n">${esc(Q.median)}</th></tr>
         ${hrow(Q.btc, year.btc)}${hrow(Q.eth, year.eth)}${hrow(Q.alt, year.alt)}</table></div>
       <p class="muted">${esc(Q.caveat)}</p>
       <section class="panel cta"><strong>${esc(Q.cta)}</strong><p><a class="btn" href="${app()}">${L.open}</a> <a class="btn ghost" href="${app('#/indikatoren')}">${esc(X.fullBtn)}</a></p></section>
@@ -873,9 +875,9 @@ for (const lang of LANG_ORDER) {
       <div class="panel"><table><tr><th>${L.period}</th><th class="n">${L.change}</th></tr>
         ${['24h', '7d', '30d', '200d', '1y'].map((k, j) => `<tr><td>${L.periods[j]}</td><td class="n ${tone(ch(c, k))}">${pct(ch(c, k))}</td></tr>`).join('')}</table></div>
       <h2>${esc(L.cBuyQ(c.name))}</h2><p>${L.cPara2(market.value, esc(label), fngV, fngM, odds)}</p><p>${signal}</p>
-      ${year && !c.analysis?.stable ? `<h2>${IX[lang].nav}</h2><p>${L.cComp(name, c.id === 'bitcoin' || c.id === 'ethereum', market.value, esc(label),
+      ${year && !c.analysis?.stable ? `<h2>${IX[lang].nav}</h2><p>${since(L.cComp(name, c.id === 'bitcoin' || c.id === 'ethereum', market.value, esc(label),
         year[c.id === 'bitcoin' ? 'btc' : c.id === 'ethereum' ? 'eth' : 'alt'].up, ((m) => `${m > 0 ? '+' : ''}${m}`)(year[c.id === 'bitcoin' ? 'btc' : c.id === 'ethereum' ? 'eth' : 'alt'].median),
-        market.value >= 62 ? 'cheap' : market.value < 45 ? 'dear' : 'mid')} <a href="${pre}/bitcoin-cycle-risk/">${IX[lang].nav} →</a></p>` : ''}
+        market.value >= 62 ? 'cheap' : market.value < 45 ? 'dear' : 'mid'))} <a href="${pre}/bitcoin-cycle-risk/">${IX[lang].nav} →</a></p>` : ''}
       ${offer(sample ? L.offAll : L.offCoin(name))}
       <h2>${L.mToday}</h2>${stats()}<p><a href="${pre}/crypto-weather-today/">${L.fullRep}</a></p>
       <h2>${L.similar}</h2><ul class="links">${near.map((x) => `<li><a href="${pre}/coin/${slug(x.id)}/">${esc(x.name)} (${esc(x.symbol.toUpperCase())})</a></li>`).join('')}</ul>`);
@@ -908,12 +910,11 @@ for (const lang of LANG_ORDER) {
       <li><a href="${pre}/fear-and-greed-index/">${esc(L.fngNav)}</a></li></ul>`;
     const cta = `<section class="panel cta"><strong>${X.full}</strong><p><a class="btn" href="${app('#/indikatoren')}">${X.fullBtn}</a></p></section><p class="muted">${X.note}</p>`;
     const stat = (l, v) => `<div class="panel stat"><div class="l">${l}</div><div class="v">${v}</div></div>`;
-    const bucket = ri.backtest.find((b) => ri.value >= b.lo && ri.value < b.hi);
-    const y1 = bucket?.['365'] ?? bucket?.periods?.[1]?.['365'];
+    const y1 = year?.btc;   // dieselbe Tabelle wie App, Coin-Seiten und Beiträge
     add('ix:risk', paths.risk, X.riskT(ri.value, rl, day), X.riskD(ri.value, rl),
       `<h1>${esc(X.riskH(ri.value, rl))}</h1><p class="muted">${esc(day)}</p>
       <div class="grid">${stat(names.risk, `${ri.value}/100`)}${stat(X.parts.mayer, num(indices.mayer.value, 2))}${stat(X.parts.pi, `${num(indices.pi.ratio * 100, 0)} %`)}${se ? stat(names.season, `${se.value}/100`) : ''}</div>
-      <p>${X.riskP}</p>${y1 ? `<p><strong>${X.riskBt(`${y1.up} %`)}</strong></p>` : ''}
+      <p>${X.riskP}</p>${y1 ? `<p><strong>${since(X.riskBt(`${y1.up} %`))}</strong></p>` : ''}
       <h2>${X.partsH}</h2><div class="panel"><table>${Object.entries(ri.parts ?? {}).map(([k, v]) => `<tr><td>${X.parts[k]}</td><td class="n">${num(v, 0)}</td></tr>`).join('')}</table></div>
       ${cta}${more('risk')}`);
     if (se) {

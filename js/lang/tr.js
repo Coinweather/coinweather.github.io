@@ -1727,4 +1727,13 @@ export default {
   "Der Trend wird deshalb gedeckelt, ein Kaufsignal gibt dann nur noch der Zyklus-Kompass": "Bu yüzden trend sınırlanır, alım sinyalini o zaman yalnızca Döngü Pusulası verebilir",
   "Dann wird der Trend der Altcoins gedeckelt": "O zaman altcoinlerin trendi sınırlanır",
   "Bitcoin und Ethereum folgen dem Kauf-Score, in dem Fear & Greed schon steckt": "Bitcoin ve Ethereum, Korku ve Açgözlülük’ü zaten içeren alım skorunu izler",
+  "Dazu unser eigener Index, der Kauf-Score – dieselbe Zahl wie auf der Startseite": "Ayrıca kendi endeksimiz alım skoru – ana sayfadakiyle aynı sayı",
+  "Zyklus-Risiko #/#": "Döngü riski #/#",
+  "dieselbe Rechnung, andersherum gezählt": "aynı hesap, ters yönden sayılmış",
+  "Kauf-Score und Zyklus-Risiko": "Alım skoru ve döngü riski",
+  "Ein eigener Index von Coinweather aus fünf Bausteinen. Der Kauf-Score geht von # (überhitzt) bis # (tief, günstig); das Zyklus-Risiko ist dieselbe Zahl andersherum, # minus Kauf-Score": "Coinweather’ın beş bileşenden oluşan kendi endeksi. Alım skoru # (aşırı ısınmış) ile # (dip, ucuz) arasındadır; döngü riski aynı sayının tersidir: # eksi alım skoru",
+  "Jeder Baustein wird zuerst als Risiko von # bis # gerechnet": "Her bileşen önce # ile # arasında bir risk olarak hesaplanır",
+  "Stufen des Kauf-Scores: ab # Kaufen, #–# Eher kaufen, #–# Halten, #–# Eher verkaufen, unter # Verkaufen": "Alım skoru seviyeleri: # ve üzeri Al, #–# Almaya yakın, #–# Tut, #–# Satmaya yakın, # altı Sat",
+  "Geprüft an Bitcoin-Tageskursen seit #: Ab einem Kauf-Score von # stand Bitcoin ein Jahr später in #–# % der Fälle höher, zwischen # und # nur in # %. Unter # lag der Kauf-Score seit # nie. Die Schwellen der Bausteine sind bekannte Marken aus der Literatur, nicht an diesen Daten optimiert. Trotzdem: Seit # gab es nur einen Zyklus – eine Tendenz, keine Gewissheit": "#’den beri Bitcoin günlük fiyatlarıyla test edildi: # ve üzeri alım skorunda Bitcoin bir yıl sonra vakaların % #–# kadarında daha yüksekti; # ile # arasında yalnızca % #. #’den beri alım skoru hiç # altına inmedi. Bileşen eşikleri literatürden bilinen seviyelerdir, bu verilere göre optimize edilmedi. Yine de: #’den beri yalnızca bir döngü oldu – bir eğilim, kesinlik değil",
+  "Unter einem Kauf-Score von # ist „# Jahr später“ seit # gerechnet, weil es seit # zu wenige solche Tage gab": "# altındaki alım skorunda “# yıl sonra” #’den beri hesaplanır, çünkü #’den beri bu tür günler çok azdı",
 };

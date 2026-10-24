@@ -363,6 +363,16 @@ function sparkline(prices, up) {
   return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="var(--${up ? 'up' : 'down'})" stroke-width="1.5"/></svg>`;
 }
 
+// Die fünf Bausteine des Kauf-Scores (Startseite und Zyklus-Kompass): je länger der Balken, desto günstiger
+function buyInputs(b) {
+  return `<ul class="buy-inputs">${BUY_INPUTS.map(([k, name, sub, val]) => {
+    const cheap = Math.round(100 - b.parts[k]), [cls, word] = cheapTag(cheap);
+    return `<li><span class="bi-name"><strong>${name}</strong><small>${sub}</small></span><span class="bi-val">${b.raw ? val(b.raw) : ''}</span>
+      <span class="bi-bar"><i class="${cls}" style="width:${Math.max(4, cheap)}%"></i></span><span class="bi-tag ${cls}">${word}</span></li>`;
+  }).join('')}</ul>
+  <p class="hint">Je länger der Balken, desto günstiger. Alle fünf zählen gleich; der Kauf-Score ist ihr Mittel.</p>`;
+}
+
 function gauge(value, colors) {
   const cx = 100, cy = 100, r = 80;
   const pt = (v, rad = r) => {
@@ -687,16 +697,17 @@ const INFO = {
       <li>Die Seite handelt nicht selbst. Du setzt die Schritte bei deiner Börse um und trägst sie hier als umgesetzt ein.</li></ul>
     <p>Etwa 45 % der Monate endeten in der Rückrechnung im Minus; Verluste lassen sich nicht ausschließen.</p>${LIMITS}` },
 
-  compass: { title: 'Zyklus-Risiko', body: () => `
-    <p>Ein eigener Index von Coinweather: Er fasst fünf Bausteine zusammen, je von 0 (tief, günstig) bis 100 (überhitzt), und bildet daraus den Mittelwert.</p>
+  compass: { title: 'Kauf-Score und Zyklus-Risiko', body: () => `
+    <p>Ein eigener Index von Coinweather aus fünf Bausteinen. Der Kauf-Score geht von 0 (überhitzt) bis 100 (tief, günstig); das Zyklus-Risiko ist dieselbe Zahl andersherum, 100 minus Kauf-Score.</p>
+    <p>Jeder Baustein wird zuerst als Risiko von 0 bis 100 gerechnet:</p>
     <ul><li><strong>Mayer-Multiple:</strong> 0,7 ergibt 0, 2,4 ergibt 100.</li>
       <li><strong>2-Jahres-Schnitt:</strong> am Schnitt 0, beim Fünffachen 100 (logarithmisch).</li>
       <li><strong>Pi-Cycle:</strong> 40 % ergibt 0, das Kreuzen (100 %) ergibt 100.</li>
       <li><strong>Nähe zum Allzeithoch:</strong> 80 % darunter ergibt 0, am Hoch 100.</li>
       <li><strong>Fear &amp; Greed:</strong> Schnitt der letzten 30 Tage.</li></ul>
-    <p>Stufen: unter 25 tief, 25–37 günstig, 38–54 neutral, 55–69 erhitzt, ab 70 überhitzt. Der Kauf-Score auf der Startseite ist 100 minus dieser Wert.</p>
-    <p>Geprüft an Bitcoin-Tageskursen seit 2022: Unter 38 stand Bitcoin ein Jahr später in 71–76 % der Fälle höher, zwischen 38 und 54 nur in 48 %.
-      Überhitzt war der Zyklus seit 2022 nie. Die Schwellen der Bausteine sind bekannte Marken aus der Literatur, nicht an diesen Daten optimiert.
+    <p>Stufen des Kauf-Scores: ab 75 Kaufen, 62–74 Eher kaufen, 45–61 Halten, 30–44 Eher verkaufen, unter 30 Verkaufen.</p>
+    <p>Geprüft an Bitcoin-Tageskursen seit 2022: Ab einem Kauf-Score von 62 stand Bitcoin ein Jahr später in 69–76 % der Fälle höher, zwischen 45 und 61 nur in 48 %.
+      Unter 30 lag der Kauf-Score seit 2022 nie. Die Schwellen der Bausteine sind bekannte Marken aus der Literatur, nicht an diesen Daten optimiert.
       Trotzdem: Seit 2022 gab es nur einen Zyklus – eine Tendenz, keine Gewissheit.</p>` },
 
   record: { title: 'Erfolgskontrolle', body: () => `
@@ -966,7 +977,7 @@ function marketView(preview = false) {
     if (!m?.buy || !el) return;
     const x = await loadIndices();
     const risk = 100 - m.value, row = x?.risk?.backtest?.find((b) => risk >= b.lo && risk < b.hi);
-    const y = row?.['365'] ?? row?.periods?.[1]?.['365'], q = row?.['90'] ?? row?.periods?.[1]?.['90'];
+    const y = yearAfterBuy(m.value)?.btc, q = row?.['90'] ?? row?.periods?.[1]?.['90'];
     if (!y || !$('#buy-history')) return;
     $('#buy-history').innerHTML = `<div class="label">Nach Ständen wie heute · seit 2022</div>
       <div class="bh-grid"><div><strong class="${y.up >= 55 ? 'up' : y.up <= 45 ? 'down' : ''}">${y.up} %</strong><span>Bitcoin ein Jahr später höher</span></div>
@@ -1012,12 +1023,7 @@ function marketView(preview = false) {
       : '<div class="label">Jetzt kaufen?</div><p class="muted">Wird berechnet …</p>';
     const b = m?.buy;
     $('#buy-parts').innerHTML = b ? `<div class="head-row"><div class="label">Das steckt im Kauf-Score</div><a class="link-more" href="#/indikatoren">Zyklus-Kompass →</a></div>
-        <ul class="buy-inputs">${BUY_INPUTS.map(([k, name, sub, val]) => {
-          const cheap = Math.round(100 - b.parts[k]), [cls, word] = cheapTag(cheap);
-          return `<li><span class="bi-name"><strong>${name}</strong><small>${sub}</small></span><span class="bi-val">${val(b.raw)}</span>
-            <span class="bi-bar"><i class="${cls}" style="width:${Math.max(4, cheap)}%"></i></span><span class="bi-tag ${cls}">${word}</span></li>`;
-        }).join('')}</ul>
-        <p class="hint">Je länger der Balken, desto günstiger. Alle fünf zählen gleich; der Kauf-Score ist ihr Mittel.</p>`
+        ${buyInputs(b)}`
       : '<div class="label">Das steckt im Kauf-Score</div><p class="muted">Wird berechnet …</p>';
     buyHistory();
     const cy = m?.cycle, h = m?.buy ? yearAfterBuy(m.value) : null;
@@ -2992,6 +2998,7 @@ const RISK_TEXT = {
   Erhitzt: 'Der Markt läuft heiß – Vorsicht bei neuen Käufen.',
   Überhitzt: 'Überhitzt – in vergangenen Zyklen folgten darauf oft starke Rückgänge.',
 };
+const BUY_OF_RISK = { Tief: 'Kaufen', Günstig: 'Eher kaufen', Neutral: 'Halten', Erhitzt: 'Eher verkaufen', Überhitzt: 'Verkaufen' };
 const seasonLabel = (v) => (v >= 75 ? 'Altcoin-Saison' : v <= 25 ? 'Bitcoin-Saison' : 'Übergang');
 const dayMs = (d) => d * 86_400_000;
 
@@ -3013,7 +3020,7 @@ function compassView() {
       <div class="label">Neu · Zyklus-Kompass</div>
       <h1 class="page-title">Wo steht Bitcoin im Zyklus?</h1>
       <p class="muted">Die bekanntesten Zyklus-Indikatoren an einem Ort – und zu jedem der ehrliche Rückblick: Wie oft stand Bitcoin danach wirklich höher?
-        Dazu unser eigener Index, das Zyklus-Risiko.</p>
+        Dazu unser eigener Index, der Kauf-Score – dieselbe Zahl wie auf der Startseite.</p>
     </section>
     <div id="compass"><section class="panel"><p class="muted">Lade die Indikatoren …</p></section></div>`;
 
@@ -3030,26 +3037,26 @@ function compassView() {
     // Derselbe Wert wie der Kauf-Score der Startseite (live gerechnet), damit beide Seiten immer übereinstimmen
     const live = state.market?.buy;
     const r = live ? { ...x.risk, value: 100 - live.value, parts: live.parts } : x.risk, label = RISK_LABEL(r.value);
-    const partName = { mayer: 'Mayer-Multiple', twoYear: '2-Jahres-Schnitt', pi: 'Pi-Cycle', ath: 'Nähe zum Allzeithoch', fng: 'Fear & Greed (30 Tage)' };
-    const bar = (v) => `<span class="mini-bar"><i style="width:${Math.max(3, v)}%;background:${v < 38 ? 'var(--up)' : v < 55 ? 'var(--hold)' : 'var(--down)'}"></i></span>`;
-    const nowBucket = r.backtest.find((b) => r.value >= b.lo && r.value < b.hi);
-    const y1 = nowBucket ? btCell(nowBucket, '365') : null;
+    const buy = 100 - r.value, buyLabel = live?.label ?? BUY_OF_RISK[label];
+    // Rückblick-Bereiche des Zyklus-Risikos als Kauf-Score-Stufen (Risiko unter 25 = Kauf-Score über 75 usw.)
+    // 1 Jahr: dieselbe Tabelle wie Startseite, Coin-Seiten und Beiträge (unter 45 seit 2018, sonst zu wenige Tage)
+    const buyRows = r.backtest.map((b) => ({ ...b, ...(btCell(b, '365') ? { 365: yearAfterBuy(100 - (b.lo + Math.min(100, b.hi)) / 2).btc } : {}), label: `${BUY_OF_RISK[b.label] ?? b.label} · ${Math.max(0, 100 - b.hi)}–${100 - b.lo}` }));
+    const y1 = yearAfterBuy(100 - r.value)?.btc;
     const s = x.altseason, d = x.dominance;
     el.innerHTML = `
       <section class="panel compass-risk">
-        <div class="gauge-panel"><div class="label">Zyklus-Risiko</div>${gauge(r.value, RISK_COLORS)}
-          <div class="gauge-value">${num(r.value, 0)}<small> / 100</small></div><span class="badge big ${r.value < 38 ? 'buy' : r.value < 55 ? 'hold' : 'sell'}">${label}</span></div>
+        <div class="gauge-panel"><div class="label">Kauf-Score</div>${gauge(buy, SELL_TO_BUY)}
+          <div class="gauge-value">${num(buy, 0)}<small> / 100</small></div><span class="badge big ${buy >= 62 ? 'buy' : buy >= 45 ? 'hold' : 'sell'}">${buyLabel}</span></div>
         <div>
-          <h2>${label}: ${RISK_TEXT[label]}</h2>
-          <p class="compass-link"><span>Kauf-Score auf der Startseite (100 minus Zyklus-Risiko):</span> <strong>${num(100 - r.value, 0)}/100</strong></p>
+          <h2>${RISK_TEXT[label]}</h2>
           ${y1 ? `<div class="buy-history"><div class="label">Nach Ständen wie heute · seit 2022</div>
             <div class="bh-grid"><div><strong class="${y1.up >= 55 ? 'up' : y1.up <= 45 ? 'down' : ''}">${y1.up} %</strong><span>Bitcoin ein Jahr später höher</span></div>
             <div><strong class="${tone(y1.median)}">${signed(y1.median, 0)} %</strong><span>mittleres Ergebnis nach einem Jahr</span></div></div></div>` : ''}
-          <div class="label">Bausteine (0 = tief, 100 = überhitzt)</div>
-          <ul class="risk-parts">${Object.entries(r.parts ?? {}).map(([k, v]) => `<li><span>${partName[k]}</span>${bar(v)}<strong>${num(v, 0)}</strong></li>`).join('')}</ul>
-          <p class="hint">Unser eigener Index: Mittel aus fünf Bausteinen, je 0 (tief, günstig) bis 100 (überhitzt). ${infoBtn('compass')}</p>
+          <div class="label">Das steckt im Kauf-Score</div>
+          ${buyInputs(live ?? { parts: r.parts })}
+          <p class="hint">Zyklus-Risiko ${num(r.value, 0)}/100 · ${label} · dieselbe Rechnung, andersherum gezählt ${infoBtn('compass')}</p>
         </div>
-        <div class="compass-wide">${full ? backtestTable(r.backtest, r.value) : ''}${chartBox('c-risk')}</div>
+        <div class="compass-wide">${full ? `${backtestTable(buyRows, r.value)}<p class="hint">Unter einem Kauf-Score von 45 ist „1 Jahr später“ seit 2018 gerechnet, weil es seit 2022 zu wenige solche Tage gab.</p>` : ''}${chartBox('c-risk')}</div>
       </section>
       <div class="compass-grid">
         ${s ? `<section class="panel"><div class="label">Altcoin-Saison-Index</div>
@@ -3080,10 +3087,10 @@ function compassView() {
       </div>
       <p class="hint">Stand ${new Date(x.time).toLocaleString(settings.locale)} · Tageskurse von Binance seit ${new Date(x.since).getUTCFullYear()}, Fear & Greed von alternative.me, Dominanz von CoinGecko.
         Indikatoren beschreiben vergangene Zyklen – keine Garantie für den nächsten. Keine Anlageberatung.</p>
-      <p class="share-row hint">${shareLinks(shareUrl('#/indikatoren'), `${i18n.say('Zyklus-Risiko')}: ${r.value}/100 (${i18n.say(label)}) – Coinweather`)}</p>`;
+      <p class="share-row hint">${shareLinks(shareUrl('#/indikatoren'), `${i18n.say('Kauf-Score')}: ${buy}/100 (${i18n.say(buyLabel)}) – Coinweather`)}</p>`;
     if (!full) return;
     const line = (id, hist, opts = {}) => { const box = $(`#${id}`); if (!box || !hist?.length) return; drawChart(box, { t: hist.map((h) => dayMs(h[0])), p: hist.map((h) => h[1]), plain: true, ...opts }); };
-    line('c-risk', r.history, { note: 'Zyklus-Risiko' });
+    line('c-risk', r.history.map((h) => [h[0], 100 - h[1]]), { note: 'Kauf-Score' });
     line('c-season', s?.history, { note: 'Altcoin-Saison-Index' });
     line('c-pi', x.pi.history.map((h) => [h[0], h[1] * 100]), { note: 'Pi-Cycle: 111-Tage-Schnitt in % des doppelten 350-Tage-Schnitts', marker: null });
     line('c-mayer', x.mayer.history, { note: 'Mayer-Multiple' });

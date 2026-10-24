@@ -1727,4 +1727,13 @@ export default {
   "Der Trend wird deshalb gedeckelt, ein Kaufsignal gibt dann nur noch der Zyklus-Kompass": "Il trend viene quindi limitato, a quel punto solo la Bussola del ciclo può dare un segnale di acquisto",
   "Dann wird der Trend der Altcoins gedeckelt": "Allora il trend degli altcoin viene limitato",
   "Bitcoin und Ethereum folgen dem Kauf-Score, in dem Fear & Greed schon steckt": "Bitcoin ed Ethereum seguono il punteggio di acquisto, che include già il Fear & Greed",
+  "Dazu unser eigener Index, der Kauf-Score – dieselbe Zahl wie auf der Startseite": "In più il nostro indice, il punteggio di acquisto – lo stesso numero della pagina iniziale",
+  "Zyklus-Risiko #/#": "Rischio di ciclo #/#",
+  "dieselbe Rechnung, andersherum gezählt": "lo stesso calcolo, contato al contrario",
+  "Kauf-Score und Zyklus-Risiko": "Punteggio di acquisto e rischio di ciclo",
+  "Ein eigener Index von Coinweather aus fünf Bausteinen. Der Kauf-Score geht von # (überhitzt) bis # (tief, günstig); das Zyklus-Risiko ist dieselbe Zahl andersherum, # minus Kauf-Score": "Un indice proprio di Coinweather composto da cinque componenti. Il punteggio di acquisto va da # (surriscaldato) a # (basso, conveniente); il rischio di ciclo è lo stesso numero al contrario, # meno il punteggio di acquisto",
+  "Jeder Baustein wird zuerst als Risiko von # bis # gerechnet": "Ogni componente viene prima calcolata come rischio da # a #",
+  "Stufen des Kauf-Scores: ab # Kaufen, #–# Eher kaufen, #–# Halten, #–# Eher verkaufen, unter # Verkaufen": "Livelli del punteggio di acquisto: da # Comprare, #–# Meglio comprare, #–# Tenere, #–# Meglio vendere, sotto # Vendere",
+  "Geprüft an Bitcoin-Tageskursen seit #: Ab einem Kauf-Score von # stand Bitcoin ein Jahr später in #–# % der Fälle höher, zwischen # und # nur in # %. Unter # lag der Kauf-Score seit # nie. Die Schwellen der Bausteine sind bekannte Marken aus der Literatur, nicht an diesen Daten optimiert. Trotzdem: Seit # gab es nur einen Zyklus – eine Tendenz, keine Gewissheit": "Verificato sui prezzi giornalieri di Bitcoin dal # : da un punteggio di acquisto di #, Bitcoin era più alto un anno dopo nel #–# % dei casi; tra # e #, solo nel # %. Dal # il punteggio di acquisto non è mai sceso sotto #. Le soglie delle componenti sono livelli noti dalla letteratura, non ottimizzati su questi dati. Comunque: dal # c’è stato un solo ciclo – una tendenza, non una certezza",
+  "Unter einem Kauf-Score von # ist „# Jahr später“ seit # gerechnet, weil es seit # zu wenige solche Tage gab": "Sotto un punteggio di acquisto di #, «# anno dopo» è calcolato dal #, perché dal # ci sono stati troppo pochi giorni così",
 };

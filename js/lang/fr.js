@@ -1727,4 +1727,13 @@ export default {
   "Der Trend wird deshalb gedeckelt, ein Kaufsignal gibt dann nur noch der Zyklus-Kompass": "La tendance est donc plafonnée, seule la Boussole du cycle peut alors donner un signal d’achat",
   "Dann wird der Trend der Altcoins gedeckelt": "La tendance des altcoins est alors plafonnée",
   "Bitcoin und Ethereum folgen dem Kauf-Score, in dem Fear & Greed schon steckt": "Bitcoin et Ethereum suivent le score d’achat, qui intègre déjà le Fear & Greed",
+  "Dazu unser eigener Index, der Kauf-Score – dieselbe Zahl wie auf der Startseite": "En plus, notre propre indice, le score d’achat – le même chiffre que sur la page d’accueil",
+  "Zyklus-Risiko #/#": "Risque de cycle #/#",
+  "dieselbe Rechnung, andersherum gezählt": "le même calcul, compté à l’envers",
+  "Kauf-Score und Zyklus-Risiko": "Score d’achat et risque de cycle",
+  "Ein eigener Index von Coinweather aus fünf Bausteinen. Der Kauf-Score geht von # (überhitzt) bis # (tief, günstig); das Zyklus-Risiko ist dieselbe Zahl andersherum, # minus Kauf-Score": "Un indice propre à Coinweather, composé de cinq éléments. Le score d’achat va de # (surchauffe) à # (bas, bon marché) ; le risque de cycle est le même chiffre à l’envers, # moins le score d’achat",
+  "Jeder Baustein wird zuerst als Risiko von # bis # gerechnet": "Chaque composante est d’abord calculée comme un risque de # à #",
+  "Stufen des Kauf-Scores: ab # Kaufen, #–# Eher kaufen, #–# Halten, #–# Eher verkaufen, unter # Verkaufen": "Niveaux du score d’achat : à partir de # Acheter, #–# Plutôt acheter, #–# Conserver, #–# Plutôt vendre, sous # Vendre",
+  "Geprüft an Bitcoin-Tageskursen seit #: Ab einem Kauf-Score von # stand Bitcoin ein Jahr später in #–# % der Fälle höher, zwischen # und # nur in # %. Unter # lag der Kauf-Score seit # nie. Die Schwellen der Bausteine sind bekannte Marken aus der Literatur, nicht an diesen Daten optimiert. Trotzdem: Seit # gab es nur einen Zyklus – eine Tendenz, keine Gewissheit": "Vérifié sur les cours quotidiens du Bitcoin depuis # : à partir d’un score d’achat de #, le Bitcoin était plus haut un an plus tard dans #–# % des cas ; entre # et #, seulement dans # %. Depuis #, le score d’achat n’a jamais été sous #. Les seuils des composantes sont des niveaux connus de la littérature, non optimisés sur ces données. Malgré tout : depuis #, il n’y a eu qu’un cycle – une tendance, pas une certitude",
+  "Unter einem Kauf-Score von # ist „# Jahr später“ seit # gerechnet, weil es seit # zu wenige solche Tage gab": "Sous un score d’achat de #, « # an plus tard » est calculé depuis #, car il y a eu trop peu de tels jours depuis #",
 };

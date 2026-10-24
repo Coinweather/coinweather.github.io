@@ -1727,4 +1727,13 @@ export default {
   "Der Trend wird deshalb gedeckelt, ein Kaufsignal gibt dann nur noch der Zyklus-Kompass": "Por eso la tendencia queda limitada y entonces solo la Brújula del ciclo puede dar una señal de compra",
   "Dann wird der Trend der Altcoins gedeckelt": "Entonces se limita la tendencia de las altcoins",
   "Bitcoin und Ethereum folgen dem Kauf-Score, in dem Fear & Greed schon steckt": "Bitcoin y Ethereum siguen la puntuación de compra, que ya incluye Fear & Greed",
+  "Dazu unser eigener Index, der Kauf-Score – dieselbe Zahl wie auf der Startseite": "Además, nuestro propio índice, la puntuación de compra: el mismo número que en la página de inicio",
+  "Zyklus-Risiko #/#": "Riesgo de ciclo #/#",
+  "dieselbe Rechnung, andersherum gezählt": "el mismo cálculo, contado al revés",
+  "Kauf-Score und Zyklus-Risiko": "Puntuación de compra y riesgo de ciclo",
+  "Ein eigener Index von Coinweather aus fünf Bausteinen. Der Kauf-Score geht von # (überhitzt) bis # (tief, günstig); das Zyklus-Risiko ist dieselbe Zahl andersherum, # minus Kauf-Score": "Un índice propio de Coinweather con cinco componentes. La puntuación de compra va de # (sobrecalentado) a # (bajo, barato); el riesgo de ciclo es el mismo número al revés, # menos la puntuación de compra",
+  "Jeder Baustein wird zuerst als Risiko von # bis # gerechnet": "Cada componente se calcula primero como riesgo de # a #",
+  "Stufen des Kauf-Scores: ab # Kaufen, #–# Eher kaufen, #–# Halten, #–# Eher verkaufen, unter # Verkaufen": "Niveles de la puntuación de compra: desde # Comprar, #–# Más bien comprar, #–# Mantener, #–# Más bien vender, por debajo de # Vender",
+  "Geprüft an Bitcoin-Tageskursen seit #: Ab einem Kauf-Score von # stand Bitcoin ein Jahr später in #–# % der Fälle höher, zwischen # und # nur in # %. Unter # lag der Kauf-Score seit # nie. Die Schwellen der Bausteine sind bekannte Marken aus der Literatur, nicht an diesen Daten optimiert. Trotzdem: Seit # gab es nur einen Zyklus – eine Tendenz, keine Gewissheit": "Comprobado con precios diarios de Bitcoin desde #: a partir de una puntuación de compra de #, Bitcoin estaba más alto un año después en el #–# % de los casos; entre # y #, solo en el # %. Desde # la puntuación de compra nunca estuvo por debajo de #. Los umbrales de los componentes son niveles conocidos de la literatura, no optimizados con estos datos. Aun así: desde # solo hubo un ciclo, una tendencia, no una certeza",
+  "Unter einem Kauf-Score von # ist „# Jahr später“ seit # gerechnet, weil es seit # zu wenige solche Tage gab": "Por debajo de una puntuación de compra de #, «# año después» se calcula desde #, porque desde # hubo muy pocos días así",
 };

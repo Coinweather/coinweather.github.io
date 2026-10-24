@@ -1717,4 +1717,13 @@ export default {
   "Der Trend wird deshalb gedeckelt, ein Kaufsignal gibt dann nur noch der Zyklus-Kompass": "The trend is therefore capped, so only the Cycle Compass can then give a buy signal",
   "Dann wird der Trend der Altcoins gedeckelt": "Then the trend of altcoins is capped",
   "Bitcoin und Ethereum folgen dem Kauf-Score, in dem Fear & Greed schon steckt": "Bitcoin and Ethereum follow the buy score, which already includes Fear & Greed",
+  "Dazu unser eigener Index, der Kauf-Score – dieselbe Zahl wie auf der Startseite": "Plus our own index, the buy score – the same number as on the home page",
+  "Zyklus-Risiko #/#": "Cycle risk #/#",
+  "dieselbe Rechnung, andersherum gezählt": "the same calculation, counted the other way round",
+  "Kauf-Score und Zyklus-Risiko": "Buy score and cycle risk",
+  "Ein eigener Index von Coinweather aus fünf Bausteinen. Der Kauf-Score geht von # (überhitzt) bis # (tief, günstig); das Zyklus-Risiko ist dieselbe Zahl andersherum, # minus Kauf-Score": "Coinweather’s own index made of five components. The buy score runs from # (overheated) to # (deep, cheap); cycle risk is the same number the other way round, # minus the buy score",
+  "Jeder Baustein wird zuerst als Risiko von # bis # gerechnet": "Each component is first calculated as a risk from # to #",
+  "Stufen des Kauf-Scores: ab # Kaufen, #–# Eher kaufen, #–# Halten, #–# Eher verkaufen, unter # Verkaufen": "Buy score levels: from # Buy, #–# Lean buy, #–# Hold, #–# Lean sell, below # Sell",
+  "Geprüft an Bitcoin-Tageskursen seit #: Ab einem Kauf-Score von # stand Bitcoin ein Jahr später in #–# % der Fälle höher, zwischen # und # nur in # %. Unter # lag der Kauf-Score seit # nie. Die Schwellen der Bausteine sind bekannte Marken aus der Literatur, nicht an diesen Daten optimiert. Trotzdem: Seit # gab es nur einen Zyklus – eine Tendenz, keine Gewissheit": "Tested on Bitcoin daily prices since #: from a buy score of #, Bitcoin was higher one year later in #–# % of cases, between # and # only in # %. The buy score has never been below # since #. The component thresholds are well-known levels from the literature, not optimised on this data. Still: since # there has been only one cycle – a tendency, not a certainty",
+  "Unter einem Kauf-Score von # ist „# Jahr später“ seit # gerechnet, weil es seit # zu wenige solche Tage gab": "Below a buy score of #, “# year later” is calculated since #, because there were too few such days since #",
 };
