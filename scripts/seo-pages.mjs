@@ -3,6 +3,7 @@
 // in allen 7 Sprachen der App (Englisch ohne Vorsilbe, die anderen unter /de/, /es/, /fr/, /it/, /pt/, /tr/):
 //   /crypto-weather-today/   der Kryptomarkt heute: Kauf-Score, Fear & Greed, Zyklus, Aussicht, größte Bewegungen
 //   /should-i-buy-bitcoin-now/  „Soll ich jetzt Bitcoin kaufen?“: Kauf-Score mit seinen fünf Bausteinen, Jahresrückblick, FAQ (für Google)
+//   /should-i-buy-ethereum-now/ dasselbe für Ethereum (sein Kauf-Score wie in der App)
 //   /fear-and-greed-index/   der Fear & Greed Index heute mit dem, was die Rückrechnung über Angst und Gier zeigt
 //   /coin/<id>/              je eine Seite für die 500 größten Coins: Kurs, Entwicklung, Großwetterlage, Signal (verdeckt)
 //   /coins/                  Übersicht mit Links auf alle Coin-Seiten
@@ -767,6 +768,66 @@ const BQ = {
     cta: '1000 coinin alım skorunu, Döngü Pusulası’nı ve portföy yöneticisini gör' },
 };
 
+// „Should I buy Ethereum now?“ – Ethereum folgt zu 80 % dem Kauf-Score des Markts, zu 20 % seinem Trend (wie in der App)
+const BE = {
+  en: { nav: 'Should I buy Ethereum now?', path: '/should-i-buy-ethereum-now/',
+    title: (v, l, d) => `Should I buy Ethereum now? Ethereum buy score ${v}/100 (${l}) – ${d}`,
+    desc: (v, l, p, m) => `Ethereum’s buy score today: ${v}/100 (${l}). Ethereum at ${p}. 80 % from the Cycle Compass (market buy score ${m}/100), 20 % from Ethereum’s own trend – with what followed one year later. Not financial advice.`,
+    h1: (v, l) => `Should I buy Ethereum now? Buy score today: ${v}/100 – ${l}`,
+    intro: (m, ml) => `Ethereum moves in Bitcoin’s cycle. That is why Coinweather’s Ethereum buy score is 80 % the market buy score from the Cycle Compass – today ${m}/100 (“${ml}”) – and 20 % Ethereum’s own trend over the past weeks. It rises when the cycle is cheap and the market is scared. Rain is buying weather.`,
+    score: 'Ethereum buy score', market: 'Market buy score', price: 'Ethereum', ath: 'below the all-time high',
+    faq: [['Is now a good time to buy Ethereum?', (v, l, up) => `Coinweather’s Ethereum buy score is ${v}/100 today (${l}). Since 2022, after comparable market readings, Ethereum was higher one year later in ${up} % of cases. In the short term the price can still fall further.`],
+      ['Why does Ethereum follow the Bitcoin cycle?', () => 'Since 2022 Ethereum rose and fell in the same cycle as Bitcoin – with bigger swings and, overall, weaker than Bitcoin. That is why the cycle components (Mayer Multiple, 2-year average, Pi Cycle, distance to the high, Fear & Greed) are calculated on Bitcoin and also count for Ethereum.']] },
+  de: { nav: 'Soll ich jetzt Ethereum kaufen?', path: '/should-i-buy-ethereum-now/',
+    title: (v, l, d) => `Soll ich jetzt Ethereum kaufen? Ethereum-Kauf-Score ${v}/100 („${l}“) – ${d}`,
+    desc: (v, l, p, m) => `Der Kauf-Score von Ethereum heute: ${v}/100 („${l}“). Ethereum bei ${p}. Zu 80 % aus dem Zyklus-Kompass (Kauf-Score des Markts ${m}/100), zu 20 % aus dem eigenen Trend – mit dem, was ein Jahr später folgte. Keine Anlageberatung.`,
+    h1: (v, l) => `Soll ich jetzt Ethereum kaufen? Kauf-Score heute: ${v}/100 – ${l}`,
+    intro: (m, ml) => `Ethereum bewegt sich im Zyklus von Bitcoin. Deshalb besteht der Kauf-Score von Ethereum bei Coinweather zu 80 % aus dem Kauf-Score des Markts aus dem Zyklus-Kompass – heute ${m}/100 („${ml}“) – und zu 20 % aus dem eigenen Trend der letzten Wochen. Er steigt, wenn der Zyklus günstig ist und Angst herrscht. Regen ist Kaufwetter.`,
+    score: 'Kauf-Score Ethereum', market: 'Kauf-Score des Markts', price: 'Ethereum', ath: 'unter dem Allzeithoch',
+    faq: [['Ist jetzt ein guter Zeitpunkt, Ethereum zu kaufen?', (v, l, up) => `Der Kauf-Score von Ethereum steht heute bei ${v}/100 („${l}“). Seit 2022 stand Ethereum nach vergleichbaren Marktständen ein Jahr später in ${up} % der Fälle höher. Kurzfristig kann der Kurs trotzdem weiter fallen.`],
+      ['Warum folgt Ethereum dem Bitcoin-Zyklus?', () => 'Seit 2022 stieg und fiel Ethereum im selben Zyklus wie Bitcoin – mit größeren Schwankungen und insgesamt schwächer als Bitcoin. Deshalb werden die Zyklus-Bausteine (Mayer-Multiple, 2-Jahres-Schnitt, Pi-Cycle, Abstand zum Hoch, Fear & Greed) an Bitcoin gerechnet und gelten auch für Ethereum.']] },
+  es: { nav: '¿Comprar Ethereum ahora?', path: '/should-i-buy-ethereum-now/',
+    title: (v, l, d) => `¿Debo comprar Ethereum ahora? Puntuación de compra de Ethereum ${v}/100 («${l}») – ${d}`,
+    desc: (v, l, p, m) => `La puntuación de compra de Ethereum hoy: ${v}/100 («${l}»). Ethereum a ${p}. Un 80 % de la Brújula del ciclo (puntuación de compra del mercado ${m}/100) y un 20 % de su propia tendencia, con lo que pasó un año después. No es asesoramiento financiero.`,
+    h1: (v, l) => `¿Debo comprar Ethereum ahora? Puntuación de compra hoy: ${v}/100 – ${l}`,
+    intro: (m, ml) => `Ethereum se mueve en el ciclo de Bitcoin. Por eso la puntuación de compra de Ethereum en Coinweather es en un 80 % la puntuación de compra del mercado de la Brújula del ciclo – hoy ${m}/100 («${ml}») – y en un 20 % su propia tendencia de las últimas semanas. Sube cuando el ciclo está barato y domina el miedo. La lluvia es tiempo de compra.`,
+    score: 'Puntuación de Ethereum', market: 'Puntuación del mercado', price: 'Ethereum', ath: 'por debajo del máximo histórico',
+    faq: [['¿Es buen momento para comprar Ethereum?', (v, l, up) => `La puntuación de compra de Ethereum está hoy en ${v}/100 («${l}»). Desde 2022, tras niveles de mercado comparables, Ethereum estaba más alto un año después en el ${up} % de los casos. A corto plazo el precio puede seguir cayendo.`],
+      ['¿Por qué Ethereum sigue el ciclo de Bitcoin?', () => 'Desde 2022 Ethereum subió y bajó en el mismo ciclo que Bitcoin, con oscilaciones mayores y, en conjunto, más débil que Bitcoin. Por eso los componentes del ciclo (múltiplo de Mayer, media de 2 años, Pi Cycle, distancia al máximo, Fear & Greed) se calculan con Bitcoin y valen también para Ethereum.']] },
+  fr: { nav: 'Acheter de l’Ethereum maintenant ?', path: '/should-i-buy-ethereum-now/',
+    title: (v, l, d) => `Faut-il acheter de l’Ethereum maintenant ? Score d’achat Ethereum ${v}/100 (« ${l} ») – ${d}`,
+    desc: (v, l, p, m) => `Le score d’achat de l’Ethereum aujourd’hui : ${v}/100 (« ${l} »). Ethereum à ${p}. À 80 % issu de la Boussole du cycle (score d’achat du marché ${m}/100), à 20 % de sa propre tendance – avec ce qui a suivi un an plus tard. Pas un conseil en investissement.`,
+    h1: (v, l) => `Faut-il acheter de l’Ethereum maintenant ? Score d’achat du jour : ${v}/100 – ${l}`,
+    intro: (m, ml) => `L’Ethereum évolue dans le cycle du Bitcoin. C’est pourquoi le score d’achat de l’Ethereum chez Coinweather provient à 80 % du score d’achat du marché de la Boussole du cycle – aujourd’hui ${m}/100 (« ${ml} ») – et à 20 % de sa propre tendance des dernières semaines. Il monte quand le cycle est bon marché et que la peur domine. La pluie, c’est le temps d’acheter.`,
+    score: 'Score d’achat Ethereum', market: 'Score d’achat du marché', price: 'Ethereum', ath: 'sous le record',
+    faq: [['Est-ce le bon moment pour acheter de l’Ethereum ?', (v, l, up) => `Le score d’achat de l’Ethereum est aujourd’hui de ${v}/100 (« ${l} »). Depuis 2022, après des niveaux de marché comparables, l’Ethereum était plus haut un an plus tard dans ${up} % des cas. À court terme, le cours peut encore baisser.`],
+      ['Pourquoi l’Ethereum suit-il le cycle du Bitcoin ?', () => 'Depuis 2022, l’Ethereum a monté et baissé dans le même cycle que le Bitcoin – avec des écarts plus forts et, au total, moins bien que le Bitcoin. Les composantes du cycle (Mayer Multiple, moyenne sur 2 ans, Pi Cycle, distance au record, Fear & Greed) sont donc calculées sur le Bitcoin et valent aussi pour l’Ethereum.']] },
+  it: { nav: 'Comprare Ethereum ora?', path: '/should-i-buy-ethereum-now/',
+    title: (v, l, d) => `Devo comprare Ethereum ora? Punteggio di acquisto Ethereum ${v}/100 («${l}») – ${d}`,
+    desc: (v, l, p, m) => `Il punteggio di acquisto di Ethereum oggi: ${v}/100 («${l}»). Ethereum a ${p}. All’80 % dalla Bussola del ciclo (punteggio di acquisto del mercato ${m}/100), al 20 % dal proprio trend – con ciò che è seguito un anno dopo. Non è una consulenza finanziaria.`,
+    h1: (v, l) => `Devo comprare Ethereum ora? Punteggio di acquisto oggi: ${v}/100 – ${l}`,
+    intro: (m, ml) => `Ethereum si muove nel ciclo di Bitcoin. Per questo il punteggio di acquisto di Ethereum su Coinweather è all’80 % il punteggio di acquisto del mercato dalla Bussola del ciclo – oggi ${m}/100 («${ml}») – e al 20 % il suo trend delle ultime settimane. Sale quando il ciclo è conveniente e domina la paura. La pioggia è tempo di acquisto.`,
+    score: 'Punteggio Ethereum', market: 'Punteggio del mercato', price: 'Ethereum', ath: 'sotto il massimo storico',
+    faq: [['È un buon momento per comprare Ethereum?', (v, l, up) => `Il punteggio di acquisto di Ethereum oggi è ${v}/100 («${l}»). Dal 2022, dopo livelli di mercato simili, Ethereum era più alto un anno dopo nel ${up} % dei casi. Nel breve periodo il prezzo può comunque scendere.`],
+      ['Perché Ethereum segue il ciclo di Bitcoin?', () => 'Dal 2022 Ethereum è salito e sceso nello stesso ciclo di Bitcoin – con oscillazioni maggiori e, nel complesso, più debole di Bitcoin. Per questo le componenti del ciclo (Mayer Multiple, media a 2 anni, Pi Cycle, distanza dal massimo, Fear & Greed) sono calcolate su Bitcoin e valgono anche per Ethereum.']] },
+  pt: { nav: 'Comprar Ethereum agora?', path: '/should-i-buy-ethereum-now/',
+    title: (v, l, d) => `Devo comprar Ethereum agora? Pontuação de compra do Ethereum ${v}/100 (“${l}”) – ${d}`,
+    desc: (v, l, p, m) => `A pontuação de compra do Ethereum hoje: ${v}/100 (“${l}”). Ethereum a ${p}. 80 % da Bússola do ciclo (pontuação de compra do mercado ${m}/100), 20 % da própria tendência – com o que veio um ano depois. Não é recomendação de investimento.`,
+    h1: (v, l) => `Devo comprar Ethereum agora? Pontuação de compra hoje: ${v}/100 – ${l}`,
+    intro: (m, ml) => `O Ethereum se move no ciclo do Bitcoin. Por isso a pontuação de compra do Ethereum no Coinweather é 80 % a pontuação de compra do mercado da Bússola do ciclo – hoje ${m}/100 (“${ml}”) – e 20 % a própria tendência das últimas semanas. Ela sobe quando o ciclo está barato e o medo domina. Chuva é tempo de compra.`,
+    score: 'Pontuação do Ethereum', market: 'Pontuação do mercado', price: 'Ethereum', ath: 'abaixo da máxima histórica',
+    faq: [['É um bom momento para comprar Ethereum?', (v, l, up) => `A pontuação de compra do Ethereum está hoje em ${v}/100 (“${l}”). Desde 2022, depois de níveis de mercado comparáveis, o Ethereum estava mais alto um ano depois em ${up} % dos casos. No curto prazo o preço ainda pode cair.`],
+      ['Por que o Ethereum segue o ciclo do Bitcoin?', () => 'Desde 2022 o Ethereum subiu e caiu no mesmo ciclo do Bitcoin – com oscilações maiores e, no geral, mais fraco que o Bitcoin. Por isso os componentes do ciclo (Mayer Multiple, média de 2 anos, Pi Cycle, distância da máxima, Fear & Greed) são calculados com o Bitcoin e valem também para o Ethereum.']] },
+  tr: { nav: 'Şimdi Ethereum alınır mı?', path: '/should-i-buy-ethereum-now/',
+    title: (v, l, d) => `Şimdi Ethereum almalı mıyım? Ethereum alım skoru ${v}/100 (“${l}”) – ${d}`,
+    desc: (v, l, p, m) => `Ethereum’un bugünkü alım skoru: ${v}/100 (“${l}”). Ethereum ${p}. %80 Döngü Pusulası’ndan (piyasa alım skoru ${m}/100), %20 kendi trendinden – bir yıl sonra ne olduğuyla birlikte. Yatırım tavsiyesi değildir.`,
+    h1: (v, l) => `Şimdi Ethereum almalı mıyım? Bugünkü alım skoru: ${v}/100 – ${l}`,
+    intro: (m, ml) => `Ethereum, Bitcoin’in döngüsü içinde hareket eder. Bu yüzden Coinweather’da Ethereum alım skorunun %80’i Döngü Pusulası’ndaki piyasa alım skorundan – bugün ${m}/100 (“${ml}”) – %20’si ise son haftalardaki kendi trendinden gelir. Döngü ucuzken ve korku hâkimken yükselir. Yağmur alım havasıdır.`,
+    score: 'Ethereum alım skoru', market: 'Piyasa alım skoru', price: 'Ethereum', ath: 'zirvenin altında',
+    faq: [['Şimdi Ethereum almak için iyi bir zaman mı?', (v, l, up) => `Ethereum alım skoru bugün ${v}/100 (“${l}”). 2022’den beri benzer piyasa seviyelerinden sonra Ethereum bir yıl sonra vakaların % ${up} kadarında daha yüksekti. Kısa vadede fiyat yine de düşebilir.`],
+      ['Ethereum neden Bitcoin döngüsünü izler?', () => '2022’den beri Ethereum, Bitcoin ile aynı döngüde yükselip düştü – daha büyük dalgalanmalarla ve genel olarak Bitcoin’den daha zayıf. Bu yüzden döngü bileşenleri (Mayer Multiple, 2 yıllık ortalama, Pi Cycle, zirveye uzaklık, Korku ve Açgözlülük) Bitcoin üzerinden hesaplanır ve Ethereum için de geçerlidir.']] },
+};
+
 const LANG_ORDER = ['en', 'de', 'es', 'fr', 'it', 'pt', 'tr'];
 const prefix = (lang) => (lang === 'en' ? '' : `/${lang}`);
 
@@ -823,7 +884,7 @@ for (const lang of LANG_ORDER) {
     <div class="panel"><table><tr><th>${L.gain}</th><th class="n">${L.price}</th><th class="n">${L.h24}</th></tr>${rows(movers.slice(0, 5))}</table></div>
     <div class="panel"><table><tr><th>${L.lose}</th><th class="n">${L.price}</th><th class="n">${L.h24}</th></tr>${rows(movers.slice(-5).reverse())}</table></div>
     ${record?.d7 ? `<h2>${L.recH}</h2><p>${L.recPara(new Date(record.since * 86_400_000).toLocaleDateString(locale), pct(record.d7.avg), record.d7.up, record.d7.n, pct(record.d7.btc), isNum(record.d7.mkt) ? pct(record.d7.mkt) : null)}</p>` : ''}
-    <p><a href="${pre}${BQ[lang].path}">${esc(BQ[lang].nav)} →</a></p>
+    <p><a href="${pre}${BQ[lang].path}">${esc(BQ[lang].nav)} →</a> · <a href="${pre}${BE[lang].path}">${esc(BE[lang].nav)} →</a></p>
     ${offer(L.tOffer)}`);
 
   // „Soll ich jetzt Bitcoin kaufen?“ – Kauf-Score mit Bausteinen, Jahresrückblick und FAQ
@@ -852,8 +913,30 @@ for (const lang of LANG_ORDER) {
       <p class="muted">${esc(Q.caveat)}</p>
       <section class="panel cta"><strong>${esc(Q.cta)}</strong><p><a class="btn" href="${app()}">${L.open}</a> <a class="btn ghost" href="${app('#/indikatoren')}">${esc(X.fullBtn)}</a></p></section>
       ${faq.map(([q, a]) => `<h2>${esc(q)}</h2><p>${esc(a)}</p>`).join('')}
-      <p><a href="${pre}/crypto-weather-today/">${L.fullRep}</a> · <a href="${pre}/bitcoin-cycle-risk/">${esc(X.nav)}</a> · <a href="${pre}/coin/bitcoin/">${L.btcLink}</a></p>`,
+      <p><a href="${pre}/crypto-weather-today/">${L.fullRep}</a> · <a href="${pre}${BE[lang].path}">${esc(BE[lang].nav)}</a> · <a href="${pre}/bitcoin-cycle-risk/">${esc(X.nav)}</a> · <a href="${pre}/coin/bitcoin/">${L.btcLink}</a></p>`,
       `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`);
+
+    // Dasselbe für Ethereum: sein Kauf-Score wie in der App (80 % Kauf-Score des Markts, 20 % eigener Trend)
+    const eth = coins.find((c) => c.id === 'ethereum'), ea = eth?.analysis;
+    if (isNum(ea?.score) && ea.label) {
+      const E2 = BE[lang], ev = Math.round(50 + ea.score / 2), el = L.label[ea.label] ?? ea.label, eath = eth.ath_change_percentage;
+      const efaq = E2.faq.map(([q, a]) => [q, a(ev, el, year.eth.up)]);
+      const eld = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: efaq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) };
+      add('be', E2.path, E2.title(ev, el, day), E2.desc(ev, el, usd(eth.current_price), v),
+        `<h1>${esc(E2.h1(ev, el))}</h1><p class="muted">${esc(day)}</p>
+        <div class="grid"><div class="panel stat"><div class="l">${esc(E2.score)}</div><div class="v">${ev}/100</div><div>${esc(el)}</div></div>
+          <div class="panel stat"><div class="l">${esc(E2.market)}</div><div class="v">${v}/100</div><div>${esc(label)}</div></div>
+          <div class="panel stat"><div class="l">${esc(E2.price)}</div><div class="v">${usd(eth.current_price)}</div><div class="${tone(ch(eth, '24h'))}">${pct(ch(eth, '24h'))} · 24h</div></div>
+          ${isNum(eath) ? `<div class="panel stat"><div class="l">${esc(E2.ath)}</div><div class="v">${num(Math.abs(eath), 0)} %</div></div>` : ''}</div>
+        <p>${esc(E2.intro(v, label))} <a href="${pre}${Q.path}">${esc(Q.inputsH)} →</a></p>
+        <h2>${esc(since(Q.histH))}</h2><div class="panel"><table><tr><th></th><th class="n">${esc(Q.higher)}</th><th class="n">${esc(Q.median)}</th></tr>
+          ${hrow(Q.eth, year.eth)}${hrow(Q.btc, year.btc)}${hrow(Q.alt, year.alt)}</table></div>
+        <p class="muted">${esc(Q.caveat)}</p>
+        <section class="panel cta"><strong>${esc(Q.cta)}</strong><p><a class="btn" href="${app('#/coin/ethereum')}">${L.open}</a> <a class="btn ghost" href="${app('#/indikatoren')}">${esc(X.fullBtn)}</a></p></section>
+        ${efaq.map(([q, a]) => `<h2>${esc(q)}</h2><p>${esc(a)}</p>`).join('')}
+        <p><a href="${pre}${Q.path}">${esc(Q.nav)}</a> · <a href="${pre}/coin/ethereum/">Ethereum</a> · <a href="${pre}/crypto-weather-today/">${L.fullRep}</a></p>`,
+        `<script type="application/ld+json">${JSON.stringify(eld).replace(/</g, '\\u003c')}</script>`);
+    }
   }
 
   // Coin-Seiten
