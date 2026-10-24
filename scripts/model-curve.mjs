@@ -42,13 +42,21 @@ export async function fearGreed() {
   return new Map(json.data.map((x) => [Math.floor(Number(x.timestamp) / 86400), Number(x.value)]));
 }
 
-export async function buildCurve({ offset = 0, options = {}, coinScore = null } = {}) {
+// Kurse und Fear & Greed werden einmal geladen und für alle Profile verwendet
+let loaded = null;
+async function loadData() {
   const data = {};
   for (let i = 0; i < COINS.length; i += 6) {
     await Promise.all(COINS.slice(i, i + 6).map(async (s) => { try { const d = await klines(s); if (d) data[s] = d; } catch { /* Coin fehlt dann */ } }));
   }
   if (!data.BTC) throw new Error('Bitcoin-Kurse fehlen');
-  const F = await fearGreed();
+  return { all: data, F: await fearGreed() };
+}
+
+// only: nur diese Coins (Binance-Kürzel), z. B. ['BTC', 'ETH']
+export async function buildCurve({ offset = 0, options = {}, coinScore = null, only = null } = {}) {
+  const { all, F } = await (loaded ??= loadData());
+  const data = only ? Object.fromEntries(Object.entries(all).filter(([s]) => only.includes(s))) : all;
   const syms = Object.keys(data);
   const I = {}, IDX = {};
   for (const s of syms) { I[s] = m.prepare(data[s].t, data[s].p, data[s].v); IDX[s] = new Map(I[s].days.map((d, i) => [d, i])); }
@@ -105,12 +113,15 @@ export async function buildCurve({ offset = 0, options = {}, coinScore = null } 
   const btcStart = btc.prices[200], btcEnd = btc.prices[btc.n - 1];
   // Bestand heute und Bitcoin zum Vergleich (ebenfalls Start = 100)
   const lastDay = days[days.length - 1], total = values[values.length - 1];
-  const holdings = Object.entries(pos).map(([s, o]) => ({ symbol: s, share: Math.round(o.units * o.last / total * 1000) / 10 })).sort((a, b) => b.share - a.share);
+  // price: Kurs am Stichtag – damit rechnet der Autopilot die Anteile auf die Kurse von heute um
+  const holdings = Object.entries(pos).map(([s, o]) => ({ symbol: s, share: Math.round(o.units * o.last / total * 10000) / 100, price: o.last })).sort((a, b) => b.share - a.share);
+  // Nächster Prüftag: Das Modell handelt alle 7 Tage zum Tagesschluss
+  const k = (((lastDay - startDay - offset) % step) + step) % step;
   const btcNav = days.map((d) => { const i = IDX.BTC.get(d); return i === undefined ? null : Math.round(btc.prices[i] / btc.prices[200] * 100 * 100) / 100; });
   return {
     version: 2, built: Date.now(), coins: syms.length, fee, stepDays: step,
     t: days.map((d) => d * 86_400_000), nav, btc: btcNav,
-    cash: Math.round(cash / total * 1000) / 10, holdings, asOf: lastDay * 86_400_000,
+    cash: Math.round(cash / total * 10000) / 100, holdings, asOf: lastDay * 86_400_000, next: (lastDay + (step - k)) * 86_400_000,
     cashHistory: days.map((d, i) => [d, Math.round(cashShare[i] * 100)]).filter((_, i) => (days.length - 1 - i) % 7 === 0),
     trades: log.slice(-40).reverse().map(([d, type, s, share]) => ({ t: d * 86_400_000, type, symbol: s, share })),
     stats: { years: Math.round(years * 10) / 10, cagr: Math.round((Math.pow(nav[nav.length - 1] / 100, 1 / years) - 1) * 1000) / 10, maxDrawdown: Math.round(dd * 1000) / 10,

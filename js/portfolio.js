@@ -5,7 +5,18 @@ import * as tr from './track.js';
 const KEY = 'krypto-markt-depot';
 const LEGACY_KEY = 'krypto-markt-portfolio';   // frühere Version: nur die Liste der Positionen
 
-export const empty = () => ({ positions: [], cash: 0, cashFix: null, reservePct: null, reserveMode: 'balanced', track: tr.empty(), log: [], consent: null, prefs: null, watch: [] });
+export const empty = () => ({ positions: [], cash: 0, cashFix: null, reservePct: null, reserveMode: 'balanced', mode: null, auto: null, track: tr.empty(), log: [], consent: null, prefs: null, watch: [] });
+
+// Autopilot: monatliche Sparrate (Betrag und Währung, wie eingetragen) und der Monat der letzten Einzahlung („2026-10“)
+function normaliseAuto(a) {
+  if (!a || typeof a !== 'object') return null;
+  const m = a.monthly;
+  return {
+    monthly: Number.isFinite(m?.amount) && m.amount > 0 && typeof m.currency === 'string' ? { amount: m.amount, currency: m.currency } : null,
+    lastDeposit: typeof a.lastDeposit === 'string' && /^\d{4}-\d{2}$/.test(a.lastDeposit) ? a.lastDeposit : null,
+    began: Number.isFinite(a.began) ? a.began : null,
+  };
+}
 
 // Macht aus beliebigen gespeicherten Daten ein gültiges Portfolio
 export function normalise(data) {
@@ -24,7 +35,11 @@ export function normalise(data) {
     // Gewünschte Reserve in Prozent; null bedeutet: dem Vorschlag der Seite folgen
     reservePct: Number.isFinite(pct) && pct >= 0 && pct <= 100 ? pct : null,
     // Welchem Vorschlag gefolgt wird, solange kein eigener Wert gesetzt ist
-    reserveMode: ['cautious', 'contrarian'].includes(data?.reserveMode) ? data.reserveMode : 'balanced',
+    // (die frühere Strategie „Antizyklisch“ gibt es nicht mehr – sie wird zu „Ausgewogen“)
+    reserveMode: data?.reserveMode === 'cautious' ? 'cautious' : 'balanced',
+    // Wie das Portfolio gepflegt wird: 'auto' (Autopilot folgt dem Modell-Portfolio), 'manual' (selbst gepflegt), null (noch nicht gewählt)
+    mode: ['auto', 'manual'].includes(data?.mode) ? data.mode : null,
+    auto: normaliseAuto(data?.auto),
     // Aufzeichnung der Bestände für die Wertentwicklung und Liste der letzten Änderungen
     track: tr.normalise(data?.track), log: tr.normaliseLog(data?.log),
     // Zustimmung zu AGB und Risikohinweis: Stand der Texte und Zeitpunkt

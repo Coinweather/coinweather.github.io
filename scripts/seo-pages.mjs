@@ -59,6 +59,14 @@ await writeFile(`${out}/${INDEXNOW_KEY}.txt`, INDEXNOW_KEY);
 try {
   const { buildCurve } = await import('./model-curve.mjs');
   const curve = await buildCurve();
+  // Der Autopilot im Portfolio folgt dem Modell der gewählten Strategie: Bestand, Reserve und Prüftag je Strategie
+  const { RESERVE_MODES } = await import('../js/manager.js');
+  const target = (c) => ({ cash: c.cash, holdings: c.holdings, asOf: c.asOf, next: c.next, trades: c.trades.slice(0, 20) });
+  curve.profiles = { balanced: target(curve) };
+  for (const key of Object.keys(RESERVE_MODES).filter((k) => k !== 'balanced')) {
+    const c = await buildCurve({ options: RESERVE_MODES[key].options });
+    curve.profiles[key] = { ...target(c), stats: c.stats };
+  }
   await mkdir(`${out}/data`, { recursive: true });
   await writeFile(`${out}/data/model-curve.json`, JSON.stringify(curve));
   console.log(`Modell-Portfolio: ${curve.stats.cagr} % pro Jahr seit ${new Date(curve.t[0]).toISOString().slice(0, 10)}`);

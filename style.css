@@ -820,3 +820,53 @@ details.d-fold > summary { font-size: 15px; letter-spacing: 0; text-transform: n
 .p-next { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; margin-top: 16px; border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
 .p-next strong { font-size: 18px; }
 #p-manager { scroll-margin-top: 90px; }
+
+/* ---------- Portfolio: Autopilot oder selbst pflegen ---------- */
+.mode-switch { display: inline-flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 4px; margin-top: 14px; max-width: 100%; }
+.mode-switch button { background: none; border: 0; color: var(--muted); font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 10px; cursor: pointer; white-space: nowrap; }
+.mode-switch button:hover { color: var(--text); }
+.mode-switch button.active { background: var(--panel-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); }
+.empty-state.setup { text-align: left; padding: 26px 22px; }
+.empty-state.setup > h2, .empty-state.setup > p { text-align: center; }
+.setup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 14px; margin: 18px 0 10px; }
+.setup-card { display: grid; gap: 12px; align-content: start; background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 16px; padding: 18px; }
+.setup-card.auto { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.setup-card p { margin: 0; color: var(--muted); }
+.setup-card label { display: grid; gap: 4px; font-size: 14px; font-weight: 600; }
+.setup-card input[inputmode] { width: 100%; }
+.setup-card .btn-row { justify-content: flex-start; margin: 0; }
+.setup-top { display: flex; align-items: center; gap: 12px; }
+.setup-top h3 { margin: 0 0 2px; }
+.setup-icon { font-size: 30px; line-height: 1; }
+.setup-modes { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
+.setup-modes legend { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.setup-mode { display: flex !important; grid-template-columns: none; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; font-weight: 400 !important; }
+.setup-mode:has(input:checked) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.setup-mode input { margin-top: 3px; }
+.setup-mode span { display: grid; gap: 2px; }
+.setup-mode small { color: var(--muted); }
+.autopilot h2 { margin: 2px 0; }
+.todo-moves { list-style: none; padding: 0; margin: 14px 0 6px; display: grid; gap: 8px; }
+.todo-move { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 10px 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-2); }
+.todo-move .tm-main { display: grid; gap: 2px; min-width: 0; }
+.todo-move .tm-main small { color: var(--muted); }
+.todo-move .tm-usd { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.todo-all { align-items: center; gap: 10px 16px; margin: 8px 0 4px; }
+.all-done { font-weight: 600; color: var(--up); margin: 14px 0 6px; }
+.deposit-due { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 14px 0 4px; padding: 12px 14px; border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel-2)); border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.deposit-due > span { font-size: 22px; }
+.deposit-due > div:nth-child(2) { flex: 1 1 220px; }
+.deposit-due .btn-row { margin: 0; }
+.target-fold { margin-top: 12px; }
+.target-table { width: 100%; margin-top: 8px; }
+.way-cta { margin-top: 10px; align-self: flex-start; }
+@media (max-width: 560px) {
+  .todo-move { grid-template-columns: 1fr auto; grid-template-areas: "tag usd" "main btn"; gap: 6px 10px; }
+  .todo-move > .tag { grid-area: tag; justify-self: start; }
+  .todo-move .tm-usd { grid-area: usd; justify-self: end; }
+  .todo-move .tm-main { grid-area: main; }
+  .todo-move button { grid-area: btn; align-self: end; }
+  .mode-switch { display: flex; }
+  .mode-switch button { flex: 1; padding: 9px 8px; }
+}

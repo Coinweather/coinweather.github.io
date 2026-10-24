@@ -6,7 +6,7 @@ import * as api from './api.js';
 import * as pf from './portfolio.js';
 import * as auth from './auth.js';
 import * as tr from './track.js';
-import { plan, applyMove, adjusted, reserveAdvice, fngTilt, RESERVE_MODES, RESERVE_BACKTEST, HOLD_BACKTEST } from './manager.js';
+import { plan, applyMove, adjusted, reserveAdvice, fngTilt, followModel, withdrawPlan, RESERVE_MODES, RESERVE_BACKTEST, HOLD_BACKTEST } from './manager.js';
 import { quickAnalyse, detailAnalyse, marketIndex, prepare, backtest, expectedMove, analyseNews, TRADE_SETUPS, TRADE_LIMITS, TRADE_LEVERAGE, SHORT_TESTS, outlookOf, greedZone, WEIGHTS, RISK_ZONES, buyHistory as yearAfterBuy } from './model.js';
 
 const REFRESH_MS = 120_000;      // so alt dürfen gespeicherte Kurse sein, bevor sofort neu geladen wird
@@ -665,29 +665,39 @@ const INFO = {
         <tbody>${SHORT_TESTS.map(([label, v]) => `<tr><td>${esc(label)}</td>${v.map(cell).join('')}</tr>`).join('')}</tbody></table></div>
       <p>Am nächsten kam „extreme Gier nahe am Allzeithoch“: 2022–2026 im Plus, Ende 2020 aber mit Verlust, weil die Kurse trotz Gier monatelang weiterstiegen.
         Shorts haben zudem ein Risiko, das Käufe nicht haben: Ein Coin kann sich in Tagen verdoppeln, der Verlust ist nach oben offen.</p>
-      <p>Was die Daten stützen, steckt stattdessen in der Gier-Bremse (keine Käufe bei extremer Gier) und in der Reserve-Strategie „Antizyklisch“.</p>`; } },
+      <p>Was die Daten stützen, steckt stattdessen in der Gier-Bremse (bei extremer Gier wird der Trend der Altcoins gedeckelt) und im Zyklus-Kompass, der die Reserve senkt, wenn der Zyklus günstig ist.</p>`; } },
 
-  reserve: { title: 'Reserve-Ziel und Strategien', body: () => `
-    <p>Das Reserve-Ziel sagt, wie viel des Portfolios als Bargeld oder Stablecoins liegen soll. Es folgt dem Zyklus-Kompass und der Marktphase:</p>
+  autopilot: { title: 'So arbeitet der Autopilot', body: () => `
+    <p>Der Autopilot hält dein Portfolio in denselben Anteilen wie das Modell-Portfolio deiner Strategie. Das Modell folgt genau den Regeln des Portfolio-Managers
+      und ist dieselbe Kurve, die der Rechner unter „Mit dem Portfolio-Manager“ zeigt.</p>
+    <ul><li><strong>Jede Woche geprüft:</strong> Am Prüftag entscheidet das Modell nach Kaufsignalen, Zyklus-Kompass und Schutzregeln, was es kauft und verkauft.
+        Am Morgen danach stehen die Schritte hier.</li>
+      <li><strong>Kursbewegungen allein lösen nichts aus:</strong> Steigt ein Coin, steigt er im Modell genauso. Gehandelt wird nur, wenn das Modell handelt oder Geld dazukommt.</li>
+      <li><strong>Kleine Abweichungen bleiben liegen:</strong> Unter 1 % des Portfolios (mindestens 10 $) wird nicht gehandelt – das spart Gebühren.</li>
+      <li><strong>Einzahlen und Sparrate:</strong> Neues Geld wird nach den Zielanteilen verteilt. Beim Auszahlen verkaufst du von allem denselben Teil.</li>
+      <li><strong>Coins außerhalb des Modells</strong> schlägt der Autopilot zum Verkauf vor. Willst du sie behalten, wechsle zu „Selbst pflegen“.</li></ul>
+    <p>Ausführen musst du die Schritte selbst bei deiner Börse – Coinweather hat keinen Zugriff auf dein Geld. Tipp danach auf „Erledigt“, dann stimmt der Bestand hier.
+      Kauf- und Verkaufskurse weichen etwas ab; kleine Unterschiede gleicht der Autopilot beim nächsten Mal aus.</p>
+    <p>Rückrechnung „Ausgewogen“: +${RESERVE_BACKTEST.balanced.perYear} % pro Jahr seit 2018, seit 2022 +${RESERVE_BACKTEST.balanced.recent} %, größter Rückgang −${RESERVE_BACKTEST.balanced.drawdown} %.
+      „Vorsichtig“: +${RESERVE_BACKTEST.cautious.perYear} %, +${RESERVE_BACKTEST.cautious.recent} %, −${RESERVE_BACKTEST.cautious.drawdown} %.</p>${LIMITS}` },
+
+  reserve: { title: 'Strategien und Reserve', body: () => `
+    <p>Die Strategie legt fest, wie viel des Portfolios als Reserve (Bargeld oder Stablecoins) liegt. Die Reserve folgt dem Zyklus-Kompass und der Marktphase:</p>
     <ul><li><strong>Zyklus-Kompass:</strong> Ab einem Kauf-Score von 62 sinkt die Reserve um bis zu 20 Punkte (voll bei 85) – solange kein Bärenmarkt herrscht.</li>
       <li><strong>Marktphase:</strong> Je stärker der Trend, desto weniger Reserve.</li>
-      <li><strong>Bärenbremse:</strong> Im Bärenmarkt bleiben höchstens 15 % investiert. Die Bremse greift über 5 Tage verteilt, damit der Wert nicht springt.</li>
-      <li><strong>Angst-Käufe:</strong> Nach langer Angst tief im Zyklus sinkt die Reserve; gekauft werden Bitcoin und Ethereum.</li>
-      <li><strong>Gier:</strong> Bei extremer Gier wird der Trend der Altcoins gedeckelt.</li>
-      <li><strong>Strategie „Antizyklisch“:</strong> Folgt dem Kompass stärker – ab 62 bis zu 40 Punkte weniger Reserve (außerhalb von Bärenmärkten), ab 75 werden Bitcoin und Ethereum aufgestockt; unter 35 20 Punkte mehr Reserve.</li></ul>
-    <p>Warum der Kompass die Reserve im Bärenmarkt nicht senkt: Im Bärenmarkt ist der Zyklus oft monatelang günstig, während die Kurse weiter fallen (2022).
-      Mit Zuschlag auch dort lag der größte Rückgang bei −48 bis −54 % statt −46 %.</p>
-    <h3>Rückrechnung seit März 2018</h3>
+      <li><strong>Bärenmarkt:</strong> Liegt Bitcoin im Abwärtstrend unter seinem 200-Tage-Schnitt, bleibt der Großteil in Reserve.</li>
+      <li><strong>Lange Angst tief im Zyklus:</strong> Weniger Reserve, investiert wird dann nur in Bitcoin und Ethereum.</li>
+      <li><strong>Zu wenige Kaufsignale:</strong> Was sich nicht sinnvoll verteilen lässt, bleibt in Reserve.</li></ul>
     <div class="table-wrap"><table class="fc-table"><thead><tr><th>Strategie</th><th class="num">pro Jahr</th><th class="num">seit 2022</th><th class="num">größter Rückgang</th></tr></thead>
-      <tbody>${Object.entries(RESERVE_MODES).map(([k, m]) => `<tr><td>${m.label}</td><td class="num up">+${RESERVE_BACKTEST[k].perYear} %</td><td class="num up">+${RESERVE_BACKTEST[k].recent} %</td><td class="num">−${RESERVE_BACKTEST[k].drawdown} %</td></tr>`).join('')}
-        <tr><td>Bitcoin halten</td><td class="num up">+${HOLD_BACKTEST.perYear} %</td><td class="num up">+${HOLD_BACKTEST.recent} %</td><td class="num">−${HOLD_BACKTEST.drawdown} %</td></tr></tbody></table></div>
-    <p class="muted">84 Coins, mit 0,25 % Gebühr je Handel, wöchentlich geprüft, Mittel aus 7 Starttagen. Je nach Starttag schwankt das Ergebnis um rund ±10 Punkte pro Jahr.
-      Geprüft wurde auch eine Reserve nur nach dem Kauf-Score: +59 % pro Jahr bei −60 % Rückgang – deutlich schlechter. Der Zuschlag nach dem Kompass hob die Rendite
-      in beiden Zeiträumen leicht (seit 2022 43 % statt 41,5 %), der größte Rückgang stieg dabei von −43 % auf −46 %.</p>${LIMITS}` },
+      <tbody>${Object.entries(RESERVE_MODES).map(([k, m]) => `<tr><td>${m.label}</td><td class="num up">+${RESERVE_BACKTEST[k].perYear} %</td><td class="num up">+${RESERVE_BACKTEST[k].recent} %</td><td class="num down">−${RESERVE_BACKTEST[k].drawdown} %</td></tr>`).join('')}
+        <tr><td>Bitcoin halten</td><td class="num up">+${HOLD_BACKTEST.perYear} %</td><td class="num up">+${HOLD_BACKTEST.recent} %</td><td class="num down">−${HOLD_BACKTEST.drawdown} %</td></tr></tbody></table></div>
+    <p>Rückrechnung März 2018 bis heute an 84 Coins, wöchentlich, 0,25 % Gebühr je Handel, Mittel aus 7 Starttagen.</p>
+    <p>Geprüft und nicht mehr angeboten: „Antizyklisch“ (Reserve stärker nach dem Kauf-Score) brachte 78 % pro Jahr bei −51 % Rückgang, „Nur Bitcoin und Ethereum“
+      36 % pro Jahr bei −38 % – beide schlechter als „Ausgewogen“. Eine Reserve nur nach dem Kauf-Score kam auf 59 % pro Jahr bei −60 %.</p>${LIMITS}` },
 
   manager: { title: 'So arbeitet der Portfolio-Manager', body: () => `
     <ul><li><strong>Feste Vorschläge:</strong> Sie werden einmal berechnet und bleiben stehen, bis du etwas am Portfolio änderst oder „Neu berechnen“ wählst.</li>
-      <li><strong>Erst das Risiko:</strong> Das Reserve-Ziel bestimmt, wie viel investiert sein soll. Du kannst es überschreiben.</li>
+      <li><strong>Erst das Risiko:</strong> Die Strategie bestimmt, wie viel Reserve bleibt. Bei Bedarf legst du eine eigene Reserve fest.</li>
       <li><strong>Verkaufen, wenn Kurse fallen:</strong> Verkaufssignale werden verkauft. Fällt ein Coin 25 % unter sein Hoch seit dem Kauf, greift die Schutzregel – unabhängig vom Score.</li>
       <li><strong>Gewinner laufen lassen:</strong> Bei hohen Gewinnen wird ein Teil gesichert, wenn der Trend überdehnt ist.</li>
       <li><strong>Antizyklischer Kern:</strong> Liegt Bitcoin mehr als 40 % unter seinem Hoch, werden Bitcoin und Ethereum aufgestockt und nicht per Stop verkauft.</li>
@@ -2133,26 +2143,38 @@ let advice = null;
 const ADVICE_STALE_MS = 30 * 60_000;
 
 const PERF_RANGES = { '30T': 30, '90T': 90, '1J': 365, 'Seit Beginn': null };
+// Autopilot: Monat als „2026-10“ und die Sparrate in US-Dollar zum heutigen Wechselkurs
+const monthKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+const monthlyUsd = (m) => (m ? m.amount / (i18n.rateOf(m.currency) || 1) : 0);
 
-function portfolioView() {
+function portfolioView(arg = '') {
   let message = '';
   let perfRange = '90T';
   let trackStarted = false;
   let imp = null;          // Import: eingelesene Tabelle und Spaltenzuordnung
   let recalc = false;
+  // Aus dem Rechner: #/portfolio/auto?b=1000&m=once – der Autopilot startet mit diesen Beträgen
+  const pre = new URLSearchParams((arg ?? '').split('?')[1] ?? '');
+  const preset = (arg ?? '').startsWith('auto') ? { amount: Number(pre.get('b')) || null, monthly: pre.get('m') === 'plan' } : null;
   view.innerHTML = `
     <div class="page-head">
       <div><h1 class="page-title">Mein Portfolio</h1><p class="hint" id="p-where"></p></div>
       <div class="actions">
-        <button class="btn" id="p-open-add">+ Position</button>
-        <button class="btn ghost" id="p-open-import">Importieren</button>
-        <button class="btn ghost" id="p-open-reserve">Reserve-Ziel <b id="r-chip"></b></button>
+        <button class="btn" id="p-open-add" data-for="manual">+ Position</button>
+        <button class="btn ghost" id="p-open-import" data-for="manual">Importieren</button>
+        <button class="btn" id="p-open-money" data-for="auto">Einzahlen / Auszahlen</button>
+        <button class="btn ghost" id="p-open-reserve">Strategie: <b id="r-chip"></b></button>
       </div>
+    </div>
+    <div class="mode-switch" id="p-mode" role="group" aria-label="Wie wird das Portfolio gepflegt?" hidden>
+      <button type="button" data-mode-set="auto"><span aria-hidden="true">🤖</span> Autopilot</button>
+      <button type="button" data-mode-set="manual"><span aria-hidden="true">✍️</span> Selbst pflegen</button>
     </div>
     <p id="p-msg" class="notice" hidden></p>
     <section class="panel p-next" id="p-next" hidden></section>
     <div id="p-empty"></div>
     <div id="p-body">
+      <div id="p-auto"></div>
       <section id="p-summary" class="summary"></section>
       <div id="p-alloc"></div>
       <section class="panel" id="p-perf" hidden>
@@ -2206,16 +2228,24 @@ function portfolioView() {
 
     <dialog id="dlg-reserve" class="dialog">
       <div>
-        <div class="dialog-top"><h2>Reserve-Ziel</h2><button class="icon" type="button" data-close aria-label="Schließen">✕</button></div>
+        <div class="dialog-top"><h2>Strategie</h2><button class="icon" type="button" data-close aria-label="Schließen">✕</button></div>
         ${infoBtn('reserve', 'Strategien und Rückrechnung')}
-        <p class="hint">So viel deines Portfolios <em>soll</em> als Reserve liegen (Bargeld und Stablecoins) statt in Coins. Das ist ein Ziel – die Vorschläge zeigen, wie du dorthin kommst.</p>
-        <p id="r-actual"></p>
-        <strong class="reserve-value" id="r-value"></strong>
-        <input type="range" id="r-slider" min="0" max="100" step="5" aria-label="Gewünschte Reserve in Prozent">
-        <div class="range-labels"><span>0 % · voll investiert</span><span>100 % · alles in Reserve</span></div>
+        <p class="hint">Die Strategie legt fest, wie viel Reserve (Bargeld oder Stablecoins) der Manager je nach Marktlage hält. Den Rest verteilt er auf Coins.</p>
         <div id="r-options" class="reserve-options"></div>
         <p class="hint" id="r-hint"></p>
-        <div class="reserve-row">
+        <p id="r-actual"></p>
+        <form id="p-monthly" class="inline-form" data-for="auto">
+          <label for="p-monthly-value">Monatliche Sparrate (<span translate="no">${currencyCode()}</span>, leer = keine)</label>
+          <input id="p-monthly-value" inputmode="decimal" placeholder="z. B. 200">
+          <button class="btn ghost small" type="submit">Speichern</button>
+        </form>
+        <details class="fold" id="r-custom" data-for="manual"><summary>Eigene Reserve festlegen</summary>
+          <p class="hint">Nur wenn du bewusst davon abweichen willst – zum Beispiel, weil du einen Teil bald brauchst.</p>
+          <strong class="reserve-value" id="r-value"></strong>
+          <input type="range" id="r-slider" min="0" max="100" step="5" aria-label="Gewünschte Reserve in Prozent">
+          <div class="range-labels"><span>0 % · voll investiert</span><span>100 % · alles in Reserve</span></div>
+        </details>
+        <div class="reserve-row" data-for="manual">
           <form id="p-cash" class="inline-form">
             <label for="p-cash-value">Bargeld außerhalb der Coins (${currencyCode()})</label>
             <input id="p-cash-value" inputmode="decimal" placeholder="0">
@@ -2224,6 +2254,20 @@ function portfolioView() {
         </div>
         <div class="btn-row done-row"><button class="btn" type="button" data-close>Fertig</button></div>
       </div>
+    </dialog>
+
+    <dialog id="dlg-money" class="dialog">
+      <form id="p-money" class="form" method="dialog">
+        <div class="dialog-top"><h2>Einzahlen oder auszahlen</h2><button class="icon" type="button" data-close aria-label="Schließen">✕</button></div>
+        <div class="chips" id="m-kind" role="group" aria-label="Einzahlen oder auszahlen">
+          <button type="button" class="chip active" data-kind="in">Einzahlen</button><button type="button" class="chip" data-kind="out">Auszahlen</button>
+        </div>
+        <label>Betrag (<span translate="no">${currencyCode()}</span>) <input id="m-amount" inputmode="decimal" placeholder="z. B. 500" required autocomplete="off"></label>
+        <p class="hint" id="m-help"></p>
+        <div id="m-preview" class="preview"></div>
+        <p id="m-msg" class="notice" hidden></p>
+        <div class="btn-row"><button class="btn" type="submit" id="m-submit">Einzahlung eintragen</button><button class="btn ghost" type="button" data-close>Abbrechen</button></div>
+      </form>
     </dialog>
 
     <dialog id="dlg-import" class="dialog wide">
@@ -2244,9 +2288,77 @@ function portfolioView() {
   $('#p-open-add').addEventListener('click', () => { $('#p-add-msg').hidden = true; $('#dlg-add').showModal(); });
   $('#p-open-reserve').addEventListener('click', () => $('#dlg-reserve').showModal());
   $('#p-open-import').addEventListener('click', () => { imp = null; renderImport(); $('#dlg-import').showModal(); });
+  $('#p-open-money').addEventListener('click', () => { flow.kind = 'in'; $('#m-amount').value = ''; renderMoney(); $('#dlg-money').showModal(); });
   view.addEventListener('click', (e) => {
+    // Aus der leeren Seite „Selbst pflegen“: erst den Modus setzen, dann eintragen oder importieren
+    if (e.target.closest('[data-open-add], [data-open-import]') && depot.data.mode !== 'manual') saveDepot({ ...depot.data, mode: 'manual' }, { internal: true });
     if (e.target.closest('[data-open-add]')) $('#p-open-add').click();
     if (e.target.closest('[data-open-import]')) $('#p-open-import').click();
+  });
+  const isAuto = () => depot.data.mode === 'auto';
+
+  // ----- Autopilot oder selbst pflegen -----
+  $('#p-mode').addEventListener('click', async (e) => {
+    const mode = e.target.closest('[data-mode-set]')?.dataset.modeSet;
+    if (!mode || mode === (depot.data.mode ?? 'manual')) return;
+    if (mode === 'auto') {
+      const ok = await decide(`<h2>Autopilot einschalten?</h2>
+        <p>Der Autopilot hält dein Portfolio in denselben Anteilen wie das Modell-Portfolio der Strategie „${esc(RESERVE_MODES[depot.data.reserveMode].label)}“.
+          Er zeigt dir, was du dafür kaufen und verkaufen musst – Coins, die nicht im Modell sind, schlägt er zum Verkauf vor.</p>
+        <p class="muted">Ausführen musst du die Schritte selbst bei deiner Börse. Du kannst jederzeit zurück zu „Selbst pflegen“ wechseln; dein Bestand bleibt erhalten.</p>`,
+        'Autopilot einschalten', 'Abbrechen');
+      if (!ok) return;
+    }
+    message = mode === 'auto' ? 'Autopilot eingeschaltet. Oben steht, was zu tun ist.' : 'Du pflegst dein Portfolio jetzt selbst. Der Manager prüft deinen Bestand und schlägt Schritte vor.';
+    saveDepot({ ...depot.data, mode, auto: mode === 'auto' ? { ...(depot.data.auto ?? {}), began: depot.data.auto?.began ?? Date.now(), lastDeposit: depot.data.auto?.lastDeposit ?? monthKey() } : depot.data.auto },
+      { internal: true, note: mode === 'auto' ? 'Autopilot eingeschaltet' : 'Auf „Selbst pflegen“ gewechselt' });
+  });
+
+  // ----- Einzahlen und auszahlen (Autopilot) -----
+  const flow = { kind: 'in' };
+  const heldNow = () => depot.data.positions.map((pos) => {
+    const c = find(pos);
+    return c && isNum(c.current_price) ? { id: c.id, name: c.name, symbol: c.symbol, units: pos.amount, price: c.current_price, stable: !!c.analysis?.stable } : null;
+  }).filter(Boolean);
+  function renderMoney(showError = false) {
+    for (const b of $('#m-kind').children) b.classList.toggle('active', b.dataset.kind === flow.kind);
+    const usd = fromDisplay(pf.parseInput($('#m-amount').value));
+    let error = !(usd > 0) ? 'Bitte einen Betrag größer als 0 eingeben.' : null;
+    flow.plan = null;
+    if (flow.kind === 'in') {
+      $('#m-help').textContent = 'Zahl das Geld bei deiner Börse ein und trag es hier ein. Der Autopilot zeigt dann, was du davon kaufst – nach den Anteilen des Modells.';
+      $('#m-preview').innerHTML = '';
+      $('#m-submit').textContent = 'Einzahlung eintragen';
+    } else {
+      $('#m-help').textContent = 'Damit die Anteile gleich bleiben, verkaufst du von jedem Coin denselben Teil und nimmst denselben Teil der Reserve.';
+      $('#m-submit').textContent = 'Auszahlung eintragen';
+      const w = !error ? withdrawPlan({ holdings: heldNow(), cash: depot.data.cash, amount: usd }) : null;
+      if (!error && !w) error = 'So viel ist im Portfolio nicht vorhanden.';
+      flow.plan = w;
+      const units = (v) => v.toLocaleString(settings.locale, { maximumSignificantDigits: 4 });
+      $('#m-preview').innerHTML = w ? `<ul class="plain">${w.sells.map((s) => `<li>Verkaufen: <strong>${units(s.units)} ${esc(s.symbol.toUpperCase())}</strong> (${money(s.usd)})</li>`).join('')}
+        ${w.fromReserve >= 0.5 ? `<li>Aus der Reserve: <strong>${money(w.fromReserve)}</strong></li>` : ''}</ul>` : '';
+    }
+    $('#m-msg').hidden = !(showError && error);
+    $('#m-msg').textContent = error ?? '';
+    return { usd, error };
+  }
+  $('#m-kind').addEventListener('click', (e) => { const k = e.target.closest('[data-kind]')?.dataset.kind; if (k) { flow.kind = k; renderMoney(); } });
+  $('#m-amount').addEventListener('input', () => renderMoney());
+  $('#p-money').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const { usd, error } = renderMoney(true);
+    if (error) return;
+    $('#dlg-money').close();
+    if (flow.kind === 'in') {
+      message = `${money(usd)} eingezahlt. Der Autopilot zeigt oben, was du davon kaufst.`;
+      return saveDepot({ ...depot.data, cash: depot.data.cash + usd, cashFix: null }, { note: `Einzahlung: ${money(usd)}` });
+    }
+    // Auszahlung: jede Position und die Reserve um denselben Teil kleiner
+    const k = 1 - flow.plan.part, stables = new Set(heldNow().filter((h) => h.stable).map((h) => h.id));
+    const positions = copy().map((p) => { const c = find(p); return c && (stables.has(c.id) || flow.plan.sells.some((s) => s.id === c.id)) ? { ...p, amount: p.amount * k } : p; });
+    message = `${money(usd)} ausgezahlt. Trag die Verkäufe bei deiner Börse genauso ein.`;
+    saveDepot({ ...depot.data, positions, cash: depot.data.cash * k, cashFix: null }, { note: `Auszahlung: ${money(usd)}` });
   });
 
   $('#p-add').addEventListener('submit', (e) => {
@@ -2329,8 +2441,17 @@ function portfolioView() {
   }
 
   // ----- Reserve -----
-  // Reserve-Ziel: eigener Wert oder der Vorschlag der gewählten Art (ausgewogen/vorsichtig)
-  const reserveTarget = () => depot.data.reservePct ?? reserveAdvice(state.market?.regime)[depot.data.reserveMode];
+  // Reserve-Ziel beim Selbst-Pflegen: eigener Wert oder der Vorschlag der gewählten Strategie (ausgewogen/vorsichtig)
+  // Reserve-Ziel: eigener Wert, sonst die Reserve des Modell-Portfolios der Strategie – dieselbe Zahl wie im Autopiloten und im Rechner.
+  // Fehlt das Modell, gilt der Vorschlag aus der Marktlage.
+  let model = null, modelAsked = false;
+  const modelCash = (key = depot.data.reserveMode) => (isNum(model?.profiles?.[key]?.cash) ? model.profiles[key].cash : key === 'balanced' && isNum(model?.cash) ? model.cash : null);
+  const reserveTarget = () => depot.data.reservePct ?? (isNum(modelCash()) ? Math.round(modelCash()) : reserveAdvice(state.market?.regime)[depot.data.reserveMode]);
+  const loadModel = () => {
+    if (model || modelAsked) return;
+    modelAsked = true;
+    loadModelCurve().then((c) => { model = c ?? false; if (current === self) update(); });
+  };
   $('#r-slider').addEventListener('input', (e) => { $('#r-value').textContent = `${e.target.value} %`; });
   $('#r-slider').addEventListener('change', (e) => {
     message = '';
@@ -2338,7 +2459,19 @@ function portfolioView() {
   });
   $('#r-options').addEventListener('click', (e) => {
     const mode = e.target.closest('[data-mode]')?.dataset.mode;
-    if (mode) { message = ''; saveDepot({ ...depot.data, reservePct: null, reserveMode: mode }); }
+    if (!mode || (mode === depot.data.reserveMode && depot.data.reservePct === null)) return;
+    message = isAuto() ? `Strategie „${RESERVE_MODES[mode].label}“ gewählt. Oben steht, was sich dadurch ändert.` : '';
+    saveDepot({ ...depot.data, reservePct: null, reserveMode: mode }, { internal: true, note: `Strategie: ${RESERVE_MODES[mode].label}` });
+  });
+  // Monatliche Sparrate des Autopiloten – in der gewählten Währung gespeichert, eingezahlt wird zum Kurs des Tages
+  const monthlyText = () => { const m = depot.data.auto?.monthly; return m ? (m.currency === settings.currency ? m.amount : Math.round(toDisplay(m.amount / (i18n.rateOf(m.currency) || 1)) * 100) / 100).toLocaleString(settings.locale, { maximumFractionDigits: 2, useGrouping: false }) : ''; };
+  $('#p-monthly').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const raw = $('#p-monthly-value').value.trim(), amount = raw ? pf.parseInput(raw) : 0;
+    if (!(amount >= 0)) return say('Bitte einen Betrag von 0 oder mehr eingeben.');
+    $('#p-monthly-value').blur();
+    message = amount ? 'Sparrate gespeichert. Am Monatsanfang erinnert dich der Autopilot daran.' : 'Keine Sparrate mehr.';
+    saveDepot({ ...depot.data, auto: { ...(depot.data.auto ?? {}), monthly: amount ? { amount, currency: settings.currency } : null } }, { internal: true });
   });
   // Bargeld wird in der gewählten Währung eingetragen und so gespeichert; intern rechnet die Seite in US-Dollar
   const saveCash = () => {
@@ -2627,31 +2760,61 @@ function portfolioView() {
     const fix = depot.data.cashFix, fixRate = fix && i18n.rateOf(fix.currency);
     if (fixRate > 0 && Math.abs(fix.amount / fixRate - depot.data.cash) > 0.01) return saveDepot({ ...depot.data, cash: fix.amount / fixRate }, { internal: true });
 
-    const isEmpty = !list.length && !depot.data.cash;
+    // Leer: nichts eingetragen – außer der Autopilot läuft schon mit einer Sparrate und wartet auf die erste Einzahlung
+    const isEmpty = !list.length && !depot.data.cash && !(isAuto() && depot.data.auto?.monthly);
     $('#p-body').hidden = isEmpty;
     // Nur bei einem Wechsel neu aufbauen – sonst ginge ein angefangener Betrag bei jeder Kursaktualisierung verloren
     if (isEmpty !== emptyShown) {
       emptyShown = isEmpty;
-      $('#p-empty').innerHTML = isEmpty ? `<section class="panel empty-state">
-        <h2>Noch nichts im Portfolio</h2>
-        <p class="muted">Trag ein, wie viel du anlegen möchtest – der Manager schlägt dann vor, was du davon kaufen kannst. Hast du schon Coins, füge sie hinzu oder importiere dein Portfolio.</p>
-        <form id="p-start" class="start-cash">
-          <label for="p-start-value">Startkapital <span translate="no">(${currencyCode()})</span></label>
-          <div class="start-row"><input id="p-start-value" inputmode="decimal" placeholder="z. B. 5000" autocomplete="off">
-            <button class="btn" type="submit">Startkapital speichern</button></div>
-        </form>
-        <div class="or"><span>oder</span></div>
-        <div class="btn-row"><button class="btn ghost" data-open-add>+ Coins hinzufügen</button><button class="btn ghost" data-open-import>Portfolio importieren</button></div>
+      const bt = (k) => `+${RESERVE_BACKTEST[k].perYear} % pro Jahr · größter Rückgang −${RESERVE_BACKTEST[k].drawdown} %`;
+      $('#p-empty').innerHTML = isEmpty ? `<section class="panel empty-state setup">
+        <h2>Wie möchtest du dein Portfolio führen?</h2>
+        <p class="muted">Du kannst jederzeit wechseln. Coinweather handelt nicht für dich und hat keinen Zugriff auf dein Geld – die Schritte setzt du bei deiner Börse um.</p>
+        <div class="setup-grid">
+          <form class="setup-card auto" id="p-start">
+            <div class="setup-top"><span class="setup-icon" aria-hidden="true">🤖</span><div><h3>Autopilot</h3><span class="badge buy">Empfohlen für den Einstieg</span></div></div>
+            <p>Du sagst, wie viel du anlegst – der Manager sagt dir genau, was du kaufst. Dein Portfolio folgt dem Modell-Portfolio aus dem Rechner,
+              und jede Woche siehst du, ob etwas zu tun ist.</p>
+            <label>Startbetrag <span translate="no">(${currencyCode()})</span><input id="p-start-value" inputmode="decimal" placeholder="z. B. 5000" autocomplete="off"></label>
+            <label>Monatliche Sparrate, optional <span translate="no">(${currencyCode()})</span><input id="p-start-monthly" inputmode="decimal" placeholder="z. B. 200" autocomplete="off"></label>
+            <fieldset class="setup-modes"><legend>Strategie</legend>
+              ${Object.entries(RESERVE_MODES).map(([k, m]) => `<label class="setup-mode"><input type="radio" name="p-start-mode" value="${k}" ${k === 'balanced' ? 'checked' : ''}>
+                <span><strong>${m.label}</strong><small>${bt(k)} (Rückrechnung)</small></span></label>`).join('')}
+            </fieldset>
+            <button class="btn" type="submit">Portfolio zusammenstellen</button>
+          </form>
+          <div class="setup-card manual">
+            <div class="setup-top"><span class="setup-icon" aria-hidden="true">✍️</span><div><h3>Selbst pflegen</h3><span class="muted">Für bestehende Portfolios</span></div></div>
+            <p>Du trägst deine Coins ein oder importierst sie von CoinMarketCap oder deiner Börse. Der Manager prüft jeden Coin
+              und schlägt Käufe, Verkäufe und die passende Reserve vor – du entscheidest.</p>
+            <div class="btn-row"><button class="btn ghost" type="button" data-open-add>+ Coins eintragen</button><button class="btn ghost" type="button" data-open-import>Portfolio importieren</button></div>
+          </div>
+        </div>
+        <p class="hint">Rückrechnung 2018 bis heute mit 0,25 % Gebühr je Handel, Mittel aus 7 Starttagen. Die Zukunft fällt meist schlechter aus. Keine Anlageberatung.</p>
       </section>` : '';
+      if (isEmpty && preset?.amount) {
+        $(preset.monthly ? '#p-start-monthly' : '#p-start-value').value = inputText(toDisplay(preset.amount));
+        $('#p-start-value').focus();
+      }
       $('#p-start')?.addEventListener('submit', (e) => {
         e.preventDefault();
-        const amount = pf.parseInput($('#p-start-value').value.trim());
-        if (!(amount > 0)) return say('Bitte einen Betrag größer als 0 eingeben.');
-        const cash = fromDisplay(amount);
-        message = 'Startkapital gespeichert. Die Vorschläge werden jetzt berechnet.';
-        saveDepot({ ...depot.data, cash, cashFix: { amount, currency: settings.currency } }, { note: `Startkapital: ${money(cash)}` });
+        const read = (id) => { const raw = $(id).value.trim(); return raw ? pf.parseInput(raw) : 0; };
+        const amount = read('#p-start-value'), monthly = read('#p-start-monthly');
+        if (!(amount >= 0) || !(monthly >= 0) || !(amount > 0 || monthly > 0)) return say('Bitte einen Startbetrag oder eine Sparrate größer als 0 eingeben.');
+        const cash = fromDisplay(amount), mode = view.querySelector('[name="p-start-mode"]:checked')?.value ?? 'balanced';
+        message = amount > 0 ? 'Fertig – hier steht, was du kaufst. Setz es bei deiner Börse um und tipp danach auf „Erledigt“.' : 'Sparrate gespeichert. Trag die erste Einzahlung ein, sobald das Geld bei deiner Börse ist.';
+        saveDepot({ ...depot.data, cash, cashFix: null, mode: 'auto', reserveMode: mode, reservePct: null,
+          auto: { monthly: monthly > 0 ? { amount: monthly, currency: settings.currency } : null, lastDeposit: amount > 0 ? monthKey() : null, began: Date.now() } },
+        { note: `Autopilot gestartet (${RESERVE_MODES[mode].label})${amount > 0 ? `, Startbetrag ${money(cash)}` : ''}` });
       });
     }
+    // Was nur zu einem der beiden Modi gehört
+    const auto = isAuto();
+    for (const el of view.querySelectorAll('[data-for]')) el.hidden = isEmpty ? true : el.dataset.for !== (auto ? 'auto' : 'manual');
+    $('#p-open-reserve').hidden = isEmpty;
+    $('#p-mode').hidden = isEmpty;
+    for (const b of $('#p-mode').children) b.classList.toggle('active', b.dataset.modeSet === (auto ? 'auto' : 'manual'));
+    loadModel();
     if (isEmpty) { advice = null; reserve(0, 0); return; }
 
     const rows = list.map((pos) => {
@@ -2683,7 +2846,7 @@ function portfolioView() {
     const card = (label, value, sub = '', cls = '') => `<div class="card ${cls}"><div class="label">${label}</div><div class="value">${value}</div><div class="muted">${sub}</div></div>`;
     $('#p-summary').innerHTML = card('Gesamtwert', money(total), `heute ${pct(total - day > 0 ? day / (total - day) * 100 : 0)} (${money(day)})`, 'main') +
       card('Gewinn / Verlust', priced.length ? `<span class="${tone(gain)}">${money(gain)}</span>` : '–', paid ? pct(gain / paid * 100) : 'Kaufpreise fehlen') +
-      card('Reserve aktuell', money(cash + stableValue), total ? `${num((cash + stableValue) / total * 100, 0)} % des Portfolios · Ziel ${reserveTarget()} %` : '');
+      card('Reserve aktuell', money(cash + stableValue), total ? `${num((cash + stableValue) / total * 100, 0)} % des Portfolios${auto ? (follow() ? ` · Ziel ${Math.round(follow().reserveShare * 100)} %` : '') : ` · Ziel ${reserveTarget()} %`}` : '');
 
     $('#p-rows').innerHTML = rows.length ? rows.map(({ pos, c, value, unit, paid: p, gain: g }) => {
       const a = c?.analysis;
@@ -2708,40 +2871,148 @@ function portfolioView() {
     allocation(rows, cash, total);
     performancePanel();
     reserve(cash + stableValue, total);
-    manager(rows, total);
+    if (auto) { $('#p-manager').innerHTML = ''; autoPanel(); } else { $('#p-auto').innerHTML = ''; manager(rows, total); }
     logPanel();
   }
 
+  // ----- Autopilot: dem Modell-Portfolio der gewählten Strategie folgen -----
+  const modelTarget = () => {
+    const key = depot.data.reserveMode;
+    return model?.profiles?.[key] ?? (key === 'balanced' && model?.holdings ? model : null);
+  };
+  // Kürzel aus dem Modell (Binance) → Coin der Seite: unter gleichem Kürzel der mit dem höchsten Marktwert
+  const coinBySymbol = (sym) => {
+    const c = state.coins.filter((x) => x.symbol.toUpperCase() === sym && isNum(x.current_price) && (x.market_cap_rank ?? 9999) <= 500)
+      .sort((a, b) => (a.market_cap_rank ?? 9999) - (b.market_cap_rank ?? 9999))[0];
+    return c ? { id: c.id, name: c.name, symbol: c.symbol, price: c.current_price, image: c.image } : null;
+  };
+  const follow = () => {
+    const t = modelTarget();
+    return t && state.coins.length ? followModel({ target: t, coinOf: coinBySymbol, holdings: heldNow(), cash: depot.data.cash }) : null;
+  };
+  const AUTO_LABEL = { buy: 'Kaufen', add: 'Nachkaufen', reduce: 'Reduzieren', sell: 'Verkaufen' };
+  const MODEL_WHY = { sell: 'Das Modell hat verkauft – Verkaufssignal oder Schutzregel.', reduce: 'Das Modell hat reduziert – mehr Reserve oder Obergrenze je Coin.',
+    profit: 'Das Modell hat einen Teil des Gewinns gesichert.', buy: 'Das Modell hat gekauft – Kaufsignal.', add: 'Das Modell hat nachgekauft.',
+    'swap-in': 'Das Modell hat in diesen Coin getauscht.', 'swap-out': 'Das Modell hat diesen Coin gegen einen stärkeren getauscht.' };
+  let autoMoves = [];
+
+  function autoPanel() {
+    const el = $('#p-auto');
+    loadModel();
+    const t = modelTarget(), f = follow();
+    if (!t || !f) {
+      el.innerHTML = `<section class="panel autopilot"><p class="loading">${model === false ? 'Das Modell-Portfolio ist gerade nicht erreichbar. Bitte später noch einmal versuchen.'
+        : '<span class="spinner" aria-hidden="true"></span> Das Modell-Portfolio wird geladen …'}</p></section>`;
+      $('#p-next').hidden = true;
+      return;
+    }
+    autoMoves = f.moves;
+    const a = depot.data.auto ?? {}, label = RESERVE_MODES[depot.data.reserveMode].label;
+    const date = (ms, opts = { weekday: 'long', day: 'numeric', month: 'long' }) => new Date(ms).toLocaleDateString(settings.locale, opts);
+    // Sparrate fällig: ein neuer Monat seit der letzten Einzahlung
+    const due = a.monthly && (!a.lastDeposit || a.lastDeposit < monthKey());
+    const units = (m) => `${m.units.toLocaleString(settings.locale, { maximumSignificantDigits: 4 })} ${esc(m.symbol.toUpperCase())}`;
+    // Warum: der letzte Handel des Modells mit diesem Coin in den letzten 3 Wochen, sonst der Zielanteil
+    const recent = (sym) => (t.trades ?? []).find((x) => x.symbol === sym && x.t > Date.now() - 21 * 86_400_000);
+    const why = (m) => {
+      const w = f.weights.find((x) => x.id === m.id);
+      if (!w) return 'Nicht im Modell-Portfolio – der Erlös geht an die Coins des Modells.';
+      const tr = recent(m.symbol.toUpperCase());
+      if (tr && MODEL_WHY[tr.type] && ((tr.type === 'buy' || tr.type === 'add' || tr.type === 'swap-in') === (m.type === 'buy' || m.type === 'add'))) return MODEL_WHY[tr.type];
+      return m.type === 'buy' || m.type === 'add' ? `Auf den Zielanteil von ${num(w.share * 100, 1)} % bringen.` : `Zurück auf den Zielanteil von ${num(w.share * 100, 1)} %.`;
+    };
+    const rowsHtml = f.moves.map((m, i) => `<li class="todo-move ${m.type}">
+        <span class="tag ${m.type === 'buy' || m.type === 'add' ? 'up' : 'down'}">${AUTO_LABEL[m.type]}</span>
+        <span class="tm-main"><strong>${esc(m.name)}</strong> <span class="muted">≈ ${units(m)}</span><small>${esc(why(m))}</small></span>
+        <strong class="tm-usd">${money(m.usd)}</strong>
+        <button class="btn ghost small" type="button" data-auto-move="${i}">Erledigt</button></li>`).join('');
+    const reserveNow = f.total ? f.reserve / f.total : 0;
+    const bar = (v, color) => `<span class="mini-bar"><i style="width:${Math.min(100, v * 100)}%;background:${color}"></i></span>`;
+    el.innerHTML = `<section class="panel autopilot">
+      <div class="panel-top"><div><div class="label">🤖 Autopilot · Strategie ${esc(label)}</div>
+        <h2>${f.moves.length ? `${f.moves.length} ${f.moves.length === 1 ? 'Schritt' : 'Schritte'} zu tun` : due ? 'Sparrate fällig' : 'Alles erledigt'}</h2>
+        <div class="muted">Folgt dem Modell-Portfolio · Stand ${date(t.asOf, { day: 'numeric', month: 'long' })} · nächste Prüfung ${date(t.next)}</div></div>
+        ${infoBtn('autopilot', 'So arbeitet der Autopilot')}</div>
+      ${due ? `<div class="deposit-due"><span aria-hidden="true">📅</span><div><strong>Sparrate für ${new Date().toLocaleDateString(settings.locale, { month: 'long' })}: ${money(monthlyUsd(a.monthly))}</strong>
+          <div class="muted">Zahl sie bei deiner Börse ein und trag sie hier ein – dann zeigt der Autopilot, was du davon kaufst.</div></div>
+          <div class="btn-row"><button class="btn small" type="button" data-deposit="yes">Eingezahlt</button><button class="btn ghost small" type="button" data-deposit="skip">Diesen Monat nicht</button></div></div>` : ''}
+      ${f.moves.length ? `<ol class="todo-moves">${rowsHtml}</ol>
+        <div class="btn-row todo-all"><button class="btn" type="button" data-auto-all>Alle als erledigt eintragen</button>
+          <span class="muted">Gebühren zusammen rund ${money(f.fees)} (0,25 % je Handel)</span></div>`
+        : f.total ? `<p class="all-done">✓ Dein Portfolio entspricht dem Modell. Bis zur nächsten Prüfung ist nichts zu tun.</p>` : ''}
+      ${f.missing.length ? `<p class="notice">Nicht gefunden und deshalb in Reserve gelassen: ${f.missing.map(esc).join(', ')}.</p>` : ''}
+      <details class="fold target-fold"${f.moves.length ? '' : ' open'}><summary>Ziel und Stand</summary>
+        <table class="m-table target-table"><thead><tr><th>Coin</th><th class="num">Ziel</th><th class="num">Jetzt</th><th></th></tr></thead><tbody>
+        ${f.weights.map((w) => `<tr><td><strong>${esc(w.name)}</strong></td><td class="num">${num(w.share * 100, 1)} %</td><td class="num">${num(f.total ? w.have / f.total * 100 : 0, 1)} %</td><td class="m-bar">${bar(w.share, 'var(--accent)')}</td></tr>`).join('')}
+        <tr><td>Reserve</td><td class="num">${num(f.reserveShare * 100, 1)} %</td><td class="num">${num(reserveNow * 100, 1)} %</td><td class="m-bar">${bar(f.reserveShare, 'var(--muted)')}</td></tr></tbody></table>
+        <p class="hint">Die Reserve folgt der Strategie: mehr in schwachen Marktphasen und im Bärenmarkt, weniger, wenn der Zyklus-Kompass günstig steht. Gibt es zu wenige Kaufsignale, bleibt mehr in Reserve.</p>
+      </details>
+    </section>`;
+    // Die Übersicht oben braucht es hier nicht – der Autopilot steht selbst ganz oben
+    $('#p-next').hidden = true;
+  }
+
+  // Schritte des Autopiloten eintragen: einzeln oder alle (erst Verkäufe, dann Käufe); dazu die Sparrate
+  $('#p-auto').addEventListener('click', (e) => {
+    const dep = e.target.closest('[data-deposit]')?.dataset.deposit;
+    if (dep) {
+      const a = depot.data.auto ?? {}, usd = monthlyUsd(a.monthly);
+      if (dep === 'yes') message = `${money(usd)} eingezahlt. Darunter steht, was du davon kaufst.`;
+      return saveDepot({ ...depot.data, cash: depot.data.cash + (dep === 'yes' ? usd : 0), cashFix: null, auto: { ...a, lastDeposit: monthKey() } },
+        dep === 'yes' ? { note: `Sparrate eingezahlt: ${money(usd)}` } : { internal: true, note: 'Sparrate diesen Monat ausgesetzt' });
+    }
+    const all = e.target.closest('[data-auto-all]');
+    const one = e.target.closest('[data-auto-move]')?.dataset.autoMove;
+    if (!all && one === undefined) return;
+    const isBuy = (m) => (m.type === 'buy' || m.type === 'add' ? 1 : 0);
+    const list = all ? [...autoMoves].sort((x, y) => isBuy(x) - isBuy(y)) : [autoMoves[one]].filter(Boolean);
+    let positions = copy().map((p) => ({ ...p, id: p.id ?? find(p)?.id ?? null })), cash = depot.data.cash, done = 0;
+    const stableIds = positions.filter((p) => state.byId.get(p.id)?.analysis.stable).map((p) => p.id);
+    for (const m of list) {
+      const r = applyMove(positions, cash, m, { stableIds });
+      if (r) { positions = r.positions; cash = r.cash; done++; }
+    }
+    if (!done) return say('Für diesen Kauf fehlt die Reserve. Trag zuerst die Verkäufe als erledigt ein.');
+    message = done === 1 ? `Eingetragen: ${AUTO_LABEL[list[0].type]} ${list[0].name}.` : `${done} Schritte eingetragen.`;
+    saveDepot({ ...depot.data, positions, cash, cashFix: null }, { internal: true,
+      note: list.length === 1 ? `Autopilot: ${AUTO_LABEL[list[0].type]} ${list[0].name} (${money(list[0].usd)})` : `Autopilot: ${done} Schritte eingetragen` });
+  });
+
   function reserve(actual, total) {
+    const auto = isAuto();
     const advice = reserveAdvice(state.market?.regime);
-    const chosen = depot.data.reservePct;
+    const chosen = auto ? null : depot.data.reservePct;
     const mode = depot.data.reserveMode;
-    const value = reserveTarget();
+    // Reserve heute je Strategie: im Autopiloten die des Modell-Portfolios, sonst der Vorschlag aus der Marktlage
+    const today = (key) => (isNum(modelCash(key)) ? Math.round(modelCash(key)) : !auto && state.market ? advice[key] : null);
+    const value = auto ? today(mode) : reserveTarget();
     const slider = $('#r-slider');
-    if (document.activeElement !== slider) { slider.value = value; $('#r-value').textContent = `${value} %`; }
-    $('#r-chip').textContent = `${value} %`;
+    if (!auto && document.activeElement !== slider) { slider.value = value; $('#r-value').textContent = `${value} %`; }
+    $('#r-chip').textContent = chosen === null ? RESERVE_MODES[mode].label : `Reserve ${chosen} %`;
     const share = total ? actual / total * 100 : 0;
-    const gap = total * value / 100 - actual;
-    $('#r-actual').innerHTML = !total ? 'Noch nichts eingetragen. Trag unten dein Bargeld ein – dann schlägt der Manager vor, was du davon kaufen kannst.'
+    const gap = isNum(value) ? total * value / 100 - actual : 0;
+    $('#r-actual').innerHTML = !total || !isNum(value) ? ''
       : `Aktuell liegen <strong>${money(actual)}</strong> in Reserve (${num(share, 0)} %). `
       + (Math.abs(gap) < total * 0.02 ? 'Das entspricht dem Ziel.'
         : gap > 0 ? `Für ${value} % fehlen rund <strong>${money(gap)}</strong> – dafür schlägt der Manager Verkäufe vor.`
           : `Das sind rund <strong>${money(-gap)}</strong> mehr als das Ziel – dafür schlägt der Manager Käufe vor.`);
 
-    // Drei berechnete Strategien zur Wahl; der Regler setzt einen eigenen Wert
+    // Die Strategien zur Wahl; im Modus „Selbst pflegen“ setzt der Regler bei Bedarf einen eigenen Wert
     const option = (key) => `<button type="button" class="reserve-option ${chosen === null && mode === key ? 'active' : ''}" data-mode="${key}">
-        <span class="label">${RESERVE_MODES[key].label}</span><strong>${advice[key]} %</strong>
+        <span class="label">${RESERVE_MODES[key].label}</span>${isNum(today(key)) ? `<strong>${today(key)} %</strong><span class="muted">Reserve heute</span>` : ''}
         <span class="muted">${RESERVE_MODES[key].text}</span>
-        <span class="muted">Rückrechnung: +${RESERVE_BACKTEST[key].perYear} % pro Jahr, Rückgang bis −${RESERVE_BACKTEST[key].drawdown} %</span></button>`;
-    $('#r-options').innerHTML = state.market ? Object.keys(RESERVE_MODES).map(option).join('') : '';
+        <span class="muted">Rückrechnung: +${RESERVE_BACKTEST[key].perYear} % pro Jahr, seit 2022 +${RESERVE_BACKTEST[key].recent} %, größter Rückgang −${RESERVE_BACKTEST[key].drawdown} %</span></button>`;
+    $('#r-options').innerHTML = Object.keys(RESERVE_MODES).map(option).join('');
     const h = advice.history;
-    $('#r-hint').innerHTML = !state.market ? 'Der Vorschlag wird berechnet …' : `
-      ${chosen === null ? `Du folgst der Strategie „${RESERVE_MODES[mode].label}“ – der Wert passt sich der Marktlage an.`
-        : `Du hast <strong>${chosen} %</strong> selbst eingestellt. Ein Klick auf eine Strategie folgt wieder der Marktlage.`}
-      ${esc(advice.texts[mode] ?? advice.text)}
+    $('#r-hint').innerHTML = auto ? `Der Autopilot folgt dem Modell-Portfolio der Strategie „${esc(RESERVE_MODES[mode].label)}“. Ein Wechsel ändert die Zielanteile – der Autopilot zeigt dann, was dafür zu tun ist.`
+      : !state.market ? 'Der Vorschlag wird berechnet …' : `
+      ${chosen === null ? `Du folgst der Strategie „${RESERVE_MODES[mode].label}“: Die Reserve ist die des Modell-Portfolios, das jede Woche nach Marktphase, Zyklus-Kompass und Kaufsignalen neu eingestellt wird.`
+        : `Du hast <strong>${chosen} %</strong> selbst eingestellt. Ein Klick auf eine Strategie folgt wieder dem Modell.`}
       ${h ? `In vergleichbaren Marktphasen seit 2018 stand der Markt 30 Tage später in <strong>${h.up} %</strong> der Fälle höher; im schlechtesten Zehntel der Fälle lag er mindestens <strong>${-h.worst} %</strong> tiefer.` : ''}`;
     const cashInput = $('#p-cash-value');
     if (document.activeElement !== cashInput) cashInput.value = cashText();
+    const monthlyInput = $('#p-monthly-value');
+    if (document.activeElement !== monthlyInput) monthlyInput.value = monthlyText();
   }
 
   // Bargeld als Eingabetext in der gewählten Währung – wie eingetragen, wenn es in dieser Währung eingetragen wurde
@@ -2775,7 +3046,8 @@ function portfolioView() {
     if (!(total > 0)) { advice = null; el.innerHTML = ''; return; }
     // Vorschläge erst zeigen, wenn alle Kurse und Bewertungen geladen sind – vorher würden sie sich ständig ändern
     const ready = state.pagesLoaded >= api.PAGES && state.refineDone && !!state.market;
-    const key = JSON.stringify([depot.data.positions.map((p) => [pf.keyOf(p), p.amount, p.cost]), depot.data.cash, depot.data.reservePct, depot.data.reserveMode]);
+    const key = JSON.stringify([depot.data.positions.map((p) => [pf.keyOf(p), p.amount, p.cost]), depot.data.cash, depot.data.reservePct, depot.data.reserveMode, modelCash()]);
+    const mc = modelCash(), label = RESERVE_MODES[depot.data.reserveMode].label;
 
     if (ready && (!advice || advice.key !== key || recalc)) {
       recalc = false;
@@ -2790,7 +3062,8 @@ function portfolioView() {
         cash: depot.data.cash, candidates, regime: state.market.regime,
         core: ['bitcoin', 'ethereum'].map((id) => state.byId.get(id)).filter((c) => c && isNum(c.current_price))
           .map((c) => ({ id: c.id, name: c.name, symbol: c.symbol, price: c.current_price, analysis: c.analysis })),
-        options: { ...RESERVE_MODES[depot.data.reserveMode].options, ...(depot.data.reservePct === null ? {} : { investShare: 1 - depot.data.reservePct / 100 }) },
+        options: { ...RESERVE_MODES[depot.data.reserveMode].options, ...(depot.data.reservePct !== null ? { investShare: 1 - depot.data.reservePct / 100 }
+          : isNum(mc) ? { exposure: { model: true, share: 1 - Math.round(mc) / 100, text: `Reserve wie im Modell-Portfolio der Strategie „${label}“: ${Math.round(mc)} %.` } } : {}) },
       });
       advice = p ? { key, plan: p, time: new Date(), missing: rows.length - known.length } : null;
     }
@@ -2833,7 +3106,7 @@ function portfolioView() {
     el.innerHTML = `<section class="panel manager">
       <div class="panel-top"><div><h2>Vorschläge</h2><div class="muted">Stand ${advice.time.toLocaleTimeString(settings.locale, { hour: '2-digit', minute: '2-digit' })} Uhr${stale ? ' – älter als 30 Minuten' : ''}</div></div>
         <div class="btn-row">${infoBtn('manager', 'So arbeitet der Manager')}<button class="btn ghost small" data-recalc>Neu berechnen</button></div></div>
-      <p>${depot.data.reservePct === null
+      <p>${depot.data.reservePct === null && !p.exposure.model
           ? `${esc(p.exposure.text)} Reserve-Ziel nach der Strategie „${RESERVE_MODES[depot.data.reserveMode].label}“: ${num((1 - p.exposure.share) * 100, 0)} %.`
           : esc(p.exposure.text)}
         Investiert sind ${num(p.investedShare * 100, 0)} %; nach den Schritten wären es ${num(p.targetShare * 100, 0)} %.
@@ -3152,9 +3425,10 @@ async function modelSection(el) {
           <p class="hint">Anteil am Wert des Portfolios zum Zeitpunkt des Handels.</p>` : lockedBox('Handel des Modell-Portfolios')}
       </section>
     </div>
-    <section class="panel upsell"><div><h3>Den Manager auf dein eigenes Portfolio anwenden</h3>
-      <p class="muted">Trag deine Coins ein – der Portfolio-Manager rechnet aus, was das Modell für deinen Bestand vorsieht, mit Begründung. Die Entscheidung triffst du.</p></div>
-      <div class="btn-row"><a class="btn" href="${depot.user ? '#/portfolio' : '#/konto'}">${depot.user ? 'Zum Portfolio' : 'Kostenlos starten'}</a></div></section>
+    <section class="panel upsell"><div><h3>Diesem Modell mit deinem eigenen Geld folgen</h3>
+      <p class="muted">Der Autopilot im Portfolio sagt dir, was du kaufst, damit dein Portfolio genau diesem Modell folgt – und meldet sich, wenn sich etwas ändert.
+        Hast du schon Coins, prüft der Manager sie auf Wunsch einzeln. Ausführen tust du alles selbst bei deiner Börse.</p></div>
+      <div class="btn-row"><a class="btn" href="${depot.user ? '#/portfolio' : '#/konto'}">${depot.user ? 'Autopilot starten' : 'Kostenlos starten'}</a></div></section>
     <p class="share-row hint">${shareLinks(shareUrl('#/modell'), `${i18n.say('Modell-Portfolio des Portfolio-Managers')}: ${signed(c.stats.cagr, 0)} % / ${i18n.say('Jahr')} – Coinweather`)}</p>`;
   // Diagramm: beide Linien ab dem gewählten Start auf 100 gesetzt
   const chart = (years) => {
@@ -3400,6 +3674,7 @@ function calculatorView(arg, { focus } = {}) {
           <dl class="way-meta"><div><dt>Gewinn oder Verlust</dt><dd class="${tone(w.res.gain)}">${w.res.gain >= 0 ? '+' : '−'}${money(Math.abs(w.res.gain))}</dd></div>
             <div><dt>Tiefster Stand unterwegs</dt><dd class="${w.res.worst < 0 ? 'down' : 'up'}">${w.res.worst < 0 ? `${signed(w.res.worst * 100, 1)} %` : 'nie im Minus'}</dd></div></dl>
           ${w.note ? `<div class="muted way-note">${w.note}</div>` : ''}
+          ${w.key === 'mgr' ? `<a class="btn small way-cta" href="#/portfolio/auto?b=${Math.round(f.amount * 100) / 100}&m=${f.mode}">Mit dem Autopiloten umsetzen →</a>` : ''}
         </div>`;
       out.innerHTML = `<section class="panel calc-result">
           <div class="calc-head"><img src="${esc(c.image)}" alt=""><div><h2><span translate="no">${esc(c.name)}</span> · ${f.mode === 'plan' ? 'Monatlicher Sparplan' : 'Einmalanlage'}</h2>
@@ -3461,7 +3736,7 @@ function route() {
       : section === 'market' ? marketView(true) : sales();
   }
   else if (name === 'coin' && id) current = detailView(id);
-  else if (name === 'portfolio') current = !depot.user ? accountView(true) : fullAccess() ? portfolioView() : lockedView('portfolio');
+  else if (name === 'portfolio') current = !depot.user ? accountView(true) : fullAccess() ? portfolioView(arg) : lockedView('portfolio');
   else if (name === 'konto') current = accountView();
   else if (name === 'daytrading') { current = fullAccess() ? tradingView() : lockedView('trading'); if (fullAccess()) tradingAck(); }
   else if (name === 'preise') current = sales();

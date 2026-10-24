@@ -28,6 +28,9 @@ export const DEFAULTS = {
   trailStop: 0.25,        // Verkauf, wenn der Kurs so weit unter sein Hoch seit dem Kauf fällt
   stopLoss: null,         // Verkauf, wenn der Kurs so weit unter den Kaufpreis fällt
   pairSwaps: true,        // Verkäufe und Käufe als Tausch vorschlagen
+  // Neue Coins nur bis zu dieser Risikostufe (0–3, nach der Schwankung); null = alle. Geprüft (Oktober 2026, 7 Starttage): Stufe bis 1
+  // senkte die Rendite (Ausgewogen 64 % statt 80 % pro Jahr, Vorsichtig 50 % statt 60 %), der größte Rückgang blieb gleich – deshalb aus.
+  maxRisk: null,
   coreFill: true,         // tief im Zyklus Bitcoin und Ethereum auch ohne Kaufsignal aufstocken
   coreFillDd: CORE_DD,    // ab diesem Abstand zum Allzeithoch gilt der Markt als tief im Zyklus
   // Geprüft (Oktober 2026, 7 Starttage): Bitcoin und Ethereum zusätzlich ab einem Kauf-Score von 62 aufstocken brachte
@@ -84,20 +87,20 @@ export const EXPOSURE_CURVES = {
 };
 export const EXPOSURE_CURVE = EXPOSURE_CURVES.balanced;
 
-// Die drei wählbaren Strategien für das Reserve-Ziel
+// Die wählbaren Strategien: Sie legen fest, wie viel Reserve der Manager je nach Marktlage hält.
+// Geprüft und nicht mehr angeboten (Oktober 2026, 7 Starttage): „Antizyklisch“ (stärker nach dem Kauf-Score) brachte 78 % pro Jahr
+// bei −51 % größtem Rückgang – weniger Rendite und mehr Rückgang als „Ausgewogen“. „Nur Bitcoin und Ethereum“ brachte 36 % pro Jahr
+// (seit 2022 27 %) bei −38 % – ebenfalls schlechter.
 export const RESERVE_MODES = {
-  balanced: { label: 'Kompass und Trend', options: {},
-    text: 'Folgt dem Zyklus-Kompass (günstiger Zyklus: weniger Reserve) und der Marktphase, bremst im Bärenmarkt und kauft nach langer Angst Bitcoin und Ethereum nach.' },
-  contrarian: { label: 'Antizyklisch', options: { fearTilt: 0.85, greedTilt: 0, coreFillBuy: 75, buyTilt: 0.4, buyTiltFrom: 62, buyTiltFull: 85, buyTiltBullOnly: true, buyCutBelow: 35, buyCut: 0.2 },
-    text: 'Folgt dem Zyklus-Kompass stärker: ab Kauf-Score 62 bis zu 40 Punkte weniger Reserve (außerhalb von Bärenmärkten), ab 75 werden Bitcoin und Ethereum aufgestockt; unter 35 bleibt mehr in Reserve.' },
+  balanced: { label: 'Ausgewogen', options: {},
+    text: 'Folgt dem Zyklus-Kompass und der Marktphase: weniger Reserve, wenn der Zyklus günstig ist, mehr im Bärenmarkt. Nach langer Angst werden Bitcoin und Ethereum nachgekauft.' },
   cautious: { label: 'Vorsichtig', options: { exposureCurve: EXPOSURE_CURVES.cautious, fearTilt: 0.3 },
-    text: 'Hält deutlich mehr Reserve und investiert erst bei sehr starker Marktphase voll.' },
+    text: 'Hält deutlich mehr Reserve und investiert erst bei sehr starker Marktphase voll – weniger Rendite, dafür kleinere Rückgänge.' },
 };
 // Rückrechnung mit scripts/model-curve.mjs (84 Coins, wöchentlich, 0,25 % Gebühr), Mittel aus 7 Starttagen, Oktober 2026.
 // perYear/drawdown: März 2018 bis heute; recent: seit Januar 2022. HOLD_BACKTEST: Bitcoin im selben Zeitraum gehalten.
 export const RESERVE_BACKTEST = {
   balanced: { perYear: 81, recent: 43, drawdown: 46 },
-  contrarian: { perYear: 78, recent: 44, drawdown: 51 },
   cautious: { perYear: 60, recent: 31, drawdown: 30 },
 };
 export const HOLD_BACKTEST = { perYear: 25, recent: 12, drawdown: 77 };
@@ -132,7 +135,7 @@ export function suggestedExposure(regime, o = DEFAULTS) {
   return { share, text: `${base.text} ${tilt.text} ${b.text}`.trim(), fear: tilt.fear > 0, greed: tilt.greed > 0, buy: b.delta };
 }
 
-// Kauf-Score als Zu- oder Abschlag – nur in der Strategie „Antizyklisch“. Rückrechnung (7 Starttage): Mit Zuschlag ab 75 und
+// Kauf-Score als Zu- oder Abschlag (Standard: Zuschlag ab 62, siehe DEFAULTS). Frühere Strategie „Antizyklisch“, Rückrechnung (7 Starttage): Mit Zuschlag ab 75 und
 // Abschlag unter 35 kam die Strategie auf 72 % pro Jahr statt 59 % mit der früheren Gier-Regel, seit 2022 auf 39 % statt 41 %
 // (im Rauschen), bei einem größten Rückgang von −44 % statt −40 %. Für die Standard-Strategie war jede getestete Form schlechter.
 export function buyTiltOf(regime, o = DEFAULTS) {
@@ -159,7 +162,7 @@ const unit = (x) => Math.min(1, Math.max(0, x));
 //
 // Gier-Abschlag: Liegt der 7-Tage-Schnitt über 68 (voll ab 80) und Bitcoin höchstens 15–25 % unter dem Allzeithoch,
 // wird weniger investiert. Das kostete in der Rückrechnung Rendite (2018–22 deutlich, 2022–26 kaum) und senkte den
-// größten Rückgang nur 2022–26 leicht – deshalb ist es nur in der Strategie „Antizyklisch“ eingeschaltet.
+// größten Rückgang nur 2022–26 leicht – deshalb ist es ausgeschaltet.
 const GREED = { from: 68, full: 80, ddFrom: -25, ddFull: -15 };
 
 export function fngTilt(regime, o = DEFAULTS) {
@@ -231,7 +234,8 @@ export function plan({ holdings, cash = 0, candidates = [], core = [], regime, o
   const suggested = suggestedExposure(regime, o);
   // Tief im Zyklus: Bitcoin und Ethereum werden gehalten und aufgestockt, auch wenn der kurzfristige Trend negativ ist
   const cheap = o.coreFill && ((Number.isFinite(dd) && dd <= o.coreFillDd) || (o.coreFillBuy !== null && regime?.buy >= o.coreFillBuy));
-  const exposure = Number.isFinite(o.investShare)
+  // exposure: vorgegebene Quote mit Begründung (die Reserve des Modell-Portfolios), sonst eigene Reserve oder der Vorschlag
+  const exposure = o.exposure ? o.exposure : Number.isFinite(o.investShare)
     ? { share: Math.min(1, Math.max(0, o.investShare)), custom: true,
       text: `Du hast eine Reserve von ${Math.round((1 - o.investShare) * 100)} % gewählt (Vorschlag: ${Math.round((1 - suggested.share) * 100)} %).` }
     : suggested;
@@ -283,7 +287,7 @@ export function plan({ holdings, cash = 0, candidates = [], core = [], regime, o
   }
 
   // 4. Freies Budget auf Coins mit Kaufsignal verteilen – Bestand und neue Kandidaten
-  const fresh = candidates.filter((c) => signal(c) === 'buy' && !coins.some((h) => h.id === c.id))
+  const fresh = candidates.filter((c) => signal(c) === 'buy' && !coins.some((h) => h.id === c.id) && (o.maxRisk === null || (c.analysis?.risk?.level ?? 2) <= o.maxRisk))
     .map((c) => ({ ...c, units: 0, value: 0, target: 0, held: false, adj: adjusted(c.analysis ?? {}) }))
     .sort((a, b) => b.adj - a.adj);
   const kept = coins.filter((c) => c.target > 0);
@@ -515,4 +519,66 @@ export function applyMove(positions, cash, move, { fee = DEFAULTS.fee, stableIds
     if (move.type === 'profit' && p) p.trimPrice = move.price;
   }
   return { positions: list.filter((p) => p.amount > 1e-12), cash };
+}
+
+// ---------- Autopilot: dem Modell-Portfolio folgen ----------
+//
+// Statt eigene Schritte zu rechnen, hält der Autopilot den Bestand in denselben Anteilen wie das Modell-Portfolio der gewählten
+// Strategie (scripts/model-curve.mjs, jeden Morgen neu gerechnet). So entwickelt sich das Portfolio wie das Modell, dessen
+// Rückrechnung im Rechner steht. Ändert das Modell am wöchentlichen Prüftag seinen Bestand, oder kommt Geld dazu, entstehen
+// Schritte; Kursbewegungen allein verschieben Modell und Portfolio gleich und lösen nichts aus.
+//
+// target:   { cash (Prozent), holdings: [{ symbol, share (Prozent), price (Kurs am Stichtag) }] }
+// coinOf:   Kürzel → { id, name, symbol, price } mit dem heutigen Kurs, oder null
+// holdings: [{ id, name, symbol, units, price, stable }] – Stablecoins zählen zur Reserve
+export function followModel({ target, coinOf, holdings, cash = 0, minShare = 0.01, minUsd = 10, fee = DEFAULTS.fee }) {
+  const value = (h) => h.units * h.price;
+  const reserve = cash + holdings.filter((h) => h.stable).reduce((s, h) => s + value(h), 0);
+  const coins = holdings.filter((h) => !h.stable);
+  const total = reserve + coins.reduce((s, h) => s + value(h), 0);
+  // Anteile des Modells zu heutigen Kursen; Coins, die sich nicht zuordnen lassen, bleiben in Reserve
+  let cashW = Math.max(0, target.cash ?? 0);
+  const missing = [], parts = [];
+  for (const h of target.holdings ?? []) {
+    const c = coinOf(h.symbol);
+    if (!c || !(c.price > 0) || !(h.price > 0)) { missing.push(h.symbol); cashW += h.share; continue; }
+    parts.push({ ...c, w: h.share * c.price / h.price });
+  }
+  const sum = cashW + parts.reduce((s, p) => s + p.w, 0);
+  if (!(sum > 0)) return null;
+  const weights = parts.map((p) => {
+    const share = p.w / sum, have = coins.filter((h) => h.id === p.id).reduce((s, h) => s + value(h), 0);
+    return { id: p.id, name: p.name, symbol: p.symbol, price: p.price, share, have, want: share * total };
+  }).sort((a, b) => b.share - a.share);
+  const reserveShare = cashW / sum;
+  if (!(total > 0)) return { total: 0, weights, reserveShare, reserve: 0, moves: [], missing, fees: 0 };
+
+  const min = Math.max(minUsd, total * minShare);
+  const moves = [];
+  const step = (c, type, usd) => moves.push({ type, id: c.id, name: c.name, symbol: c.symbol, price: c.price, usd, units: usd / c.price, fee: usd * fee });
+  // Verkäufe: Coins außerhalb des Modells ganz, die übrigen bis auf den Zielanteil
+  for (const h of coins) {
+    if (weights.some((w) => w.id === h.id)) continue;
+    if (value(h) >= 1) step(h, 'sell', value(h));
+  }
+  for (const w of weights) if (w.have - w.want >= min) step(w, w.want < 1 ? 'sell' : 'reduce', w.have - w.want);
+  // Käufe aus der Reserve – höchstens so viel, wie nach den Verkäufen da ist
+  const available = reserve + moves.reduce((s, m) => s + m.usd * (1 - fee), 0);
+  const buys = weights.filter((w) => w.want - w.have >= min);
+  const need = buys.reduce((s, w) => s + w.want - w.have, 0);
+  const scale = need > available ? Math.max(0, available) / need : 1;
+  for (const w of buys) step(w, w.have >= 1 ? 'add' : 'buy', (w.want - w.have) * scale);
+  return { total, weights, reserveShare, reserve, moves, missing, fees: moves.reduce((s, m) => s + m.fee, 0) };
+}
+
+// Auszahlen im Autopiloten: aus allem anteilig, damit die Anteile gleich bleiben. Gibt die Verkäufe und den Anteil zurück,
+// um den jede Position und die Reserve schrumpfen (nach Gebühren kommt genau der gewünschte Betrag heraus).
+export function withdrawPlan({ holdings, cash = 0, amount, fee = DEFAULTS.fee }) {
+  const coins = holdings.filter((h) => !h.stable);
+  const reserve = cash + holdings.filter((h) => h.stable).reduce((s, h) => s + h.units * h.price, 0);
+  const net = reserve + coins.reduce((s, h) => s + h.units * h.price * (1 - fee), 0);
+  if (!(amount > 0) || !(net > 0) || amount > net + 0.01) return null;
+  const part = Math.min(1, amount / net);
+  return { part, sells: coins.map((h) => ({ id: h.id, name: h.name, symbol: h.symbol, price: h.price, units: h.units * part, usd: h.units * part * h.price }))
+    .filter((s) => s.usd >= 0.5), fromReserve: reserve * part };
 }
