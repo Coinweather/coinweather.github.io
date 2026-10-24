@@ -188,7 +188,7 @@ if (!track.days.some((e) => e.d === today) && btc?.current_price > 0) {
     .sort((a, b) => b.analysis.score - a.analysis.score).slice(0, TRACK_SIGNALS)
     .map((c) => [c.id, c.symbol, c.current_price, c.analysis.score]);
   const top = coins.filter((c) => (c.market_cap_rank ?? 9999) <= 100 && !c.analysis.stable && c.current_price > 0).map((c) => [c.id, c.current_price]);
-  track.days.push({ d: today, btc: btc.current_price, idx: market.value, sig, top });
+  track.days.push({ d: today, btc: btc.current_price, idx: market.value, mood: market.mood?.value, sig, top });
 }
 track.days = track.days.filter((e) => today - e.d <= TRACK_KEEP_DAYS);
 // Zusammenfassung für die Seite
@@ -215,7 +215,7 @@ const snapshot = {
   time: Date.now(),
   record,
   fx,
-  market: { value: market.value, signal: market.signal, label: market.label, parts: market.parts, regime, cycle: market.cycle, forecast: market.forecast },
+  market: { value: market.value, signal: market.signal, label: market.label, buy: market.buy, mood: market.mood, parts: market.parts, regime, cycle: market.cycle, forecast: market.forecast },
   fng: fng ? { value: fng.value, week: fng.week, month: fng.month, cmc } : null,
   coins: coins.map((c) => {
     const out = {};

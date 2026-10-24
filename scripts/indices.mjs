@@ -10,16 +10,18 @@
 //   Zyklus-Risiko (eigener Index, 0–100): Mittel aus Mayer-Multiple, 2-Jahres-MA, Pi-Cycle, Abstand zum Allzeithoch und
 //                           Fear & Greed (30 Tage). 0 = tief und günstig, 100 = überhitzt.
 //
-// Zu jedem Indikator steht, wie oft Bitcoin 90 und 365 Tage nach vergleichbaren Ständen höher stand – getrennt für zwei Zeiträume,
-// damit sichtbar ist, ob ein Zusammenhang hält. Vergangene Zyklen sind keine Garantie für den nächsten.
+// Zu jedem Indikator steht, wie oft Bitcoin 90 und 365 Tage nach vergleichbaren Ständen höher stand – gemessen an allen Tagen
+// seit Januar 2022. Der Kauf-Score der Startseite ist 100 − Zyklus-Risiko (js/model.js, dieselbe Formel und dieselben Stufen).
+// Vergangene Zyklen sind keine Garantie für den nächsten.
 //
 // Aufruf: node scripts/indices.mjs <datei.json>   (oder als Modul: buildIndices(snapshot))
 
 import { writeFile } from 'node:fs/promises';
 import { klines, fearGreed } from './model-curve.mjs';
+import { riskParts, riskValue, RISK_ZONES } from '../js/model.js';
 
 const DAY = 86_400_000;
-const SPLIT = Date.UTC(2022, 9, 6);   // wie in den übrigen Prüfungen: 2018–22 und 2022–26
+const FROM = Date.UTC(2022, 0, 1);   // Rückblick: alle Tage seit Januar 2022
 const clamp = (v, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, v));
 const r1 = (v, d = 1) => (Number.isFinite(v) ? Math.round(v * 10 ** d) / 10 ** d : null);
 
@@ -29,22 +31,19 @@ function sma(p, n) {
   return out;
 }
 
-// Rückblick: Wie oft stand Bitcoin h Tage später höher, wenn der Indikator in einem Bereich lag – je Zeitraum
+// Rückblick: Wie oft stand Bitcoin h Tage später höher, wenn der Indikator in einem Bereich lag (Tage seit Januar 2022)
 function backtest(t, p, values, buckets, hs = [90, 365]) {
-  return buckets.map(([lo, hi, label]) => {
-    const per = [0, 1].map((half) => Object.fromEntries(hs.map((h) => {
-      const rets = [];
-      for (let i = 0; i + h < p.length; i++) {
-        const v = values[i];
-        if (v === null || v < lo || v >= hi || (t[i] < SPLIT) !== (half === 0)) continue;
-        rets.push(p[i + h] / p[i] - 1);
-      }
-      if (rets.length < 20) return [h, null];
-      rets.sort((a, b) => a - b);
-      return [h, { n: rets.length, up: Math.round(rets.filter((x) => x > 0).length / rets.length * 100), median: r1(rets[rets.length >> 1] * 100, 0) }];
-    })));
-    return { lo, hi, label, periods: per };
-  });
+  return buckets.map(([lo, hi, label]) => ({ lo, hi, label, ...Object.fromEntries(hs.map((h) => {
+    const rets = [];
+    for (let i = 0; i + h < p.length; i++) {
+      const v = values[i];
+      if (v === null || v < lo || v >= hi || t[i] < FROM) continue;
+      rets.push(p[i + h] / p[i] - 1);
+    }
+    if (rets.length < 20) return [h, null];
+    rets.sort((a, b) => a - b);
+    return [h, { n: rets.length, up: Math.round(rets.filter((x) => x > 0).length / rets.length * 100), median: r1(rets[rets.length >> 1] * 100, 0) }];
+  })) }));
 }
 
 export async function buildIndices(snap) {
@@ -64,17 +63,12 @@ export async function buildIndices(snap) {
   const pi = p.map((_, i) => (s111[i] && s350[i] ? s111[i] / (2 * s350[i]) : null));
   const twoY = p.map((x, i) => (s730[i] ? x / s730[i] : null));
   const dd = p.map((x, i) => x / ath[i] - 1);
-  // Zyklus-Risiko: jeder Baustein auf 0–100 gebracht, dann gemittelt
-  const parts = (i) => (mayer[i] === null || pi[i] === null || twoY[i] === null || fng30[i] === null ? null : {
-    mayer: clamp((mayer[i] - 0.7) / (2.4 - 0.7)) * 100,
-    twoYear: clamp(Math.log(twoY[i]) / Math.log(5)) * 100,
-    pi: clamp((pi[i] - 0.4) / 0.6) * 100,
-    ath: clamp(1 + dd[i] / 0.8) * 100,
-    fng: fng30[i],
-  });
-  const risk = t.map((_, i) => { const x = parts(i); return x ? (x.mayer + x.twoYear + x.pi + x.ath + x.fng) / 5 : null; });
+  // Zyklus-Risiko: jeder Baustein auf 0–100 gebracht, dann gemittelt (Formel in js/model.js)
+  const parts = (i) => (mayer[i] === null || pi[i] === null || twoY[i] === null ? null
+    : riskParts({ mayer: mayer[i], twoYear: twoY[i], pi: pi[i], dd: dd[i] * 100, fng30: fng30[i] }));
+  const risk = t.map((_, i) => riskValue(parts(i)));
 
-  const RISK_BUCKETS = [[0, 20, 'Tief'], [20, 40, 'Günstig'], [40, 60, 'Neutral'], [60, 80, 'Erhitzt'], [80, 101, 'Überhitzt']];
+  const RISK_BUCKETS = RISK_ZONES;
   const weekly = (vals, d = 3) => t.map((ms, i) => [Math.floor(ms / DAY), vals[i] === null ? null : r1(vals[i], d)]).filter((x, i) => (last - i) % 7 === 0 && x[1] !== null);
   const pct = (arr, v) => { const a = arr.filter((x) => x !== null).sort((x, y) => x - y); return Math.round(a.filter((x) => x <= v).length / a.length * 100); };
   const volYears = vol.slice(-1461);
@@ -107,9 +101,13 @@ export async function buildIndices(snap) {
     if (g?.market_cap_percentage?.btc) dominance = { btc: r1(g.market_cap_percentage.btc), eth: r1(g.market_cap_percentage.eth) };
   } catch { /* ohne Dominanz */ }
 
-  const now = parts(last);
+  // Heute zählt der Kauf-Score der zentralen Berechnung (Live-Kurs, Allzeithoch von CoinGecko) – so stimmen Startseite,
+  // Kompass und Indikator-Seiten überein. Rückblick und Verlauf bleiben bei den Tageskursen.
+  const buy = snap?.market?.buy;
+  const now = buy?.parts ?? parts(last);
+  if (Number.isFinite(buy?.value)) risk[last] = 100 - buy.value;
   return {
-    version: 1, time: Date.now(), since: t[0],
+    version: 2, time: Date.now(), since: t[0], from: FROM,
     price: { value: p[last], ath: ath[last], dd: r1(dd[last] * 100) },
     risk: { value: r1(risk[last], 0), parts: now && Object.fromEntries(Object.entries(now).map(([k, v]) => [k, r1(v, 0)])),
       history: weekly(risk, 0), backtest: backtest(t, p, risk, RISK_BUCKETS) },

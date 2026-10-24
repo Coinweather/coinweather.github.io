@@ -42,7 +42,7 @@ export async function fearGreed() {
   return new Map(json.data.map((x) => [Math.floor(Number(x.timestamp) / 86400), Number(x.value)]));
 }
 
-export async function buildCurve() {
+export async function buildCurve({ offset = 0, options = {} } = {}) {
   const data = {};
   for (let i = 0; i < COINS.length; i += 6) {
     await Promise.all(COINS.slice(i, i + 6).map(async (s) => { try { const d = await klines(s); if (d) data[s] = d; } catch { /* Coin fehlt dann */ } }));
@@ -56,7 +56,12 @@ export async function buildCurve() {
   const ATH = []; { let hi = 0; for (let j = 0; j < btc.n; j++) { hi = Math.max(hi, btc.prices[j]); ATH[j] = hi; } }
   const vol30 = (ind, i) => { let mu = 0; const a = []; for (let k = i - 29; k <= i; k++) { const r = Math.log(ind.prices[k] / ind.prices[k - 1]); a.push(r); mu += r; } mu /= 30; return Math.sqrt(a.reduce((x, y) => x + (y - mu) ** 2, 0) / 29) * 100; };
   const fgState = (day) => { const vals = []; for (let k = 0; k < 150; k++) { const v = F.get(day - k); if (v === undefined) break; vals.push(v); } return vals.length ? m.fngState(vals) : null; };
-  const regimeOf = (j) => { const R = m.regimeSmooth(btc, j, (d) => F.get(d), m.REGIME_DAYS); R.cycle = { dd: (btc.prices[j] / ATH[j] - 1) * 100 }; R.fng = fgState(btc.days[j]); return R; };
+  const regimeOf = (j) => {
+    const R = m.regimeSmooth(btc, j, (d) => F.get(d), m.REGIME_DAYS); R.cycle = { dd: (btc.prices[j] / ATH[j] - 1) * 100 }; R.fng = fgState(btc.days[j]);
+    // Kauf-Score wie auf der Seite: aus den Bitcoin-Tageskursen bis zu diesem Tag
+    R.buy = m.buyScore(btc.prices.slice(Math.max(0, j - 800), j + 1), R.cycle.dd, R.fng?.days >= 20 ? R.fng.avg30 : null)?.value ?? null;
+    return R;
+  };
 
   // Wie die Rückrechnung im README (sim2.mjs): Start mit 10 000 $ in bar, jede Woche nach dem Plan des Managers handeln
   const fee = 0.0025, step = 7;
@@ -69,7 +74,7 @@ export async function buildCurve() {
     for (const s in pos) { const p = price(s); if (p) { pos[s].last = p; pos[s].peak = Math.max(pos[s].peak ?? 0, p); } }
     let value = cash; for (const s in pos) value += pos[s].units * pos[s].last;
     days.push(day); values.push(value); cashShare.push(cash / value);
-    if ((day - startDay) % step) continue;
+    if ((day - startDay - offset) % step) continue;
     const R = regimeOf(j);
     const A = {};
     for (const s of syms) {
@@ -83,7 +88,7 @@ export async function buildCurve() {
     const holdings = Object.keys(pos).filter((s) => A[s]).map((s) => ({ id: idOf(s), name: s, symbol: s, units: pos[s].units, price: A[s].price, cost: pos[s].cost, peak: pos[s].peak, trimPrice: pos[s].trim, analysis: A[s].analysis }));
     const candidates = Object.keys(A).filter((s) => !pos[s] && A[s].analysis.signal === 'buy').map((s) => ({ id: idOf(s), name: s, symbol: s, price: A[s].price, analysis: A[s].analysis }));
     const core = ['BTC', 'ETH'].filter((s) => A[s]).map((s) => ({ id: idOf(s), name: s, symbol: s, price: A[s].price, analysis: A[s].analysis }));
-    const p = mg.plan({ holdings, cash, candidates, core, regime: R, options: {}, now: day * 86400000 });
+    const p = mg.plan({ holdings, cash, candidates, core, regime: R, options, now: day * 86400000 });
     if (!p) continue;
     const total = values[values.length - 1];
     const sell = (s, usd, type) => { const pr = A[s].price; const u = Math.min(pos[s].units, usd / pr); pos[s].units -= u; cash += u * pr * (1 - fee); trades++; log.push([day, type, s, Math.round(u * pr / total * 1000) / 10]); if (pos[s].units * pr < 1) delete pos[s]; return u * pr * (1 - fee); };

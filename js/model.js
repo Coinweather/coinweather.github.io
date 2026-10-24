@@ -306,26 +306,57 @@ export function regimeSmooth(btc, j, fngAt = () => undefined, days = 7) {
 export const REGIME_DAYS = 14;
 const BEAR_DAYS = 5;   // geprüft mit 1 bis 14 Tagen: bis 5 Tage ohne Einbuße, darüber reagiert die Bremse zu spät
 
-// Was nach vergleichbaren Zyklus-Ständen in 12 Monaten geschah – getrennt für die beiden Zyklen in den Daten
-// (2018–2022 und 2022–2026). Sie widersprechen sich teils völlig: 25–40 % unter dem Hoch stand Bitcoin ein Jahr später
-// einmal 42 % tiefer (2021/22, auf dem Weg nach unten) und einmal 124 % höher (2023/24, auf dem Weg nach oben).
-// Ein Mittelwert aus beiden wäre eine Zahl, die es so nie gab. Zeigt ein Zyklus klar ins Minus und der andere klar
-// ins Plus, gilt die Jahressicht deshalb als uneinheitlich – ohne Richtungsaussage.
-// [Abstand zum Allzeithoch bis %, Bitcoin: höher in % der Fälle, mittleres Ergebnis 2018–22, 2022–26,
-//  mittlerer Coin: höher in % der Fälle, mittleres Ergebnis 2018–22, 2022–26]. Trefferquoten: Schnitt beider Zyklen.
-const CYCLE_HISTORY = [[-70, 100, 78, 130, 55, -20, 13], [-55, 96, 43, 126, 70, 28, 26], [-40, 81, 21, 110, 72, 36, 16],
-  [-25, 58, -42, 124, 50, -63, 16], [-10, 45, -28, 61, 16, -53, -39], [Infinity, 38, -20, -16, 23, -20, -64]];
-export const CYCLE_NAMES = ['2018–22', '2022–26'];
-const mixedCycles = ([a, b]) => Math.min(a, b) <= -5 && Math.max(a, b) >= 5;
+// Was nach vergleichbaren Zyklus-Ständen in 12 Monaten geschah – gemessen an allen Tagen seit Januar 2022
+// (Bitcoin und der mittlere von 84 großen Coins, Stand Oktober 2026). Ein Zeitraum, eine Zahl je Stufe.
+// [Abstand zum Allzeithoch bis %, Bitcoin: höher in % der Fälle, mittleres Ergebnis %, mittlerer Coin: höher in %, mittleres Ergebnis %]
+const CYCLE_HISTORY = [[-70, 100, 75, 48, -15], [-55, 93, 118, 66, 14], [-40, 48, -11, 39, -40],
+  [-25, 49, -8, 39, -51], [-10, 64, 61, 3, -39], [Infinity, 35, -16, 0, -64]];
+export const HISTORY_FROM = 'seit 2022';
 
 // Einordnung des Zyklus – die langfristige, antizyklische Sicht neben der kurzfristigen Marktphase
 export function cycleInfo(dd) {
   const row = CYCLE_HISTORY.find(([limit]) => dd < limit) ?? CYCLE_HISTORY[CYCLE_HISTORY.length - 1];
   const zone = dd <= -55 ? 'deep' : dd <= -40 ? 'low' : dd <= -10 ? 'mid' : 'high';
   const label = { deep: 'Tief im Zyklus – antizyklische Kaufzone', low: 'Unteres Drittel des Zyklus', mid: 'Mitte des Zyklus', high: 'Nahe am Allzeithoch – Gewinne sichern' }[zone];
-  const btc = [row[2], row[3]], alt = [row[5], row[6]];
-  return { dd, zone, label, btcUp: row[1], btcMedian: Math.round((btc[0] + btc[1]) / 2), altUp: row[4], altMedian: Math.round((alt[0] + alt[1]) / 2),
-    btcCycles: btc, altCycles: alt, btcMixed: mixedCycles(btc), altMixed: mixedCycles(alt) };
+  return { dd, zone, label, btcUp: row[1], btcMedian: row[2], altUp: row[3], altMedian: row[4] };
+}
+
+// ---------- Kauf-Score: antizyklisch, Sicht 12 Monate ----------
+// „Kaufen, wenn es regnet“: Der Kauf-Score ist 100 minus Zyklus-Risiko aus dem Zyklus-Kompass (scripts/indices.mjs).
+// Er steigt, wenn Bitcoin billig zu seinen langen Schnitten steht, weit unter dem Allzeithoch liegt und Angst herrscht.
+// Bausteine (je 0 = günstig … 100 = überhitzt): Mayer-Multiple (Kurs / 200-Tage-Schnitt, 0,7 … 2,4), 2-Jahres-MA
+// (Kurs / 730-Tage-Schnitt, 1 … 5, logarithmisch), Pi-Cycle (111-Tage-Schnitt / 2 × 350-Tage-Schnitt, 0,4 … 1),
+// Abstand zum Allzeithoch (−80 % … 0) und Fear & Greed im 30-Tage-Schnitt.
+// Auswertung an Bitcoin-Tageskursen seit Januar 2022, ein Jahr später: ab 62 Punkten stand Bitcoin in 71–76 % der Fälle
+// höher (mittleres Ergebnis +50 bis +104 %), unter 50 nur in 42 %. 2018–2021 zeigte dieselbe Richtung (73–82 % gegen 38–55 %).
+// Auf 90 Tage gibt es keinen solchen Vorteil – nach einem günstigen Stand fiel der Kurs oft noch weiter.
+// Der Score sagt deshalb, ob sich Käufe in Raten für ein Jahr und länger lohnten, nicht, wann der Boden erreicht ist.
+// Varianten mit mehr Gewicht auf kurzfristiger Angst (Fear & Greed 7 oder 14 Tage) schnitten auf ein Jahr schlechter ab.
+export const BUY_ZONES = [[75, 'buy', 'Kaufen'], [62, 'buy', 'Eher kaufen'], [45, 'hold', 'Halten'], [30, 'sell', 'Eher verkaufen'], [-Infinity, 'sell', 'Verkaufen']];
+// Dieselben Grenzen als Zyklus-Risiko (100 − Kauf-Score) für den Zyklus-Kompass
+export const RISK_ZONES = [[0, 25, 'Tief'], [25, 38, 'Günstig'], [38, 55, 'Neutral'], [55, 70, 'Erhitzt'], [70, 101, 'Überhitzt']];
+export const buyZone = (v) => BUY_ZONES.find(([min]) => v >= min);
+
+// Bausteine des Zyklus-Risikos, je 0–100
+export function riskParts({ mayer, twoYear, pi, dd, fng30 }) {
+  if (![mayer, twoYear, pi, dd, fng30].every(isNum)) return null;
+  const c = (v) => clamp(v, 0, 1) * 100;
+  return { mayer: c((mayer - 0.7) / (2.4 - 0.7)), twoYear: c(Math.log(twoYear) / Math.log(5)), pi: c((pi - 0.4) / 0.6), ath: c(1 + dd / 80), fng: fng30 };
+}
+export const riskValue = (parts) => (parts ? (parts.mayer + parts.twoYear + parts.pi + parts.ath + parts.fng) / 5 : null);
+
+// Kauf-Score aus den Bitcoin-Tageskursen (mindestens 730 Tage), dem Abstand zum Allzeithoch in % und Fear & Greed (30 Tage)
+export function buyScore(prices, dd, fng30) {
+  const n = prices?.length ?? 0;
+  if (n < 730) return null;
+  const mean = (k) => { let s = 0; for (let i = n - k; i < n; i++) s += prices[i]; return s / k; };
+  const p = prices[n - 1], s111 = mean(111), s200 = mean(200), s350 = mean(350), s730 = mean(730);
+  const raw = { mayer: p / s200, twoYear: p / s730, pi: s111 / (2 * s350), dd, fng30 };
+  const parts = riskParts(raw);
+  if (!parts) return null;
+  const value = Math.round(100 - riskValue(parts));
+  const [, signal, label] = buyZone(value);
+  return { value, signal, label, raw, parts };
 }
 
 // Ersatz, falls keine Bitcoin-Tageskurse geladen werden konnten
@@ -382,10 +413,9 @@ const toLog = (p) => Math.log(1 + Math.max(p, -95) / 100);
 function longSpan(cycle, btc, longScore) {
   if (!cycle) return null;
   const adj = btc || !isNum(longScore) ? 0 : curve(longScore * 100, LONG_ADJ);
-  const cycles = (btc ? cycle.btcCycles : cycle.altCycles).map((p) => fromLog(toLog(p) + adj));
-  // Auf Jahressicht gibt es nur die beiden Zyklen: Die Spanne reicht vom schwächeren zum stärkeren, die Mitte ist ihr Schnitt.
-  // Eine Trefferquote ließe sich daraus nicht belastbar ableiten.
-  return { ...span(365, (cycles[0] + cycles[1]) / 2, Math.min(...cycles), Math.max(...cycles)), cycles: cycles.map(Math.round), mixed: mixedCycles(cycles) };
+  // Auf Jahressicht zählt der mittlere Fall seit 2022; eine belastbare Spanne gibt es dafür nicht
+  const mid = fromLog(toLog(btc ? cycle.btcMedian : cycle.altMedian) + adj);
+  return { ...span(365, mid, mid, mid, btc ? cycle.btcUp : cycle.altUp), since: HISTORY_FROM };
 }
 
 // Erwartete Kursveränderung eines Coins: mittleres Ergebnis und übliche Spanne je Zeitraum
@@ -578,8 +608,7 @@ function assemble(c, short, medium, long, regime, volDaily, news) {
   const yearDown = forecast.long && !forecast.long.mixed && forecast.long.mid <= -5;
   if (signal === 'buy' && yearDown && !anticyclical) {
     if (hold === '1–3 Monate') hold = '2–4 Wochen';
-    const [first, second] = forecast.long.cycles;
-    notes.unshift(`Das Kaufsignal gilt für die nächsten Wochen, nicht zum langen Halten: Ein Jahr nach vergleichbaren Zyklus-Ständen lag das mittlere Ergebnis solcher Coins bei ${signed(first, 0)} % (${CYCLE_NAMES[0]}) und ${signed(second, 0)} % (${CYCLE_NAMES[1]}). Wer kauft, sollte nach der Haltedauer neu prüfen und bei einem Verkaufssignal aussteigen.`);
+    notes.unshift(`Das Kaufsignal gilt für die nächsten Wochen, nicht zum langen Halten: Ein Jahr nach vergleichbaren Zyklus-Ständen lag das mittlere Ergebnis solcher Coins seit 2022 bei ${signed(forecast.long.mid, 0)} %. Wer kauft, sollte nach der Haltedauer neu prüfen und bei einem Verkaufssignal aussteigen.`);
   }
   return { signal, label, score, stable: false, short, medium, long, regime, news: news ?? null, horizon: hold,
     anticyclical, scope: signal !== 'buy' ? null : anticyclical ? 'year' : yearDown ? 'weeks' : 'open',
@@ -789,19 +818,19 @@ export function marketIndex(coins, btcInd, fng, news) {
   parts.push(factor('Marktbreite', `${num(up7 * 100, 0)} % der Top 200 im Plus über 7 Tage, ${num(up30 * 100, 0)} % über 30 Tage`, clamp((up7 + up30 - 1) * 1.5), 0.2));
   if (news && news.score !== null) parts.push(factor('Nachrichtenlage', news.text, news.score, 0.1));
 
-  let value = Math.round(50 + 50 * combine(parts));
+  // Markt-Wetter: die Stimmung der nächsten Wochen aus Marktphase, Marktbreite und Nachrichten (0 = Sturm, 100 = Sonne).
+  // Es beschreibt, wie es dem Markt gerade geht – nicht, ob sich ein Kauf lohnt. Dafür steht der Kauf-Score.
+  let mood = Math.round(50 + 50 * combine(parts));
   if (greedZone(regime)) {
-    // Der Index darf nicht „Kaufen“ sagen, während die Gier-Bremse alle Kaufsignale sperrt
-    value = Math.min(value, 56);
-    parts.push(factor('Gier-Bremse', `Fear & Greed im 7-Tage-Schnitt bei ${num(regime.fng.avg7, 0)} – nach solchen Phasen fielen die meisten Coins; der Index bleibt höchstens bei „Halten“`, -1, 0));
+    mood = Math.min(mood, 56);
+    parts.push(factor('Gier-Bremse', `Fear & Greed im 7-Tage-Schnitt bei ${num(regime.fng.avg7, 0)} – nach solchen Phasen fielen die meisten Coins; das Wetter bleibt höchstens „bewölkt“`, -1, 0));
   }
-  let signal, label;
-  if (value >= 68) [signal, label] = ['buy', 'Kaufen'];
-  else if (value >= 57) [signal, label] = ['buy', 'Eher kaufen'];
-  else if (value <= 32) [signal, label] = ['sell', 'Verkaufen'];
-  else if (value <= 43) [signal, label] = ['sell', 'Eher verkaufen'];
-  else [signal, label] = ['hold', 'Halten'];
-  return { value, signal, label, parts, regime, cycle, forecast: marketForecast(regime, cycle) };
+  const sky = mood < 30 ? 0 : mood < 45 ? 1 : mood < 55 ? 2 : mood < 70 ? 3 : 4;
+  // Kauf-Score: antizyklisch aus dem Zyklus – Regenwetter und Angst heben ihn, Sonne und Gier senken ihn
+  const buy = btcInd ? buyScore(btcInd.prices, cycle?.dd, regime.fng?.days >= 20 ? regime.fng.avg30 : null) : null;
+  // Ohne lange Bitcoin-Geschichte (Binance nicht erreichbar) bleibt nur das Wetter – dann ohne Kaufaussage
+  const [value, signal, label] = buy ? [buy.value, buy.signal, buy.label] : [mood, 'hold', 'Halten'];
+  return { value, signal, label, buy, mood: { value: mood, sky, parts }, parts, regime, cycle, forecast: marketForecast(regime, cycle) };
 }
 
 // ---------- Nachrichten ----------

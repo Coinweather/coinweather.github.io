@@ -1,6 +1,6 @@
 <!doctype html>
 <!-- Einbettbares Krypto-Wetter für fremde Webseiten: <iframe src="https://coinweather.github.io/widget.html?lang=de" ...>
-     Lädt die kleine Schnellstart-Datei (lite.json), zeigt Wetterlage, Markt-Index, Fear & Greed und Bitcoin und verlinkt auf Coinweather. -->
+     Lädt die kleine Schnellstart-Datei (lite.json), zeigt Wetterlage, Kauf-Score, Fear & Greed und Bitcoin und verlinkt auf Coinweather. -->
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Coinweather – crypto weather widget</title><meta name="robots" content="noindex">
 <style>
@@ -22,13 +22,13 @@
 <script>
   const q = new URLSearchParams(location.search);
   const T = {
-    en: ['Crypto weather today', ['Stormy', 'Rainy', 'Cloudy', 'Partly cloudy', 'Sunny'], 'Market index', 'Fear & Greed', { 'Kaufen': 'Buy', 'Eher kaufen': 'Lean buy', 'Halten': 'Hold', 'Eher verkaufen': 'Lean sell', 'Verkaufen': 'Sell' }, 'by', 'en-US'],
-    de: ['Das Krypto-Wetter heute', ['Stürmisch', 'Regnerisch', 'Bewölkt', 'Heiter bis wolkig', 'Sonnig'], 'Markt-Index', 'Fear & Greed', { 'Kaufen': 'Kaufen', 'Eher kaufen': 'Eher kaufen', 'Halten': 'Halten', 'Eher verkaufen': 'Eher verkaufen', 'Verkaufen': 'Verkaufen' }, 'von', 'de-CH'],
-    es: ['El tiempo cripto hoy', ['Tormentoso', 'Lluvioso', 'Nublado', 'Parcialmente nublado', 'Soleado'], 'Índice de mercado', 'Fear & Greed', { 'Kaufen': 'Comprar', 'Eher kaufen': 'Más bien comprar', 'Halten': 'Mantener', 'Eher verkaufen': 'Más bien vender', 'Verkaufen': 'Vender' }, 'por', 'es-ES'],
-    fr: ['La météo crypto du jour', ['Orageux', 'Pluvieux', 'Nuageux', 'Éclaircies', 'Ensoleillé'], 'Indice de marché', 'Fear & Greed', { 'Kaufen': 'Acheter', 'Eher kaufen': 'Plutôt acheter', 'Halten': 'Conserver', 'Eher verkaufen': 'Plutôt vendre', 'Verkaufen': 'Vendre' }, 'par', 'fr-FR'],
-    it: ['Il meteo crypto di oggi', ['Tempestoso', 'Piovoso', 'Nuvoloso', 'Poco nuvoloso', 'Soleggiato'], 'Indice di mercato', 'Fear & Greed', { 'Kaufen': 'Comprare', 'Eher kaufen': 'Piuttosto comprare', 'Halten': 'Mantenere', 'Eher verkaufen': 'Piuttosto vendere', 'Verkaufen': 'Vendere' }, 'di', 'it-IT'],
-    pt: ['A previsão cripto de hoje', ['Tempestuoso', 'Chuvoso', 'Nublado', 'Parcialmente nublado', 'Ensolarado'], 'Índice de mercado', 'Fear & Greed', { 'Kaufen': 'Comprar', 'Eher kaufen': 'Tendência de compra', 'Halten': 'Manter', 'Eher verkaufen': 'Tendência de venda', 'Verkaufen': 'Vender' }, 'por', 'pt-BR'],
-    tr: ['Bugünün kripto hava durumu', ['Fırtınalı', 'Yağmurlu', 'Bulutlu', 'Parçalı bulutlu', 'Güneşli'], 'Piyasa endeksi', 'Korku ve Açgözlülük', { 'Kaufen': 'Al', 'Eher kaufen': 'Almaya yakın', 'Halten': 'Tut', 'Eher verkaufen': 'Satmaya yakın', 'Verkaufen': 'Sat' }, '', 'tr-TR'],
+    en: ['Crypto weather today', ['Stormy', 'Rainy', 'Cloudy', 'Partly cloudy', 'Sunny'], 'Buy score', 'Fear & Greed', { 'Kaufen': 'Buy', 'Eher kaufen': 'Lean buy', 'Halten': 'Hold', 'Eher verkaufen': 'Lean sell', 'Verkaufen': 'Sell' }, 'by', 'en-US'],
+    de: ['Das Krypto-Wetter heute', ['Stürmisch', 'Regnerisch', 'Bewölkt', 'Heiter bis wolkig', 'Sonnig'], 'Kauf-Score', 'Fear & Greed', { 'Kaufen': 'Kaufen', 'Eher kaufen': 'Eher kaufen', 'Halten': 'Halten', 'Eher verkaufen': 'Eher verkaufen', 'Verkaufen': 'Verkaufen' }, 'von', 'de-CH'],
+    es: ['El tiempo cripto hoy', ['Tormentoso', 'Lluvioso', 'Nublado', 'Parcialmente nublado', 'Soleado'], 'Puntuación de compra', 'Fear & Greed', { 'Kaufen': 'Comprar', 'Eher kaufen': 'Más bien comprar', 'Halten': 'Mantener', 'Eher verkaufen': 'Más bien vender', 'Verkaufen': 'Vender' }, 'por', 'es-ES'],
+    fr: ['La météo crypto du jour', ['Orageux', 'Pluvieux', 'Nuageux', 'Éclaircies', 'Ensoleillé'], 'Score d’achat', 'Fear & Greed', { 'Kaufen': 'Acheter', 'Eher kaufen': 'Plutôt acheter', 'Halten': 'Conserver', 'Eher verkaufen': 'Plutôt vendre', 'Verkaufen': 'Vendre' }, 'par', 'fr-FR'],
+    it: ['Il meteo crypto di oggi', ['Tempestoso', 'Piovoso', 'Nuvoloso', 'Poco nuvoloso', 'Soleggiato'], 'Punteggio di acquisto', 'Fear & Greed', { 'Kaufen': 'Comprare', 'Eher kaufen': 'Piuttosto comprare', 'Halten': 'Mantenere', 'Eher verkaufen': 'Piuttosto vendere', 'Verkaufen': 'Vendere' }, 'di', 'it-IT'],
+    pt: ['A previsão cripto de hoje', ['Tempestuoso', 'Chuvoso', 'Nublado', 'Parcialmente nublado', 'Ensolarado'], 'Pontuação de compra', 'Fear & Greed', { 'Kaufen': 'Comprar', 'Eher kaufen': 'Tendência de compra', 'Halten': 'Manter', 'Eher verkaufen': 'Tendência de venda', 'Verkaufen': 'Vender' }, 'por', 'pt-BR'],
+    tr: ['Bugünün kripto hava durumu', ['Fırtınalı', 'Yağmurlu', 'Bulutlu', 'Parçalı bulutlu', 'Güneşli'], 'Alım skoru', 'Korku ve Açgözlülük', { 'Kaufen': 'Al', 'Eher kaufen': 'Almaya yakın', 'Halten': 'Tut', 'Eher verkaufen': 'Satmaya yakın', 'Verkaufen': 'Sat' }, '', 'tr-TR'],
   };
   const lang = T[q.get('lang')] ? q.get('lang') : 'en', L = T[lang];
   if (q.get('theme') === 'light') document.documentElement.classList.add('light');
@@ -40,7 +40,8 @@
   document.getElementById('t').textContent = L[0];
   document.getElementById('by').innerHTML = `${L[5]} <b>Coinweather</b>`;
   fetch('https://raw.githubusercontent.com/Coinweather/coinweather.github.io/data/lite.json?t=' + Math.floor(Date.now() / 900000)).then((r) => r.json()).then((s) => {
-    const v = s.market.value, k = v < 30 ? 0 : v < 45 ? 1 : v < 55 ? 2 : v < 70 ? 3 : 4;
+    // Wetter = Stimmung (Markt-Wetter), Kauf-Score = antizyklisch aus dem Zyklus
+    const v = s.market.value, w = s.market.mood?.value ?? v, k = w < 30 ? 0 : w < 45 ? 1 : w < 55 ? 2 : w < 70 ? 3 : 4;
     const btc = s.coins.find((c) => c.id === 'bitcoin'), d = btc?.price_change_percentage_24h_in_currency ?? 0;
     const num = (x, f) => x.toLocaleString(L[6], f);
     document.getElementById('sky').textContent = ['⛈️', '🌧️', '☁️', '🌤️', '☀️'][k];

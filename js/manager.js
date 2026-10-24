@@ -30,6 +30,9 @@ export const DEFAULTS = {
   pairSwaps: true,        // Verkäufe und Käufe als Tausch vorschlagen
   coreFill: true,         // tief im Zyklus Bitcoin und Ethereum auch ohne Kaufsignal aufstocken
   coreFillDd: CORE_DD,    // ab diesem Abstand zum Allzeithoch gilt der Markt als tief im Zyklus
+  // Geprüft (Oktober 2026, 7 Starttage): Bitcoin und Ethereum zusätzlich ab einem Kauf-Score von 62 aufstocken brachte
+  // 71 % statt 73 % pro Jahr (seit 2022: 39 % statt 43 %), ab 75 gleich viel – der Zyklus-Kern greift ohnehin. Deshalb aus.
+  coreFillBuy: null,      // ab diesem Kauf-Score ebenfalls tief im Zyklus (null = aus)
   profitRepeat: 1.3,      // erneute Gewinnmitnahme erst, wenn der Kurs seit der letzten um 30 % gestiegen ist
   // Fear & Greed verschiebt die Investitionsquote (siehe fngTilt), Angaben als Anteil des Portfolios:
   fearTilt: 0.5,          // so viel mehr investieren nach langer Angst tief im Zyklus
@@ -193,7 +196,7 @@ export function plan({ holdings, cash = 0, candidates = [], core = [], regime, o
   const dd = regime?.cycle?.dd;
   const suggested = suggestedExposure(regime, o);
   // Tief im Zyklus: Bitcoin und Ethereum werden gehalten und aufgestockt, auch wenn der kurzfristige Trend negativ ist
-  const cheap = o.coreFill && Number.isFinite(dd) && dd <= o.coreFillDd;
+  const cheap = o.coreFill && ((Number.isFinite(dd) && dd <= o.coreFillDd) || (o.coreFillBuy !== null && regime?.buy >= o.coreFillBuy));
   const exposure = Number.isFinite(o.investShare)
     ? { share: Math.min(1, Math.max(0, o.investShare)), custom: true,
       text: `Du hast eine Reserve von ${Math.round((1 - o.investShare) * 100)} % gewählt (Vorschlag: ${Math.round((1 - suggested.share) * 100)} %).` }

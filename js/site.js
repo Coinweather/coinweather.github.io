@@ -37,7 +37,7 @@ function landing(signedIn) {
     </div>
     <ul class="intro-points">
       <li><strong>Signale mit Trefferquote</strong><span>Zu jedem Signal steht, wie oft vergleichbare Fälle im Plus endeten.</span></li>
-      <li><strong>Großwetterlage</strong><span>Markt-Index, Fear &amp; Greed und Zyklus – wann das Modell kauft und wann es abwartet.</span></li>
+      <li><strong>Großwetterlage</strong><span>Kauf-Score, Fear &amp; Greed und Zyklus – wann das Modell kauft und wann es abwartet.</span></li>
       <li><strong>Portfolio und Daytrading</strong><span>Im Paket ${esc(SITE.plans.full.name)}: dein Bestand mit Wertentwicklung, Reserve-Ziel und Modell-Schritten, dazu geprüfte Handelsmuster.</span></li>
       <li><strong>Zyklus-Kompass</strong><span>Zyklus-Risiko, Altcoin-Saison, Pi-Cycle und mehr – jeweils mit Rückblick, wie oft Bitcoin danach höher stand.</span></li>
       <li><strong>Modell-Portfolio und Sparplan-Rechner</strong><span>Was der Portfolio-Manager gerade hält – und was ein Sparplan mit ihm gebracht hätte.</span></li>
@@ -65,7 +65,7 @@ export function upsell(kind) {
 // ---------- Preise: zugleich die Seite, die ohne Abo überall erscheint ----------
 
 const FAQ = [
-  [`Was ist der Unterschied zwischen ${STD} und ${FULL}?`, `${STD} zeigt den Markt: Markt-Index, Signale und Aussicht für alle 1000 Coins, die stärksten Kaufsignale und die Detailansichten. ${FULL} enthält zusätzlich das Portfolio mit Wertentwicklung, Reserve-Ziel und Modell-Schritten sowie die Daytrading-Muster.`],
+  [`Was ist der Unterschied zwischen ${STD} und ${FULL}?`, `${STD} zeigt den Markt: Kauf-Score, Signale und Aussicht für alle 1000 Coins, die stärksten Kaufsignale und die Detailansichten. ${FULL} enthält zusätzlich das Portfolio mit Wertentwicklung, Reserve-Ziel und Modell-Schritten sowie die Daytrading-Muster.`],
   ['Gibt es eine kostenlose Version oder eine Testzeit?', SITE.trialDays > 0
     ? `Ja: Mit einem neuen Konto kannst du ${SITE.trialDays} Tage lang alle Funktionen kostenlos testen, ohne Zahlungsdaten. Danach endet der Zugang von selbst; ein Abo schließt du nur ab, wenn du ein Paket wählst.`
     : 'Nein. Dafür ist das Abo monatlich kündbar, und du kannst den Kauf 14 Tage lang widerrufen.'],
@@ -120,7 +120,7 @@ export function pricingView(el, { access, user, record }) {
         <p class="hint">Zwei Pakete, monatliche Abrechnung, jederzeit zum Monatsende kündbar.</p></div></div>
       ${status}
       <div class="plans">
-        ${card('standard', false, 'Der Markt im Überblick.', ['Markt-Index „Jetzt kaufen?“, Fear &amp; Greed und Zyklus',
+        ${card('standard', false, 'Der Markt im Überblick.', ['Kauf-Score „Jetzt kaufen?“, Fear &amp; Greed und Zyklus',
           'Signale und Aussicht für alle 1000 Coins', 'Die stärksten Kaufsignale auf einen Blick', 'Detailansicht mit Score-Bausteinen und Rückblick',
           'Zyklus-Kompass mit Verläufen und Rückblick', 'Favoriten'])}
         ${card('full', true, 'Der Markt, dein Portfolio und Daytrading.', [`Alles aus ${esc(STD)}`, 'Portfolio mit Wertentwicklung und Vergleich zu Bitcoin',

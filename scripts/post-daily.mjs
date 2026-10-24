@@ -114,20 +114,20 @@ const fc = market.forecast;
 
 const T = {
   en: {
-    title: 'Crypto weather', index: 'Market index', fng: 'Fear & Greed', week: '7 days ago', cycle: 'Cycle', btc: 'Bitcoin',
-    signals: (n, of) => `${n} of ${of} rated coins with a buy signal`, note: 'Probabilities, not promises. Not financial advice.',
+    title: 'Crypto weather', index: 'Buy score', weather: 'Weather', sky: ['Stormy', 'Rainy', 'Cloudy', 'Partly cloudy', 'Sunny'], fng: 'Fear & Greed', week: '7 days ago', cycle: 'Cycle', btc: 'Bitcoin',
+    signals: (n, of) => `${n} of ${of} rated coins with a short-term buy signal`, note: 'Probabilities, not promises. Not financial advice.',
     cta: 'Full picture – 30 days free', bio: 'Link in bio', locale: 'en-US', tags: '#Bitcoin #Crypto #FearAndGreed #CryptoMarket',
     label: { 'Kaufen': 'Buy', 'Eher kaufen': 'Lean buy', 'Halten': 'Hold', 'Eher verkaufen': 'Lean sell', 'Verkaufen': 'Sell' },
     zone: { deep: 'deep in the cycle', low: 'lower third of the cycle', mid: 'middle of the cycle', high: 'near the high' },
-    mood: ['extreme fear', 'fear', 'neutral', 'greed', 'extreme greed'], alt: 'Crypto weather report: market index, Fear & Greed, Bitcoin and cycle',
+    mood: ['extreme fear', 'fear', 'neutral', 'greed', 'extreme greed'], alt: 'Crypto weather report: buy score, Fear & Greed, Bitcoin and market weather',
   },
   de: {
-    title: 'Krypto-Wetter', index: 'Markt-Index', fng: 'Fear & Greed', week: 'vor 7 Tagen', cycle: 'Zyklus', btc: 'Bitcoin',
-    signals: (n, of) => `${n} von ${of} bewerteten Coins mit Kaufsignal`, note: 'Wahrscheinlichkeiten, keine Versprechen. Keine Anlageberatung.',
+    title: 'Krypto-Wetter', index: 'Kauf-Score', weather: 'Wetter', sky: ['Stürmisch', 'Regnerisch', 'Bewölkt', 'Heiter bis wolkig', 'Sonnig'], fng: 'Fear & Greed', week: 'vor 7 Tagen', cycle: 'Zyklus', btc: 'Bitcoin',
+    signals: (n, of) => `${n} von ${of} bewerteten Coins mit Kaufsignal für die nächsten Wochen`, note: 'Wahrscheinlichkeiten, keine Versprechen. Keine Anlageberatung.',
     cta: 'Alles im Detail – 30 Tage kostenlos', bio: 'Link in der Bio', locale: 'de-CH', tags: '#Bitcoin #Krypto #Crypto #FearAndGreed',
     label: { 'Kaufen': 'Kaufen', 'Eher kaufen': 'Eher kaufen', 'Halten': 'Halten', 'Eher verkaufen': 'Eher verkaufen', 'Verkaufen': 'Verkaufen' },
     zone: { deep: 'tief im Zyklus', low: 'unteres Drittel des Zyklus', mid: 'Mitte des Zyklus', high: 'nahe am Hoch' },
-    mood: ['extreme Angst', 'Angst', 'neutral', 'Gier', 'extreme Gier'], alt: 'Krypto-Wetterbericht: Markt-Index, Fear & Greed, Bitcoin und Zyklus',
+    mood: ['extreme Angst', 'Angst', 'neutral', 'Gier', 'extreme Gier'], alt: 'Krypto-Wetterbericht: Kauf-Score, Fear & Greed, Bitcoin und Markt-Wetter',
   },
 }[lang];
 
@@ -140,8 +140,16 @@ const day = new Date(snap.time).toLocaleDateString(T.locale, { day: 'numeric', m
 const link = (channel) => `${SITE}?von=${channel}`;
 const daily = Math.floor(snap.time / 86_400_000);   // wechselt täglich: Aufhänger und Frage
 
+// Das Wetter zeigt die Stimmung (Markt-Wetter), der Kauf-Score ist antizyklisch: bei Regen und günstigem Zyklus hoch
+const moodV = market.mood?.value ?? market.value, skyI = moodV < 30 ? 0 : moodV < 45 ? 1 : moodV < 55 ? 2 : moodV < 70 ? 3 : 4;
+const TIP = {
+  en: { rain: '☔ Rain is buying weather: the mood is poor, but the cycle is cheap.', sun: '🌡️ Sunshine is expensive: the mood is great, but the cycle is hot.' },
+  de: { rain: '☔ Regen ist Kaufwetter: Die Stimmung ist schlecht, der Zyklus aber günstig.', sun: '🌡️ Sonne ist teuer: Die Stimmung ist gut, der Zyklus aber heiß.' },
+}[lang];
 const R = {
-  icon: weather(market.value),
+  icon: weather(moodV),
+  sky: T.sky[skyI],
+  tip: market.buy && skyI <= 1 && market.value >= 62 ? TIP.rain : market.buy && skyI >= 3 && market.value < 45 ? TIP.sun : null,
   label: T.label[market.label] ?? market.label,
   index: `${T.index}: ${market.value}/100 – ${T.label[market.label] ?? market.label}`,
   fng: fng ? `${T.fng}: ${fng.value} – ${mood(fng.value)}${Number.isFinite(fng.week) ? ` (${T.week}: ${fng.week})` : ''}` : null,
@@ -149,7 +157,7 @@ const R = {
   cycle: market.cycle ? `${T.cycle}: ${T.zone[market.cycle.zone] ?? market.cycle.label}` : null,
   signals: T.signals(buys, rated),
 };
-const body = [R.index, R.fng, R.btc, R.cycle, R.signals].filter(Boolean);
+const body = [`${T.weather}: ${R.sky}`, R.index, R.fng, R.btc, R.cycle, R.signals].filter(Boolean);
 
 // Größte Bewegungen der 100 größten Coins in 24 Stunden – Beobachtungen, keine Empfehlungen; Stablecoins zählen nicht
 const movers = coins.filter((c) => c.market_cap_rank <= 100 && c.analysis?.signal !== 'none' && !c.analysis?.stable
@@ -214,9 +222,9 @@ const xLength = (t) => [...new Intl.Segmenter('en', { granularity: 'grapheme' })
   return n + ((c <= 4351) || (c >= 8192 && c <= 8205) || (c >= 8208 && c <= 8223) || (c >= 8242 && c <= 8247) ? 1 : 2);
 }, 0);
 const XT = {
-  en: { index: 'Market index', fng: 'Fear & Greed', week: 'last week', top: 'Top gainer', vote: 'Your move today? Vote 👇',
+  en: { index: 'Buy score', fng: 'Fear & Greed', week: 'last week', top: 'Top gainer', vote: 'Your move today? Vote 👇',
     foot: 'Full picture: link in bio · Not financial advice', poll: ['🟢 Buying', '🟡 Holding', '🔴 Selling', '👀 Just watching'] },
-  de: { index: 'Markt-Index', fng: 'Fear & Greed', week: 'letzte Woche', top: 'Top-Gewinner', vote: 'Was machst du heute? Stimm ab 👇',
+  de: { index: 'Kauf-Score', fng: 'Fear & Greed', week: 'letzte Woche', top: 'Top-Gewinner', vote: 'Was machst du heute? Stimm ab 👇',
     foot: 'Alles im Detail: Link im Profil · Keine Anlageberatung', poll: ['🟢 Ich kaufe', '🟡 Ich halte', '🔴 Ich verkaufe', '👀 Ich schaue zu'] },
 }[lang];
 const moodIcon = (v) => (v < 25 ? '😱' : v < 45 ? '😨' : v <= 55 ? '😐' : v <= 75 ? '😏' : '🔥');
@@ -226,11 +234,10 @@ const btcLine = btc ? `₿ Bitcoin: $${fmt(btc.current_price)} (${signed(btc.pri
 // Zyklus-Kompass (beim Veröffentlichen der Seite berechnet): Zyklus-Risiko und Altcoin-Saison als zusätzliche Zeile
 const compass = await fetch(`${SITE}data/indices.json?t=${Date.now()}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
 const compassLine = (() => {
-  if (!compass?.risk) return null;
-  const v = compass.risk.value, s = compass.altseason?.value;
-  const lab = { en: ['deep', 'cheap', 'neutral', 'heated', 'overheated'], de: ['tief', 'günstig', 'neutral', 'erhitzt', 'überhitzt'] }[lang][v < 20 ? 0 : v < 40 ? 1 : v < 60 ? 2 : v < 80 ? 3 : 4];
-  return lang === 'de' ? `🧭 Zyklus-Risiko: ${v}/100 (${lab})${Number.isFinite(s) ? ` · Altcoin-Saison: ${s}/100` : ''}`
-    : `🧭 Cycle risk: ${v}/100 (${lab})${Number.isFinite(s) ? ` · Altcoin season: ${s}/100` : ''}`;
+  // Das Zyklus-Risiko steckt bereits im Kauf-Score (100 − Zyklus-Risiko) – hier nur, was er nicht zeigt
+  const s = compass?.altseason?.value;
+  if (!Number.isFinite(s)) return null;
+  return lang === 'de' ? `🧭 Altcoin-Saison: ${s}/100` : `🧭 Altcoin season: ${s}/100`;
 })();
 
 function richX() {
@@ -238,6 +245,7 @@ function richX() {
     `${R.icon} ${hook}`, '',
     `📊 ${XT.index}: ${market.value}/100 · ${R.label}`,
     withBar ? bar(market.value) : null,
+    withCompass ? R.tip : null,
     fngLine(XT.week),
     btcLine,
     withCompass ? compassLine : null,
@@ -252,7 +260,7 @@ function richX() {
 // Länge kostet dort nichts. Die Einordnung nennt eine Häufigkeit aus den Tests seit 2018 – ausdrücklich keine Zusage.
 const M = {
   en: {
-    top: 'Top gainer (top 100)', flop: 'Biggest drop (top 100)', movesHead: 'Biggest moves of the top 100 in 24 h:', obs: 'Observations, not recommendations.', cycle: 'Cycle', signals: (n, of) => `Buy signals: ${n} of ${of} coins`,
+    top: 'Top gainer (top 100)', flop: 'Biggest drop (top 100)', movesHead: 'Biggest moves of the top 100 in 24 h:', obs: 'Observations, not recommendations.', cycle: 'Cycle', signals: (n, of) => `Short-term buy signals: ${n} of ${of} coins`,
     odds: (up, days) => `📈 After comparable market days since 2018, Bitcoin was higher ${days} days later in ${up} of 100 cases – a tendency, not a promise.`,
     more: { facebook: '📸 More in the photos: the outlook and today’s top movers.', instagram: '👉 Swipe for the outlook and today’s top movers.' },
     vote: 'Comment your move: 🟢 buying · 🟡 holding · 🔴 selling',
@@ -261,7 +269,7 @@ const M = {
     follow: { facebook: '🔔 Follow the page for your crypto weather every morning.', instagram: '🔔 Follow for your crypto weather every morning.' },
   },
   de: {
-    top: 'Top-Gewinner (Top 100)', flop: 'Größter Verlierer (Top 100)', movesHead: 'Größte Bewegungen der Top 100 in 24 h:', obs: 'Beobachtungen, keine Empfehlungen.', cycle: 'Zyklus', signals: (n, of) => `Kaufsignale: ${n} von ${of} Coins`,
+    top: 'Top-Gewinner (Top 100)', flop: 'Größter Verlierer (Top 100)', movesHead: 'Größte Bewegungen der Top 100 in 24 h:', obs: 'Beobachtungen, keine Empfehlungen.', cycle: 'Zyklus', signals: (n, of) => `Kaufsignale für die nächsten Wochen: ${n} von ${of} Coins`,
     odds: (up, days) => `📈 Nach vergleichbaren Markttagen seit 2018 stand Bitcoin ${days} Tage später in ${up} von 100 Fällen höher – eine Tendenz, kein Versprechen.`,
     more: { facebook: '📸 Mehr auf den Bildern: die Aussicht und die größten Bewegungen des Tages.', instagram: '👉 Wischen für die Aussicht und die größten Bewegungen des Tages.' },
     vote: 'Schreib in die Kommentare: 🟢 ich kaufe · 🟡 ich halte · 🔴 ich verkaufe',
@@ -279,8 +287,10 @@ function rich(channel, reel = false) {
       loser ? `🧊 ${M.flop}: ${loser.symbol.toUpperCase()} ${signed(loser.price_change_percentage_24h_in_currency)}` : null];
   return [
     `${R.icon} ${hook}`, `🗓️ ${T.title} · ${day}`, '',
+    `${R.icon} ${T.weather}: ${R.sky}`,
     `📊 ${XT.index}: ${market.value}/100 · ${R.label}`,
     bar(market.value),
+    R.tip,
     fngLine(XT.week),
     btcLine,
     market.cycle ? `🔁 ${M.cycle}: ${T.zone[market.cycle.zone] ?? market.cycle.label}` : null,
@@ -315,7 +325,7 @@ const S = {
     days: (n) => `${n} days`, btcRow: 'Bitcoin', altRow: 'Average coin', btcHint: 'the market leader', altHint: 'a typical altcoin',
     coin: '50 % = coin flip. Above 50: more often up than down.', tendency: 'A tendency from past data – not a guarantee.',
     movers: 'Top movers · 24h', moversSub: 'The 100 largest coins by market cap', gainers: 'Gainers', losers: 'Losers',
-    obs: 'Observations, not recommendations.', signals: 'Buy signals', signalsVal: (n, of) => `${n} of ${of} coins`,
+    obs: 'Observations, not recommendations.', signals: 'Short-term signals', signalsVal: (n, of) => `${n} of ${of} coins`,
     ctaTitle: 'Want the full picture?', bullets: ['Signals for 1,000 coins', 'Outlook for 7 days, 30 days and 12 months',
       'Portfolio check with a reserve target', 'Open track record – including the bad calls'],
     free: '30 days free', nopay: 'No payment details needed', bio: 'Link in bio', follow: 'Follow for your crypto weather every morning',
@@ -325,7 +335,7 @@ const S = {
     days: (n) => `${n} Tage`, btcRow: 'Bitcoin', altRow: 'Mittlerer Coin', btcHint: 'die Leitwährung', altHint: 'ein typischer Altcoin',
     coin: '50 % = Münzwurf. Über 50: öfter rauf als runter.', tendency: 'Eine Tendenz aus vergangenen Daten – keine Garantie.',
     movers: 'Größte Bewegungen · 24 h', moversSub: 'Die 100 größten Coins nach Marktwert', gainers: 'Gewinner', losers: 'Verlierer',
-    obs: 'Beobachtungen, keine Empfehlungen.', signals: 'Kaufsignale', signalsVal: (n, of) => `${n} von ${of} Coins`,
+    obs: 'Beobachtungen, keine Empfehlungen.', signals: 'Signale (Wochen)', signalsVal: (n, of) => `${n} von ${of} Coins`,
     ctaTitle: 'Alles im Detail?', bullets: ['Signale für 1000 Coins', 'Aussicht für 7 Tage, 30 Tage und 12 Monate',
       'Portfolio-Check mit Reserve-Ziel', 'Offene Erfolgskontrolle – auch die Fehlgriffe'],
     free: '30 Tage kostenlos', nopay: 'Ohne Zahlungsdaten', bio: 'Link in der Bio', follow: 'Folge uns für dein Krypto-Wetter jeden Morgen',
@@ -354,8 +364,8 @@ const upColor = (p) => (p >= 55 ? C.up : p <= 45 ? C.down : C.text);
 
 function slideWeather() {
   const v = market.value;
-  const accent = v < 45 ? C.rain : v < 55 ? C.muted : C.sun;
-  const sky = v < 30 ? 'storm' : v < 45 ? 'rain' : v < 55 ? 'cloud' : v < 70 ? 'partly' : 'sun';
+  const accent = v >= 62 ? C.up : v < 45 ? C.down : C.sun;
+  const sky = ['storm', 'rain', 'cloud', 'partly', 'sun'][skyI];
   const sun = `<circle cx="0" cy="0" r="70" fill="${C.sun}"/>`;
   const cloud = (fill) => `<g fill="${fill}"><circle cx="-40" cy="20" r="50"/><circle cx="20" cy="0" r="65"/><circle cx="80" cy="25" r="45"/><rect x="-90" y="20" width="215" height="50" rx="25"/></g>`;
   const drops = `<g stroke="${C.rain}" stroke-width="10" stroke-linecap="round"><line x1="-40" y1="95" x2="-50" y2="125"/><line x1="10" y1="95" x2="0" y2="125"/><line x1="60" y1="95" x2="50" y2="125"/></g>`;
@@ -371,9 +381,9 @@ function slideWeather() {
     <text x="90" y="685" font-size="60" fill="${C.text}" font-weight="700">${esc(R.label)}</text>
     ${gaugeBar(90, 725, 900, 26, v, accent)}
     <line x1="90" y1="805" x2="990" y2="805" stroke="${C.line}" stroke-width="2"/>
-    ${fng ? row(880, T.fng, `${fng.value} – ${mood(fng.value)}`) : ''}
-    ${btc ? row(955, T.btc, `$${fmt(btc.current_price)} (${signed(b24)})`, b24 > 0 ? C.up : b24 < 0 ? C.down : C.text) : ''}
-    ${market.cycle ? row(1030, T.cycle, T.zone[market.cycle.zone] ?? market.cycle.label) : ''}
+    ${row(880, T.weather, R.sky)}
+    ${fng ? row(955, T.fng, `${fng.value} – ${mood(fng.value)}`) : ''}
+    ${btc ? row(1030, T.btc, `$${fmt(btc.current_price)} (${signed(b24)})`, b24 > 0 ? C.up : b24 < 0 ? C.down : C.text) : ''}
     ${row(1105, S.signals, S.signalsVal(buys, rated))}`);
 }
 
