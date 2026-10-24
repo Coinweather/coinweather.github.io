@@ -42,7 +42,7 @@ export async function fearGreed() {
   return new Map(json.data.map((x) => [Math.floor(Number(x.timestamp) / 86400), Number(x.value)]));
 }
 
-export async function buildCurve({ offset = 0, options = {} } = {}) {
+export async function buildCurve({ offset = 0, options = {}, coinScore = null } = {}) {
   const data = {};
   for (let i = 0; i < COINS.length; i += 6) {
     await Promise.all(COINS.slice(i, i + 6).map(async (s) => { try { const d = await klines(s); if (d) data[s] = d; } catch { /* Coin fehlt dann */ } }));
@@ -80,7 +80,7 @@ export async function buildCurve({ offset = 0, options = {} } = {}) {
     for (const s of syms) {
       const i = IDX[s].get(day); if (i === undefined || i < 200) continue;
       const x = m.scoreAt(I[s], i); const raw = m.totalScore(x.short, x.medium, x.long, R); if (raw === null) continue;
-      const score = Math.round(raw * 100), v = vol30(I[s], i);
+      const score = coinScore ? coinScore(raw, R) : Math.round(raw * 100), v = vol30(I[s], i);
       const [signal] = m.signalOf(score);
       A[s] = { price: I[s].prices[i], analysis: { score, signal, long: x.long, risk: { level: v < 2.5 ? 0 : v < 5 ? 1 : v < 9 ? 2 : 3 }, horizon: '2–4 Wochen', stable: false } };
     }

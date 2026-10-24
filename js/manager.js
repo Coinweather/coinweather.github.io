@@ -37,6 +37,11 @@ export const DEFAULTS = {
   // Fear & Greed verschiebt die Investitionsquote (siehe fngTilt), Angaben als Anteil des Portfolios:
   fearTilt: 0.5,          // so viel mehr investieren nach langer Angst tief im Zyklus
   greedTilt: 0,           // so viel weniger investieren bei extremer Gier nahe am Allzeithoch
+  // Kauf-Score als Zu- oder Abschlag (nur Strategie „Antizyklisch“, siehe buyTiltOf):
+  buyTilt: 0,             // so viel mehr investieren, wenn der Kauf-Score von buyTiltFrom bis buyTiltFull steigt
+  buyTiltFrom: 75, buyTiltFull: 90,
+  buyCutBelow: null,      // unter diesem Kauf-Score …
+  buyCut: 0,              // … so viel weniger investieren
 };
 
 const CORE = CORE_IDS;
@@ -52,7 +57,8 @@ export const adjusted = (a) => (a.score ?? 0) * RISK_WEIGHT[a.risk?.level ?? 2];
 // Bärenmarkt gilt eine Obergrenze. Dazu kommt der Fear-&-Greed-Index als Zu- oder Abschlag (fngTilt).
 //
 // Rückrechnung mit 0,25 % Gebühr, wöchentliche Prüfung, 84 Coins, 2018–2026, Mittel aus 7 Starttagen
-// (pro Jahr / größter zwischenzeitlicher Rückgang; in Klammern 2018–22 und 2022–26):
+// (pro Jahr / größter zwischenzeitlicher Rückgang; in Klammern 2018–22 und 2022–26; Stand vor Oktober 2026 –
+// die aktuellen Werte stehen in RESERVE_BACKTEST, gerechnet mit scripts/model-curve.mjs):
 //   Mit dem Trend + Angst-Käufe (Standard)        +86 % / −40 %   (+115 % / +61 %)
 //   Antizyklisch (Angst-Käufe und Gier-Abschlag)  +67 % / −40 %   (+80 % / +57 %)
 //   Vorsichtig                                    +59 % / −25 %   (+88 % / +35 %)
@@ -74,17 +80,19 @@ export const EXPOSURE_CURVE = EXPOSURE_CURVES.balanced;
 export const RESERVE_MODES = {
   balanced: { label: 'Mit dem Trend', options: {},
     text: 'Folgt der Marktphase, bremst im Bärenmarkt und kauft nach langer Angst tief im Zyklus Bitcoin und Ethereum nach.' },
-  contrarian: { label: 'Antizyklisch', options: { fearTilt: 0.85, greedTilt: 0.5 },
-    text: 'Wie „Mit dem Trend“, aber an den Extremen stärker: nach langer Angst fast voll investiert, bei extremer Gier nahe am Allzeithoch die Hälfte in Reserve.' },
+  contrarian: { label: 'Antizyklisch', options: { fearTilt: 0.85, greedTilt: 0, coreFillBuy: 75, buyTilt: 0.4, buyTiltFrom: 75, buyTiltFull: 90, buyCutBelow: 35, buyCut: 0.2 },
+    text: 'Folgt dem Kauf-Score: Ist der Zyklus günstig (ab 75), wird mehr investiert und Bitcoin und Ethereum werden aufgestockt; ist er teuer (unter 35), bleibt mehr in Reserve.' },
   cautious: { label: 'Vorsichtig', options: { exposureCurve: EXPOSURE_CURVES.cautious, fearTilt: 0.3 },
     text: 'Hält deutlich mehr Reserve und investiert erst bei sehr starker Marktphase voll.' },
 };
-// perYear/drawdown: 2018–2026; recent: 2022–2026 (schwächerer der beiden Prüfzeiträume)
+// Rückrechnung mit scripts/model-curve.mjs (84 Coins, wöchentlich, 0,25 % Gebühr), Mittel aus 7 Starttagen, Oktober 2026.
+// perYear/drawdown: März 2018 bis heute; recent: seit Januar 2022. HOLD_BACKTEST: Bitcoin im selben Zeitraum gehalten.
 export const RESERVE_BACKTEST = {
-  balanced: { perYear: 86, recent: 62, drawdown: 40 },
-  contrarian: { perYear: 68, recent: 59, drawdown: 40 },
-  cautious: { perYear: 60, recent: 36, drawdown: 25 },
+  balanced: { perYear: 73, recent: 43, drawdown: 40 },
+  contrarian: { perYear: 72, recent: 39, drawdown: 44 },
+  cautious: { perYear: 52, recent: 27, drawdown: 25 },
 };
+export const HOLD_BACKTEST = { perYear: 25, recent: 12, drawdown: 77 };
 
 // Was der Gesamtmarkt 30 Tage nach einer vergleichbaren Marktphase getan hat (alle 86 Coins, 2018–2026):
 // [Score bis, Anteil der Fälle mit höherem Kurs in %, Ergebnis im schlechtesten Zehntel der Fälle in %]
@@ -106,10 +114,24 @@ export function reserveAdvice(regime) {
 // Vorgeschlagene Investitionsquote nach den gewählten Einstellungen
 export function suggestedExposure(regime, o = DEFAULTS) {
   const base = exposureFor(regime, o.exposureCurve, o.bearShare);
-  const tilt = fngTilt(regime, o);
-  if (!tilt.delta) return base;
-  const share = Math.round(Math.min(1, Math.max(0, base.share + tilt.delta)) * 20) / 20;
-  return { share, text: `${base.text} ${tilt.text}`.trim(), fear: tilt.fear > 0, greed: tilt.greed > 0 };
+  const tilt = fngTilt(regime, o), b = buyTiltOf(regime, o);
+  if (!tilt.delta && !b.delta) return base;
+  const share = Math.round(Math.min(1, Math.max(0, base.share + tilt.delta + b.delta)) * 20) / 20;
+  return { share, text: `${base.text} ${tilt.text} ${b.text}`.trim(), fear: tilt.fear > 0, greed: tilt.greed > 0, buy: b.delta };
+}
+
+// Kauf-Score als Zu- oder Abschlag – nur in der Strategie „Antizyklisch“. Rückrechnung (7 Starttage): Mit Zuschlag ab 75 und
+// Abschlag unter 35 kam die Strategie auf 72 % pro Jahr statt 59 % mit der früheren Gier-Regel, seit 2022 auf 39 % statt 41 %
+// (im Rauschen), bei einem größten Rückgang von −44 % statt −40 %. Für die Standard-Strategie war jede getestete Form schlechter.
+export function buyTiltOf(regime, o = DEFAULTS) {
+  const v = regime?.buy;
+  if (!Number.isFinite(v) || (!o.buyTilt && !o.buyCut)) return { delta: 0, text: '' };
+  let delta = (o.buyTilt ?? 0) * unit((v - o.buyTiltFrom) / (o.buyTiltFull - o.buyTiltFrom));
+  if (o.buyCutBelow !== null && o.buyCutBelow !== undefined && v < o.buyCutBelow) delta -= o.buyCut;
+  if (!delta) return { delta: 0, text: '' };
+  const points = Math.round(Math.abs(delta) * 100);
+  return { delta, text: delta > 0 ? `Kauf-Score ${Math.round(v)}: Der Zyklus ist günstig – ${points} Punkte weniger Reserve, aufgestockt werden Bitcoin und Ethereum.`
+    : `Kauf-Score ${Math.round(v)}: Der Zyklus ist teuer – ${points} Punkte mehr Reserve.` };
 }
 
 const unit = (x) => Math.min(1, Math.max(0, x));

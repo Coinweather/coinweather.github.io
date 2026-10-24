@@ -6,8 +6,8 @@ import * as api from './api.js';
 import * as pf from './portfolio.js';
 import * as auth from './auth.js';
 import * as tr from './track.js';
-import { plan, applyMove, adjusted, reserveAdvice, fngTilt, RESERVE_MODES, RESERVE_BACKTEST } from './manager.js';
-import { quickAnalyse, detailAnalyse, marketIndex, prepare, backtest, expectedMove, analyseNews, TRADE_SETUPS, TRADE_LIMITS, TRADE_LEVERAGE, SHORT_TESTS, outlookOf, greedZone, WEIGHTS, RISK_ZONES } from './model.js';
+import { plan, applyMove, adjusted, reserveAdvice, fngTilt, RESERVE_MODES, RESERVE_BACKTEST, HOLD_BACKTEST } from './manager.js';
+import { quickAnalyse, detailAnalyse, marketIndex, prepare, backtest, expectedMove, analyseNews, TRADE_SETUPS, TRADE_LIMITS, TRADE_LEVERAGE, SHORT_TESTS, outlookOf, greedZone, WEIGHTS, RISK_ZONES, buyHistory as yearAfterBuy } from './model.js';
 
 const REFRESH_MS = 120_000;      // so alt dürfen gespeicherte Kurse sein, bevor sofort neu geladen wird
 const PAGE_INTERVAL_MS = 30_000;
@@ -525,7 +525,15 @@ const INFO = {
       In den Jahren 2018–2021 zeigte sich dieselbe Richtung. Auf 90 Tage gab es dagegen keinen Vorteil: Nach günstigen Ständen fiel der Kurs oft noch weiter.</p>
     <p>Der Kauf-Score sagt deshalb, ob sich Käufe in Raten über ein Jahr und länger lohnten – nicht, wann der Boden erreicht ist.
       Seit 2022 war der Zyklus nie überhitzt; die teure Seite ist darum weniger gut belegt als die günstige.</p>
-    <p>Die Signale der einzelnen Coins sind etwas anderes: Sie bewerten die nächsten Wochen und folgen dem Trend.</p>${LIMITS}` },
+    <h3>Wo der Kauf-Score überall gilt</h3>
+    <ul><li><strong>12-Monats-Sicht</strong> auf der Startseite und bei jedem Coin.</li>
+      <li><strong>Reserve-Strategie „Antizyklisch“</strong> im Portfolio: ab 75 mehr investiert, Bitcoin und Ethereum aufgestockt; unter 35 mehr Reserve.</li>
+      <li><strong>Zyklus-Kompass:</strong> Das Zyklus-Risiko ist 100 minus Kauf-Score.</li></ul>
+    <h3>Wo er bewusst nicht gilt</h3>
+    <p>Die Signale der einzelnen Coins und die Standard-Reserve folgen dem Trend der nächsten Wochen. Geprüft wurde auch die Umstellung auf den Kauf-Score –
+      an 84 Coins seit 2018, wöchentlich gehandelt, mit Gebühren: Das Portfolio wäre auf 30–45 % pro Jahr statt 73 % gekommen, bei Rückgängen bis −60 % statt −40 %,
+      und zwar in beiden Zeiträumen (2018–21 und seit 2022). Welcher Coin in den nächsten Wochen besser läuft, sagt der Trend; ob sich Käufe in Raten über
+      ein Jahr lohnen, sagt der Kauf-Score.</p>${LIMITS}` },
 
   weather: { title: 'Das Krypto-Wetter', body: () => `
     <p>Das Wetter beschreibt, wie es dem Markt gerade geht – nicht, ob sich ein Kauf lohnt. Grundlage ist das Markt-Wetter von 0 (Sturm) bis 100 (Sonne):</p>
@@ -536,20 +544,21 @@ const INFO = {
     <p><strong>Regen ist oft Kaufwetter:</strong> Ist das Wetter schlecht und der Kauf-Score hoch, ist Bitcoin günstig, während viele Angst haben.
       Genau solche Stände waren auf ein Jahr gesehen meist gute Einstiege.</p>` },
 
-  cycle: { title: 'Zyklus – die Sicht auf 12 Monate', body: () => `
-    <p>Gemessen wird, wie weit Bitcoin unter seinem Allzeithoch steht. Für jede Stufe steht da, was ein Jahr nach vergleichbaren Ständen folgte –
-      gemessen an allen Tagen seit Januar 2022.</p>
-    <ul><li><strong>Mehr als 55 % unter dem Hoch:</strong> Bitcoin stand ein Jahr später in 93–100 % der Fälle höher.</li>
-      <li><strong>25–55 % unter dem Hoch:</strong> etwa jeder zweite Fall höher – auf dem Weg nach unten (2022) folgten weitere Verluste, auf dem Weg nach oben starke Gewinne.</li>
-      <li><strong>10–25 % unter dem Hoch:</strong> Bitcoin meist höher, der mittlere Coin meist tiefer.</li>
-      <li><strong>Nahe am Hoch:</strong> Bitcoin in zwei von drei Fällen tiefer, der mittlere Coin fast immer.</li></ul>
-    <p>Der mittlere Coin lief seit 2022 auf Jahressicht fast immer schlechter als Bitcoin. Der Abstand zum Hoch ist einer der fünf Bausteine des Kauf-Scores.</p>
+  cycle: { title: 'Die Sicht auf 12 Monate', body: () => `
+    <p>Die Jahressicht folgt dem Kauf-Score – auf der Startseite wie bei jedem einzelnen Coin. Für jede Stufe steht da, was ein Jahr nach
+      vergleichbaren Ständen folgte, gemessen an allen Tagen seit Januar 2022 (unter 45 seit 2018, weil es seit 2022 zu wenige solche Tage gab).</p>
+    <ul><li><strong>Bitcoin:</strong> ab 62 Punkten in 69–76 % der Fälle höher, zwischen 45 und 61 nur in 48 %.</li>
+      <li><strong>Ethereum:</strong> ab 62 Punkten in 77–82 % der Fälle höher, zwischen 45 und 61 nur in 42 %.</li>
+      <li><strong>Altcoins:</strong> seit 2022 auch nach günstigen Ständen nur in 40–47 % der Fälle höher, sonst meist deutlich tiefer.
+        2018–2021 war das anders – damals stiegen fast alle Coins.</li></ul>
+    <p>Deshalb kauft die Strategie „Antizyklisch“ im Portfolio bei günstigem Kauf-Score nur Bitcoin und Ethereum nach.
+      Die Signale der einzelnen Coins bewerten dagegen die nächsten Wochen.</p>
     <p class="muted">Seit 2022 gab es nur einen Zyklus – eine Tendenz, keine Gewissheit.</p>` },
 
   forecast: { title: 'Aussicht für den Gesamtmarkt', body: () => `
     <p>Für jeden Zeitraum steht da, wie oft der Kurs nach vergleichbaren Marktlagen seit 2018 höher stand – und die Einordnung, die sich daraus ergibt.</p>
     <ul><li><strong>7 und 30 Tage</strong> hängen an der Marktphase, in der Gier-Zone an den Ergebnissen dieser Zone.</li>
-      <li><strong>12 Monate</strong> hängen am Stand im Zyklus (Abstand von Bitcoin zum Allzeithoch), gemessen an allen Tagen seit 2022.</li></ul>
+      <li><strong>12 Monate</strong> folgen dem Kauf-Score, gemessen an allen Tagen seit 2022.</li></ul>
     <p>Der mittlere Coin schnitt auf Jahressicht meist schlechter ab als Bitcoin. Kaufsignale bei einzelnen Coins beziehen sich auf die nächsten Wochen.</p>${LIMITS}` },
 
   fng: { title: 'Fear & Greed im Modell', body: () => `
@@ -573,8 +582,8 @@ const INFO = {
     <p>„Eher kaufen“ ist ein schwaches Signal: etwas mehr als jeder zweite Fall lief ins Plus, der Vorteil entsteht erst über viele Käufe, weil einzelne davon stark steigen.
       Ein deutliches Signal („Kaufen“) beginnt bei Score 40. Sicher ist kein einzelner Kauf.</p>
     <h3>12 Monate</h3>
-    <p>Die Jahressicht hängt vor allem am Marktzyklus, kaum am einzelnen Coin: Gezeigt wird, wo vergleichbare Coins ein Jahr nach solchen Marktlagen standen –
-      gemessen an allen Tagen seit 2022. Das ist nur ein Zyklus und damit eine schmale Grundlage.</p>
+    <p>Die Jahressicht folgt dem Kauf-Score – getrennt für Bitcoin, Ethereum und Altcoins, gemessen an allen Tagen seit 2022.
+      Beim einzelnen Altcoin verschiebt sein langfristiger Trend das Ergebnis etwas. Das ist nur ein Zyklus und damit eine schmale Grundlage.</p>
     <p><strong>Das spricht dafür / dagegen:</strong> die Merkmale mit dem größten Beitrag zum Score, in Punkten.</p>${LIMITS}` },
 
   horizons: { title: 'So entsteht der Score', body: () => `
@@ -655,13 +664,14 @@ const INFO = {
     <ul><li><strong>Trend:</strong> Je stärker die Marktphase, desto weniger Reserve.</li>
       <li><strong>Bärenbremse:</strong> Im Bärenmarkt bleiben höchstens 15 % investiert. Die Bremse greift über 5 Tage verteilt, damit der Wert nicht springt.</li>
       <li><strong>Angst-Käufe:</strong> Nach langer Angst tief im Zyklus sinkt die Reserve; gekauft werden Bitcoin und Ethereum.</li>
-      <li><strong>Gier:</strong> Bei extremer Gier gibt es keine Kaufsignale. Nur die Strategie „Antizyklisch“ erhöht zusätzlich die Reserve, wenn die Gier nahe am Allzeithoch auftritt.</li></ul>
-    <h3>Rückrechnung 2018–2026</h3>
-    <div class="table-wrap"><table class="fc-table"><thead><tr><th>Strategie</th><th class="num">pro Jahr</th><th class="num">seit Okt. 2022</th><th class="num">größter Rückgang</th></tr></thead>
+      <li><strong>Gier:</strong> Bei extremer Gier gibt es keine Kaufsignale.</li>
+      <li><strong>Kauf-Score (nur „Antizyklisch“):</strong> Ab 75 bis zu 40 Punkte weniger Reserve, aufgestockt werden Bitcoin und Ethereum; unter 35 20 Punkte mehr Reserve.</li></ul>
+    <h3>Rückrechnung seit März 2018</h3>
+    <div class="table-wrap"><table class="fc-table"><thead><tr><th>Strategie</th><th class="num">pro Jahr</th><th class="num">seit 2022</th><th class="num">größter Rückgang</th></tr></thead>
       <tbody>${Object.entries(RESERVE_MODES).map(([k, m]) => `<tr><td>${m.label}</td><td class="num up">+${RESERVE_BACKTEST[k].perYear} %</td><td class="num up">+${RESERVE_BACKTEST[k].recent} %</td><td class="num">−${RESERVE_BACKTEST[k].drawdown} %</td></tr>`).join('')}
-        <tr><td>Reserve nur nach Fear &amp; Greed</td><td class="num up">+29 %</td><td class="num up">+24 %</td><td class="num">−56 %</td></tr>
-        <tr><td>Bitcoin halten</td><td class="num up">+38 %</td><td class="num up">+44 %</td><td class="num">−77 %</td></tr></tbody></table></div>
-    <p class="muted">Mit 0,25 % Gebühr je Handel, wöchentlich geprüft, Mittel aus 7 Starttagen. Je nach Starttag schwankt das Ergebnis um rund ±10 Punkte pro Jahr.</p>${LIMITS}` },
+        <tr><td>Bitcoin halten</td><td class="num up">+${HOLD_BACKTEST.perYear} %</td><td class="num up">+${HOLD_BACKTEST.recent} %</td><td class="num">−${HOLD_BACKTEST.drawdown} %</td></tr></tbody></table></div>
+    <p class="muted">84 Coins, mit 0,25 % Gebühr je Handel, wöchentlich geprüft, Mittel aus 7 Starttagen. Je nach Starttag schwankt das Ergebnis um rund ±10 Punkte pro Jahr.
+      Geprüft wurde auch eine Reserve nur nach dem Kauf-Score: +30 % pro Jahr bei −60 % Rückgang – deutlich schlechter, deshalb nur als Zu- und Abschlag in „Antizyklisch“.</p>${LIMITS}` },
 
   manager: { title: 'So arbeitet der Portfolio-Manager', body: () => `
     <ul><li><strong>Feste Vorschläge:</strong> Sie werden einmal berechnet und bleiben stehen, bis du etwas am Portfolio änderst oder „Neu berechnen“ wählst.</li>
@@ -948,10 +958,18 @@ function marketView(preview = false) {
         <p class="hint">Je länger der Balken, desto günstiger. Alle fünf zählen gleich; der Kauf-Score ist ihr Mittel.</p>`
       : '<div class="label">Das steckt im Kauf-Score</div><p class="muted">Wird berechnet …</p>';
     buyHistory();
-    const cy = m?.cycle;
-    $('#cycle').hidden = !cy;
-    if (cy) {
-      const after = (who, up, mid) => `<strong>${who}:</strong> in ${up} % der Fälle höher, mittleres Ergebnis ${signed(mid, 0)} %.`;
+    const cy = m?.cycle, h = m?.buy ? yearAfterBuy(m.value) : null;
+    $('#cycle').hidden = !cy && !h;
+    const after = (who, up, mid) => `<strong>${who}:</strong> in ${up} % der Fälle höher, mittleres Ergebnis ${signed(mid, 0)} %.`;
+    if (h) {
+      // 12 Monate nach dem Kauf-Score – getrennt für Bitcoin, Ethereum und Altcoins, weil sie sich seit 2022 sehr verschieden verhielten
+      $('#cycle').className = `panel cycle ${m.value >= 62 ? 'deep' : m.value >= 45 ? 'mid' : 'high'}`;
+      $('#cycle').innerHTML = `<div class="panel-top"><div><div class="label">Sicht auf 12 Monate · nach dem Kauf-Score</div><h2>Ein Jahr nach Ständen wie heute</h2>${infoBtn('cycle')}</div>
+          <strong class="cycle-dd">${m.value}<small> Kauf-Score</small></strong></div>
+        <ul class="plain"><li>${after('Bitcoin', h.btc.up, h.btc.median)}</li><li>${after('Ethereum', h.eth.up, h.eth.median)}</li>
+          <li>${after('Mittlerer Altcoin', h.alt.up, h.alt.median)}</li></ul>
+        <p class="hint">Alle Tage seit 2022 mit vergleichbarem Kauf-Score. Altcoins verloren seit 2022 auf Jahressicht meist – auch nach günstigen Ständen.${cy ? ` Bitcoin liegt ${num(-cy.dd, 0)} % unter seinem Allzeithoch.` : ''}</p>`;
+    } else if (cy) {
       $('#cycle').className = `panel cycle ${cy.zone}`;
       $('#cycle').innerHTML = `<div class="panel-top"><div><div class="label">Zyklus – Sicht auf 12 Monate</div><h2>${esc(cy.label)}</h2>${infoBtn('cycle')}</div>
           <strong class="cycle-dd">${num(-cy.dd, 0)} %<small> unter Allzeithoch</small></strong></div>
@@ -1395,9 +1413,10 @@ function detailView(id) {
       : { Kaufen: 'Die Daten sprechen für einen Kauf.', 'Eher kaufen': 'Die Daten sprechen leicht für einen Kauf – ein schwaches Signal.',
         Halten: 'Im Moment kein klarer Vorteil – abwarten.', 'Eher verkaufen': 'Die Daten sprechen eher gegen einen Kauf.',
         Verkaufen: 'Die Daten sprechen gegen einen Kauf.' }[a.label] ?? '';
-    const up = a.forecast?.medium?.up;
+    const up = a.forecast?.medium?.up, year = a.forecast?.long;
     return `<p class="d-summary"><strong>Kurz gesagt:</strong> <span>${say}</span>
       ${isNum(up) ? `<span>In vergleichbaren Fällen stand der Kurs 30 Tage später in ${up} von 100 Fällen höher.</span>` : ''}
+      ${year?.byBuy && isNum(year.up) ? `<span>Auf 12 Monate (nach dem Kauf-Score): in ${year.up} von 100 vergleichbaren Fällen höher.</span>` : ''}
       <span class="muted">Eine Wahrscheinlichkeit, keine Garantie.</span></p>`;
   }
 
@@ -1441,7 +1460,9 @@ function detailView(id) {
     const fbox = (title, s) => {
       if (!s) return `<div><div class="label">${title}</div><div class="value muted">–</div></div>`;
       const [word, dir] = outlookOf(s);
-      const basis = s.days >= 365 && isNum(s.up) ? `Hängt am Marktzyklus: Seit 2022 ${c.id === 'bitcoin' ? 'stand Bitcoin' : 'standen vergleichbare Coins'} ein Jahr nach solchen Lagen in ${s.up} % der Fälle höher, im Mittel ${signed(s.mid, 0)} %`
+      const who = c.id === 'bitcoin' ? 'stand Bitcoin' : c.id === 'ethereum' ? 'stand Ethereum' : 'standen Altcoins';
+      const basis = s.days >= 365 && isNum(s.up) && s.byBuy ? `Folgt dem Kauf-Score: Seit 2022 ${who} ein Jahr nach vergleichbaren Ständen in ${s.up} % der Fälle höher, im Mittel ${signed(s.mid, 0)} %`
+        : s.days >= 365 && isNum(s.up) ? `Hängt am Marktzyklus: Seit 2022 ${c.id === 'bitcoin' ? 'stand Bitcoin' : 'standen vergleichbare Coins'} ein Jahr nach solchen Lagen in ${s.up} % der Fälle höher, im Mittel ${signed(s.mid, 0)} %`
         : isNum(s.up) ? `höher in ${s.up} von 100 vergleichbaren Fällen` : '';
       return `<div><div class="label">${title}</div><div class="value ${tone(dir)}">${word}</div><div class="muted">${basis}</div></div>`;
     };
