@@ -17,7 +17,7 @@
 
 import { cp, mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import * as i18n from '../js/i18n.js';
-import { RISK_ZONES, buyZone } from '../js/model.js';
+import { RISK_ZONES, buyZone, buyHistory } from '../js/model.js';
 
 const SITE = 'https://coinweather.github.io';
 const SNAPSHOT = 'https://raw.githubusercontent.com/Coinweather/coinweather.github.io/data/snapshot.json';
@@ -86,7 +86,9 @@ const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const tone = (v) => (!isNum(v) ? '' : v > 0 ? 'up' : v < 0 ? 'down' : '');
 const slug = (id) => String(id).toLowerCase().replace(/[^a-z0-9-]/g, '');
 const iso = new Date(snap.time).toISOString();
-const btcUp7 = market.forecast?.btc?.short?.up, btcUp30 = market.forecast?.btc?.medium?.up, altUp7 = market.forecast?.alt?.short?.up;
+// Dieselbe Aussage wie die App: ein Jahr nach vergleichbaren Kauf-Scores (Zyklus-Kompass, seit 2022)
+const year = buyHistory(market.value);
+const btcUp7 = year?.btc.up, btcUp30 = year?.eth.up, altUp7 = year?.alt.up;
 const buys = coins.filter((c) => c.analysis?.signal === 'buy').length;
 const rated = coins.filter((c) => c.analysis?.signal && c.analysis.signal !== 'none').length;
 const btc = coins.find((c) => c.id === 'bitcoin');
@@ -197,12 +199,12 @@ const TX = {
     label: { 'Kaufen': 'Buy', 'Eher kaufen': 'Lean buy', 'Halten': 'Hold', 'Eher verkaufen': 'Lean sell', 'Verkaufen': 'Sell' },
     zone: { deep: 'deep in the cycle', low: 'lower third of the cycle', mid: 'middle of the cycle', high: 'near the high' },
     mood: ['extreme fear', 'fear', 'neutral', 'greed', 'extreme greed'],
-    odds: (a, b) => `After comparable market days since 2018, Bitcoin was higher 7 days later in ${a} of 100 cases${isNum(b) ? ` and 30 days later in ${b} of 100` : ''}.`,
+    odds: (a, b) => `Since 2022, after buy scores like today, Bitcoin was higher one year later in ${a} of 100 cases${isNum(b) ? `, Ethereum in ${b} of 100` : ''}.`,
     tTitle: (d, l, v) => `Crypto market today (${d}): Fear & Greed, buy score and outlook`,
     tDesc: (v, l, f, m, p) => `Is now a good time to buy crypto? Today’s crypto weather: buy score ${v}/100 (${l}), Fear & Greed ${f} (${m}), Bitcoin ${p}. Updated daily. Not financial advice.`,
     tH1: (l, v) => `Crypto market today: ${l} (${v}/100)`, tSub: (d) => `Crypto weather report for ${d} – updated every day.`,
     buyQ: 'Is now a good time to buy crypto?',
-    tPara: (v, l, f, m, odds, alt) => `Nobody can know that for sure. What the data says today: Coinweather’s buy score stands at <strong>${v} out of 100 – “${l}”</strong>. It is contrarian and looks 12 months ahead: it rises when Bitcoin is cheap relative to its long-term averages, far below its high and the market is fearful. The Fear &amp; Greed index is at <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `For the average coin it was ${alt} of 100 after 7 days.` : ''} These are tendencies from past data, not promises.`,
+    tPara: (v, l, f, m, odds, alt) => `Nobody can know that for sure. What the data says today: Coinweather’s buy score stands at <strong>${v} out of 100 – “${l}”</strong>. It is contrarian and looks 12 months ahead: it rises when Bitcoin is cheap relative to its long-term averages, far below its high and the market is fearful. The Fear &amp; Greed index is at <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `For the typical altcoin it was only ${alt} of 100 – that is why the buy score applies above all to Bitcoin and Ethereum.` : ''} These are tendencies from past data, not promises.`,
     btcH: 'Bitcoin today', btcPara: (p, d1, d7, ath) => `Bitcoin trades at <strong>${p}</strong> (${d1} in 24 hours, ${d7} in 7 days) and is ${ath} % below its all-time high.`, btcLink: 'Bitcoin page →',
     movH: 'Top movers of the 100 largest coins (24 hours)', obs: 'Observations, not recommendations.', gain: 'Gainers', lose: 'Losers', price: 'Price', h24: '24 h', d7h: '7 days',
     recH: 'Open track record', recPara: (since, avg, up, n, b, mkt) => `Every buy signal of the site is re-measured. Since ${since}: after 7 days on average <strong>${avg}</strong>, ${up} of ${n} in profit (Bitcoin over the same period ${b}${mkt ? `, the average top-100 coin ${mkt}` : ''}). Since 24 October 2026 buy signals are limited to the 100 largest coins – the size range the model was tested on. Including the bad results – that is the point.`,
@@ -245,12 +247,12 @@ const TX = {
     label: { 'Kaufen': 'Kaufen', 'Eher kaufen': 'Eher kaufen', 'Halten': 'Halten', 'Eher verkaufen': 'Eher verkaufen', 'Verkaufen': 'Verkaufen' },
     zone: { deep: 'tief im Zyklus', low: 'unteres Drittel des Zyklus', mid: 'Mitte des Zyklus', high: 'nahe am Hoch' },
     mood: ['extreme Angst', 'Angst', 'neutral', 'Gier', 'extreme Gier'],
-    odds: (a, b) => `Nach vergleichbaren Markttagen seit 2018 stand Bitcoin 7 Tage später in ${a} von 100 Fällen höher${isNum(b) ? `, 30 Tage später in ${b} von 100` : ''}.`,
+    odds: (a, b) => `Seit 2022 stand Bitcoin nach Kauf-Scores wie heute ein Jahr später in ${a} von 100 Fällen höher${isNum(b) ? `, Ethereum in ${b} von 100` : ''}.`,
     tTitle: (d) => `Kryptomarkt heute (${d}): Fear & Greed, Kauf-Score und Aussicht`,
     tDesc: (v, l, f, m, p) => `Ist jetzt ein guter Zeitpunkt für Krypto? Das Krypto-Wetter heute: Kauf-Score ${v}/100 (${l}), Fear & Greed ${f} (${m}), Bitcoin ${p}. Täglich aktuell. Keine Anlageberatung.`,
     tH1: (l, v) => `Kryptomarkt heute: ${l} (${v}/100)`, tSub: (d) => `Krypto-Wetterbericht vom ${d} – täglich aktualisiert.`,
     buyQ: 'Ist jetzt ein guter Zeitpunkt, Krypto zu kaufen?',
-    tPara: (v, l, f, m, odds, alt) => `Sicher wissen kann das niemand. Was die Daten heute sagen: Der Kauf-Score von Coinweather steht bei <strong>${v} von 100 – „${l}“</strong>. Er ist antizyklisch und blickt 12 Monate voraus: Er steigt, wenn Bitcoin im Vergleich zu seinen langen Schnitten günstig ist, weit unter dem Hoch liegt und am Markt Angst herrscht. Der Fear-&amp;-Greed-Index steht bei <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `Beim mittleren Coin waren es nach 7 Tagen ${alt} von 100.` : ''} Das sind Tendenzen aus vergangenen Daten, keine Versprechen.`,
+    tPara: (v, l, f, m, odds, alt) => `Sicher wissen kann das niemand. Was die Daten heute sagen: Der Kauf-Score von Coinweather steht bei <strong>${v} von 100 – „${l}“</strong>. Er ist antizyklisch und blickt 12 Monate voraus: Er steigt, wenn Bitcoin im Vergleich zu seinen langen Schnitten günstig ist, weit unter dem Hoch liegt und am Markt Angst herrscht. Der Fear-&amp;-Greed-Index steht bei <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `Beim typischen Altcoin waren es nur ${alt} von 100 – deshalb gilt der Kauf-Score vor allem für Bitcoin und Ethereum.` : ''} Das sind Tendenzen aus vergangenen Daten, keine Versprechen.`,
     btcH: 'Bitcoin heute', btcPara: (p, d1, d7, ath) => `Bitcoin steht bei <strong>${p}</strong> (${d1} in 24 Stunden, ${d7} in 7 Tagen) und ${ath} % unter seinem Allzeithoch.`, btcLink: 'Zur Bitcoin-Seite →',
     movH: 'Größte Bewegungen der 100 größten Coins (24 Stunden)', obs: 'Beobachtungen, keine Empfehlungen.', gain: 'Gewinner', lose: 'Verlierer', price: 'Kurs', h24: '24 h', d7h: '7 Tage',
     recH: 'Offene Erfolgskontrolle', recPara: (since, avg, up, n, b, mkt) => `Jedes Kaufsignal der Seite wird nachgemessen. Seit ${since}: nach 7 Tagen im Schnitt <strong>${avg}</strong>, ${up} von ${n} im Plus (Bitcoin im selben Zeitraum ${b}${mkt ? `, der Durchschnitt der Top 100 ${mkt}` : ''}). Seit dem 24. Oktober 2026 gibt es Kaufsignale nur für die 100 größten Coins – an solchen ist das Modell geprüft. Auch schlechte Ergebnisse stehen hier – genau darum geht es.`,
@@ -293,12 +295,12 @@ const TX = {
     label: { 'Kaufen': 'Comprar', 'Eher kaufen': 'Más bien comprar', 'Halten': 'Mantener', 'Eher verkaufen': 'Más bien vender', 'Verkaufen': 'Vender' },
     zone: { deep: 'en lo profundo del ciclo', low: 'tercio inferior del ciclo', mid: 'mitad del ciclo', high: 'cerca del máximo' },
     mood: ['miedo extremo', 'miedo', 'neutral', 'codicia', 'codicia extrema'],
-    odds: (a, b) => `Tras días de mercado comparables desde 2018, Bitcoin estaba más alto 7 días después en ${a} de 100 casos${isNum(b) ? ` y 30 días después en ${b} de 100` : ''}.`,
+    odds: (a, b) => `Desde 2022, tras puntuaciones de compra como la de hoy, Bitcoin estaba más alto un año después en ${a} de 100 casos${isNum(b) ? ` y Ethereum en ${b} de 100` : ''}.`,
     tTitle: (d) => `Mercado cripto hoy (${d}): Fear & Greed, puntuación de compra y perspectiva`,
     tDesc: (v, l, f, m, p) => `¿Es buen momento para comprar cripto? El tiempo cripto de hoy: puntuación de compra ${v}/100 (${l}), Fear & Greed ${f} (${m}), Bitcoin ${p}. Actualizado a diario. No es asesoramiento financiero.`,
     tH1: (l, v) => `Mercado cripto hoy: ${l} (${v}/100)`, tSub: (d) => `Parte del tiempo cripto del ${d}, actualizado cada día.`,
     buyQ: '¿Es buen momento para comprar cripto?',
-    tPara: (v, l, f, m, odds, alt) => `Nadie puede saberlo con certeza. Lo que dicen hoy los datos: la puntuación de compra de Coinweather está en <strong>${v} de 100, «${l}»</strong>. Es anticíclica y mira 12 meses adelante: sube cuando Bitcoin está barato frente a sus medias largas, muy por debajo de su máximo y el mercado tiene miedo. El índice Fear &amp; Greed está en <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `Para la moneda media fueron ${alt} de 100 tras 7 días.` : ''} Son tendencias de datos pasados, no promesas.`,
+    tPara: (v, l, f, m, odds, alt) => `Nadie puede saberlo con certeza. Lo que dicen hoy los datos: la puntuación de compra de Coinweather está en <strong>${v} de 100, «${l}»</strong>. Es anticíclica y mira 12 meses adelante: sube cuando Bitcoin está barato frente a sus medias largas, muy por debajo de su máximo y el mercado tiene miedo. El índice Fear &amp; Greed está en <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `Para la altcoin típica fueron solo ${alt} de 100; por eso la puntuación de compra vale sobre todo para Bitcoin y Ethereum.` : ''} Son tendencias de datos pasados, no promesas.`,
     btcH: 'Bitcoin hoy', btcPara: (p, d1, d7, ath) => `Bitcoin cotiza a <strong>${p}</strong> (${d1} en 24 horas, ${d7} en 7 días) y está un ${ath} % por debajo de su máximo histórico.`, btcLink: 'Página de Bitcoin →',
     movH: 'Mayores movimientos de las 100 monedas más grandes (24 horas)', obs: 'Observaciones, no recomendaciones.', gain: 'Ganadoras', lose: 'Perdedoras', price: 'Precio', h24: '24 h', d7h: '7 días',
     recH: 'Historial abierto', recPara: (since, avg, up, n, b, mkt) => `Cada señal de compra del sitio se vuelve a medir. Desde el ${since}: tras 7 días de media <strong>${avg}</strong>, ${up} de ${n} en positivo (Bitcoin en el mismo periodo ${b}${mkt ? `, la media del top 100 ${mkt}` : ''}). Desde el 24 de octubre de 2026 solo hay señales de compra para las 100 monedas más grandes, con las que se probó el modelo. También con los malos resultados: de eso se trata.`,
@@ -341,12 +343,12 @@ const TX = {
     label: { 'Kaufen': 'Acheter', 'Eher kaufen': 'Plutôt acheter', 'Halten': 'Conserver', 'Eher verkaufen': 'Plutôt vendre', 'Verkaufen': 'Vendre' },
     zone: { deep: 'au creux du cycle', low: 'tiers inférieur du cycle', mid: 'milieu du cycle', high: 'près du sommet' },
     mood: ['peur extrême', 'peur', 'neutre', 'avidité', 'avidité extrême'],
-    odds: (a, b) => `Après des jours de marché comparables depuis 2018, le Bitcoin était plus haut 7 jours plus tard dans ${a} cas sur 100${isNum(b) ? ` et 30 jours plus tard dans ${b} sur 100` : ''}.`,
+    odds: (a, b) => `Depuis 2022, après des scores d’achat comme aujourd’hui, le Bitcoin était plus haut un an plus tard dans ${a} cas sur 100${isNum(b) ? ` et Ethereum dans ${b} sur 100` : ''}.`,
     tTitle: (d) => `Marché crypto aujourd’hui (${d}) : Fear & Greed, score d’achat et perspectives`,
     tDesc: (v, l, f, m, p) => `Est-ce le bon moment pour acheter des cryptos ? La météo crypto du jour : score d’achat ${v}/100 (${l}), Fear & Greed ${f} (${m}), Bitcoin ${p}. Mis à jour chaque jour. Pas un conseil en investissement.`,
     tH1: (l, v) => `Marché crypto aujourd’hui : ${l} (${v}/100)`, tSub: (d) => `Bulletin météo crypto du ${d} – mis à jour chaque jour.`,
     buyQ: 'Est-ce le bon moment pour acheter des cryptos ?',
-    tPara: (v, l, f, m, odds, alt) => `Personne ne peut le savoir avec certitude. Ce que disent les données aujourd’hui : le score d’achat de Coinweather est à <strong>${v} sur 100 – « ${l} »</strong>. Il est anticyclique et regarde 12 mois en avant : il monte quand le Bitcoin est bon marché par rapport à ses moyennes longues, loin sous son record, et que le marché a peur. L’indice Fear &amp; Greed est à <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `Pour la crypto moyenne, c’était ${alt} sur 100 après 7 jours.` : ''} Ce sont des tendances issues de données passées, pas des promesses.`,
+    tPara: (v, l, f, m, odds, alt) => `Personne ne peut le savoir avec certitude. Ce que disent les données aujourd’hui : le score d’achat de Coinweather est à <strong>${v} sur 100 – « ${l} »</strong>. Il est anticyclique et regarde 12 mois en avant : il monte quand le Bitcoin est bon marché par rapport à ses moyennes longues, loin sous son record, et que le marché a peur. L’indice Fear &amp; Greed est à <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `Pour l’altcoin typique, ce n’était que ${alt} sur 100 – c’est pourquoi le score d’achat vaut surtout pour Bitcoin et Ethereum.` : ''} Ce sont des tendances issues de données passées, pas des promesses.`,
     btcH: 'Bitcoin aujourd’hui', btcPara: (p, d1, d7, ath) => `Le Bitcoin s’échange à <strong>${p}</strong> (${d1} sur 24 heures, ${d7} sur 7 jours) et se situe ${ath} % sous son record.`, btcLink: 'Page Bitcoin →',
     movH: 'Plus forts mouvements des 100 plus grandes cryptos (24 heures)', obs: 'Des observations, pas des recommandations.', gain: 'Hausses', lose: 'Baisses', price: 'Cours', h24: '24 h', d7h: '7 jours',
     recH: 'Suivi public', recPara: (since, avg, up, n, b, mkt) => `Chaque signal d’achat du site est re-mesuré. Depuis le ${since} : après 7 jours en moyenne <strong>${avg}</strong>, ${up} sur ${n} en hausse (Bitcoin sur la même période ${b}${mkt ? `, la moyenne du top 100 ${mkt}` : ''}). Depuis le 24 octobre 2026, les signaux d’achat ne concernent que les 100 plus grandes cryptos, celles sur lesquelles le modèle a été testé. Les mauvais résultats y figurent aussi – c’est tout l’intérêt.`,
@@ -389,12 +391,12 @@ const TX = {
     label: { 'Kaufen': 'Comprare', 'Eher kaufen': 'Piuttosto comprare', 'Halten': 'Mantenere', 'Eher verkaufen': 'Piuttosto vendere', 'Verkaufen': 'Vendere' },
     zone: { deep: 'in fondo al ciclo', low: 'terzo inferiore del ciclo', mid: 'metà del ciclo', high: 'vicino al massimo' },
     mood: ['paura estrema', 'paura', 'neutrale', 'avidità', 'avidità estrema'],
-    odds: (a, b) => `Dopo giorni di mercato simili dal 2018, Bitcoin era più alto 7 giorni dopo in ${a} casi su 100${isNum(b) ? ` e 30 giorni dopo in ${b} su 100` : ''}.`,
+    odds: (a, b) => `Dal 2022, dopo punteggi di acquisto come oggi, Bitcoin era più alto un anno dopo in ${a} casi su 100${isNum(b) ? ` ed Ethereum in ${b} su 100` : ''}.`,
     tTitle: (d) => `Mercato crypto oggi (${d}): Fear & Greed, punteggio di acquisto e prospettive`,
     tDesc: (v, l, f, m, p) => `È un buon momento per comprare crypto? Il meteo crypto di oggi: punteggio di acquisto ${v}/100 (${l}), Fear & Greed ${f} (${m}), Bitcoin ${p}. Aggiornato ogni giorno. Non è una consulenza finanziaria.`,
     tH1: (l, v) => `Mercato crypto oggi: ${l} (${v}/100)`, tSub: (d) => `Bollettino meteo crypto del ${d} – aggiornato ogni giorno.`,
     buyQ: 'È un buon momento per comprare crypto?',
-    tPara: (v, l, f, m, odds, alt) => `Nessuno può saperlo con certezza. Cosa dicono oggi i dati: il punteggio di acquisto di Coinweather è a <strong>${v} su 100 – «${l}»</strong>. È anticiclico e guarda 12 mesi avanti: sale quando Bitcoin è conveniente rispetto alle sue medie lunghe, molto sotto il massimo e il mercato ha paura. L’indice Fear &amp; Greed è a <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `Per il coin medio erano ${alt} su 100 dopo 7 giorni.` : ''} Sono tendenze dai dati passati, non promesse.`,
+    tPara: (v, l, f, m, odds, alt) => `Nessuno può saperlo con certezza. Cosa dicono oggi i dati: il punteggio di acquisto di Coinweather è a <strong>${v} su 100 – «${l}»</strong>. È anticiclico e guarda 12 mesi avanti: sale quando Bitcoin è conveniente rispetto alle sue medie lunghe, molto sotto il massimo e il mercato ha paura. L’indice Fear &amp; Greed è a <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `Per l’altcoin tipico erano solo ${alt} su 100 – per questo il punteggio di acquisto vale soprattutto per Bitcoin ed Ethereum.` : ''} Sono tendenze dai dati passati, non promesse.`,
     btcH: 'Bitcoin oggi', btcPara: (p, d1, d7, ath) => `Bitcoin quota <strong>${p}</strong> (${d1} in 24 ore, ${d7} in 7 giorni) ed è del ${ath} % sotto il suo massimo storico.`, btcLink: 'Pagina di Bitcoin →',
     movH: 'Maggiori movimenti dei 100 coin più grandi (24 ore)', obs: 'Osservazioni, non raccomandazioni.', gain: 'In rialzo', lose: 'In ribasso', price: 'Prezzo', h24: '24 h', d7h: '7 giorni',
     recH: 'Track record pubblico', recPara: (since, avg, up, n, b, mkt) => `Ogni segnale di acquisto del sito viene rimisurato. Dal ${since}: dopo 7 giorni in media <strong>${avg}</strong>, ${up} su ${n} in positivo (Bitcoin nello stesso periodo ${b}${mkt ? `, la media della top 100 ${mkt}` : ''}). Dal 24 ottobre 2026 i segnali di acquisto valgono solo per i 100 coin più grandi, quelli su cui il modello è stato testato. Anche i risultati negativi restano qui: è proprio questo il punto.`,
@@ -437,12 +439,12 @@ const TX = {
     label: { 'Kaufen': 'Comprar', 'Eher kaufen': 'Tendência de compra', 'Halten': 'Manter', 'Eher verkaufen': 'Tendência de venda', 'Verkaufen': 'Vender' },
     zone: { deep: 'no fundo do ciclo', low: 'terço inferior do ciclo', mid: 'meio do ciclo', high: 'perto da máxima' },
     mood: ['medo extremo', 'medo', 'neutro', 'ganância', 'ganância extrema'],
-    odds: (a, b) => `Depois de dias de mercado parecidos desde 2018, o Bitcoin estava mais alto 7 dias depois em ${a} de 100 casos${isNum(b) ? ` e 30 dias depois em ${b} de 100` : ''}.`,
+    odds: (a, b) => `Desde 2022, depois de pontuações de compra como a de hoje, o Bitcoin estava mais alto um ano depois em ${a} de 100 casos${isNum(b) ? ` e o Ethereum em ${b} de 100` : ''}.`,
     tTitle: (d) => `Mercado cripto hoje (${d}): Fear & Greed, pontuação de compra e perspectiva`,
     tDesc: (v, l, f, m, p) => `É um bom momento para comprar cripto? A previsão cripto de hoje: pontuação de compra ${v}/100 (${l}), Fear & Greed ${f} (${m}), Bitcoin ${p}. Atualizado diariamente. Não é recomendação de investimento.`,
     tH1: (l, v) => `Mercado cripto hoje: ${l} (${v}/100)`, tSub: (d) => `Previsão do tempo cripto de ${d} – atualizada todos os dias.`,
     buyQ: 'É um bom momento para comprar cripto?',
-    tPara: (v, l, f, m, odds, alt) => `Ninguém pode saber com certeza. O que os dados dizem hoje: a pontuação de compra do Coinweather está em <strong>${v} de 100 – “${l}”</strong>. Ela é anticíclica e olha 12 meses à frente: sobe quando o Bitcoin está barato em relação às suas médias longas, bem abaixo da máxima e o mercado está com medo. O índice Fear &amp; Greed está em <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `Para a moeda média foram ${alt} de 100 após 7 dias.` : ''} São tendências de dados passados, não promessas.`,
+    tPara: (v, l, f, m, odds, alt) => `Ninguém pode saber com certeza. O que os dados dizem hoje: a pontuação de compra do Coinweather está em <strong>${v} de 100 – “${l}”</strong>. Ela é anticíclica e olha 12 meses à frente: sobe quando o Bitcoin está barato em relação às suas médias longas, bem abaixo da máxima e o mercado está com medo. O índice Fear &amp; Greed está em <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `Para a altcoin típica foram só ${alt} de 100 – por isso a pontuação de compra vale sobretudo para Bitcoin e Ethereum.` : ''} São tendências de dados passados, não promessas.`,
     btcH: 'Bitcoin hoje', btcPara: (p, d1, d7, ath) => `O Bitcoin está cotado a <strong>${p}</strong> (${d1} em 24 horas, ${d7} em 7 dias) e ${ath} % abaixo da sua máxima histórica.`, btcLink: 'Página do Bitcoin →',
     movH: 'Maiores movimentos das 100 maiores moedas (24 horas)', obs: 'Observações, não recomendações.', gain: 'Em alta', lose: 'Em baixa', price: 'Preço', h24: '24 h', d7h: '7 dias',
     recH: 'Histórico aberto', recPara: (since, avg, up, n, b, mkt) => `Cada sinal de compra do site é medido de novo. Desde ${since}: após 7 dias em média <strong>${avg}</strong>, ${up} de ${n} no positivo (Bitcoin no mesmo período ${b}${mkt ? `, a média do top 100 ${mkt}` : ''}). Desde 24 de outubro de 2026 só há sinais de compra para as 100 maiores moedas, nas quais o modelo foi testado. Os resultados ruins também ficam aqui – é esse o objetivo.`,
@@ -485,12 +487,12 @@ const TX = {
     label: { 'Kaufen': 'Al', 'Eher kaufen': 'Almaya yakın', 'Halten': 'Tut', 'Eher verkaufen': 'Satmaya yakın', 'Verkaufen': 'Sat' },
     zone: { deep: 'döngünün dibinde', low: 'döngünün alt üçte biri', mid: 'döngünün ortası', high: 'zirveye yakın' },
     mood: ['aşırı korku', 'korku', 'nötr', 'açgözlülük', 'aşırı açgözlülük'],
-    odds: (a, b) => `2018’den bu yana benzer piyasa günlerinden sonra Bitcoin 7 gün sonra 100 vakanın ${a} tanesinde daha yüksekti${isNum(b) ? `, 30 gün sonra 100 vakanın ${b} tanesinde` : ''}.`,
+    odds: (a, b) => `2022’den beri bugünkü gibi alım skorlarından sonra Bitcoin bir yıl sonra 100 vakanın ${a} tanesinde daha yüksekti${isNum(b) ? `, Ethereum 100 vakanın ${b} tanesinde` : ''}.`,
     tTitle: (d) => `Bugün kripto piyasası (${d}): Korku ve Açgözlülük, alım skoru ve görünüm`,
     tDesc: (v, l, f, m, p) => `Kripto almak için iyi bir zaman mı? Bugünün kripto hava durumu: alım skoru ${v}/100 (${l}), Korku ve Açgözlülük ${f} (${m}), Bitcoin ${p}. Her gün güncellenir. Yatırım tavsiyesi değildir.`,
     tH1: (l, v) => `Bugün kripto piyasası: ${l} (${v}/100)`, tSub: (d) => `${d} tarihli kripto hava durumu – her gün güncellenir.`,
     buyQ: 'Kripto almak için iyi bir zaman mı?',
-    tPara: (v, l, f, m, odds, alt) => `Bunu kimse kesin olarak bilemez. Verilerin bugün söyledikleri: Coinweather alım skoru <strong>100 üzerinden ${v} – “${l}”</strong>. Döngüye karşıdır ve 12 ay ileriye bakar: Bitcoin uzun ortalamalarına göre ucuzsa, zirvesinin çok altındaysa ve piyasada korku varsa yükselir. Korku ve Açgözlülük Endeksi <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `Ortalama coin için 7 gün sonra 100 vakanın ${alt} tanesiydi.` : ''} Bunlar geçmiş verilerden eğilimlerdir, vaat değildir.`,
+    tPara: (v, l, f, m, odds, alt) => `Bunu kimse kesin olarak bilemez. Verilerin bugün söyledikleri: Coinweather alım skoru <strong>100 üzerinden ${v} – “${l}”</strong>. Döngüye karşıdır ve 12 ay ileriye bakar: Bitcoin uzun ortalamalarına göre ucuzsa, zirvesinin çok altındaysa ve piyasada korku varsa yükselir. Korku ve Açgözlülük Endeksi <strong>${f}</strong> (${m}). ${odds} ${isNum(alt) ? `Tipik altcoin için bu yalnızca 100 vakanın ${alt} tanesiydi – bu yüzden alım skoru özellikle Bitcoin ve Ethereum için geçerlidir.` : ''} Bunlar geçmiş verilerden eğilimlerdir, vaat değildir.`,
     btcH: 'Bugün Bitcoin', btcPara: (p, d1, d7, ath) => `Bitcoin <strong>${p}</strong> seviyesinde (24 saatte ${d1}, 7 günde ${d7}) ve tüm zamanların zirvesinin %${ath} altında.`, btcLink: 'Bitcoin sayfası →',
     movH: 'En büyük 100 coinin en büyük hareketleri (24 saat)', obs: 'Gözlemdir, tavsiye değildir.', gain: 'Yükselenler', lose: 'Düşenler', price: 'Fiyat', h24: '24 sa', d7h: '7 gün',
     recH: 'Açık performans kaydı', recPara: (since, avg, up, n, b, mkt) => `Sitenin her alım sinyali yeniden ölçülür. ${since} tarihinden beri: 7 gün sonra ortalama <strong>${avg}</strong>, ${n} sinyalin ${up} tanesi artıda (aynı dönemde Bitcoin ${b}${mkt ? `, ilk 100 ortalaması ${mkt}` : ''}). 24 Ekim 2026’dan beri alım sinyalleri yalnızca modelin test edildiği en büyük 100 coin için verilir. Kötü sonuçlar da burada – asıl mesele bu.`,
@@ -692,7 +694,7 @@ for (const lang of LANG_ORDER) {
   const stats = () => `<div class="grid">
     <div class="panel stat"><div class="l">${L.idx}</div><div class="v">${market.value}/100</div><div>${esc(label)}</div></div>
     ${fng ? `<div class="panel stat"><div class="l">${esc(L.fng)}</div><div class="v">${fng.value}</div><div>${mood(fng.value)}${isNum(fng.week) ? ` · ${L.ago7(fng.week)}` : ''}</div></div>` : ''}
-    ${market.cycle ? `<div class="panel stat"><div class="l">${L.cyc}</div><div class="v">${num(-market.cycle.dd, 0)} %</div><div>${L.belowAth} · ${L.zone[market.cycle.zone] ?? ''}</div></div>` : ''}
+    ${market.cycle ? `<div class="panel stat"><div class="l">${L.cyc}</div><div class="v">${num(-market.cycle.dd, 0)} %</div><div>${L.belowAth}</div></div>` : ''}
     <div class="panel stat"><div class="l">${L.sig}</div><div class="v">${buys}</div><div>${L.ofRated(rated)}</div></div></div>`;
   const rows = (list) => list.map((c) => `<tr><td><a href="${pre}/coin/${slug(c.id)}/">${esc(c.name)}</a> <span class="muted">${esc(c.symbol.toUpperCase())}</span></td>
     <td class="n">${usd(c.current_price)}</td><td class="n ${tone(ch(c, '24h'))}">${pct(ch(c, '24h'))}</td></tr>`).join('');

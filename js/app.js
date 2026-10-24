@@ -498,11 +498,14 @@ const INFO = {
       <li><strong>Mittelfristig (25 %)</strong> – Schwung über 2–4 Wochen und Handelsvolumen.</li>
       <li><strong>Langfristig (10 %)</strong> – ein früher Aufwärtstrend ist gut, Überdehnung schlecht.</li></ul>
     <p>In jedem Baustein zählt die Schwankung des Coins mit: Ruhigere Coins schnitten in der Prüfung in beiden Zeiträumen besser ab als der Markt.</p>
-    <h3>Drei Regeln stehen über dem Score</h3>
-    <ul><li><strong>Bärenmarkt:</strong> Liegt Bitcoin unter seinem 200-Tage-Schnitt im Abwärtstrend, gibt es keine Kaufsignale.</li>
-      <li><strong>Gier-Bremse:</strong> Liegt Fear &amp; Greed im 7-Tage-Schnitt bei 75–85, gibt es keine Kaufsignale.</li>
-      <li><strong>Antizyklischer Einstieg:</strong> Liegt Bitcoin mindestens 40 % unter seinem Allzeithoch, bekommen Bitcoin und Ethereum ein Kaufsignal für mindestens 12 Monate – stärker, wenn der Markt seit Wochen in Angst ist.</li></ul>
-    <p>Dieselben drei Regeln steuern das Reserve-Ziel im Portfolio. Eigene Regeln je Altcoin (kein Kauf im eigenen Abwärtstrend, kein Kauf nach eigener Gier, Kauf nach eigener Angst)
+    <h3>Über allem steht der Zyklus-Kompass</h3>
+    <ul><li><strong>Bitcoin und Ethereum:</strong> Ihr Score besteht zu 80 % aus dem Kauf-Score (100 − Zyklus-Risiko) und zu 20 % aus ihrem Trend. Ihr Signal gilt für 12 Monate und länger.</li>
+      <li><strong>Altcoins:</strong> Ihr Score folgt dem Trend, aber nie gegen den Kompass: Bei günstigem Zyklus (Kauf-Score ab 62) gibt es kein Verkaufssignal, bei teurem (unter 45) höchstens „Eher kaufen“.
+        Altcoins folgen nicht direkt dem Kauf-Score, weil sie seit 2022 ein Jahr nach günstigen Ständen meist tiefer standen.</li>
+      <li><strong>Bärenmarkt und Gier-Bremse:</strong> Liegt Bitcoin unter seinem 200-Tage-Schnitt im Abwärtstrend oder Fear &amp; Greed im 7-Tage-Schnitt bei 75–85, bekommen Altcoins keine Kaufsignale.</li></ul>
+    <p>Rückrechnung des Portfolio-Managers mit genau diesen Regeln: 76 % pro Jahr seit 2018, seit 2022 40 %, größter Rückgang −42 %
+      (nur nach dem Trend: 73 %, 43 %, −40 %). Alle Coins direkt nach dem Kauf-Score wären auf 38 % pro Jahr gekommen.</p>
+    <p>Bärenmarkt und Gier-Bremse steuern auch das Reserve-Ziel im Portfolio. Eigene Regeln je Altcoin (kein Kauf im eigenen Abwärtstrend, kein Kauf nach eigener Gier, Kauf nach eigener Angst)
       halfen in der Prüfung jeweils nur in einem von zwei Zeiträumen und sind deshalb nicht eingebaut.</p>
     <h3>Grundlage</h3>
     <p>Tageskurse von 84 Coins seit 2018 (rund ${num(174000, 0)} Coin-Tage), geprüft in zwei getrennten Zeiträumen. Bewertet wird mit den Tageskursen der letzten 4 Jahre von Binance, sonst von Gate.io;
@@ -526,14 +529,13 @@ const INFO = {
     <p>Der Kauf-Score sagt deshalb, ob sich Käufe in Raten über ein Jahr und länger lohnten – nicht, wann der Boden erreicht ist.
       Seit 2022 war der Zyklus nie überhitzt; die teure Seite ist darum weniger gut belegt als die günstige.</p>
     <h3>Wo der Kauf-Score überall gilt</h3>
-    <ul><li><strong>12-Monats-Sicht</strong> auf der Startseite und bei jedem Coin.</li>
-      <li><strong>Reserve-Strategie „Antizyklisch“</strong> im Portfolio: ab 75 mehr investiert, Bitcoin und Ethereum aufgestockt; unter 35 mehr Reserve.</li>
+    <ul><li><strong>Bitcoin und Ethereum:</strong> Ihr Signal besteht zu 80 % aus dem Kauf-Score.</li>
+      <li><strong>Altcoins:</strong> nie gegen den Kompass – kein Verkaufssignal bei günstigem, höchstens „Eher kaufen“ bei teurem Zyklus.</li>
+      <li><strong>12-Monats-Sicht</strong> auf der Startseite und bei jedem Coin.</li>
+      <li><strong>Portfolio-Manager und Modell-Portfolio:</strong> rechnen mit genau diesen Signalen.</li>
       <li><strong>Zyklus-Kompass:</strong> Das Zyklus-Risiko ist 100 minus Kauf-Score.</li></ul>
-    <h3>Wo er bewusst nicht gilt</h3>
-    <p>Die Signale der einzelnen Coins und die Standard-Reserve folgen dem Trend der nächsten Wochen. Geprüft wurde auch die Umstellung auf den Kauf-Score –
-      an 84 Coins seit 2018, wöchentlich gehandelt, mit Gebühren: Das Portfolio wäre auf 30–45 % pro Jahr statt 73 % gekommen, bei Rückgängen bis −60 % statt −40 %,
-      und zwar in beiden Zeiträumen (2018–21 und seit 2022). Welcher Coin in den nächsten Wochen besser läuft, sagt der Trend; ob sich Käufe in Raten über
-      ein Jahr lohnen, sagt der Kauf-Score.</p>${LIMITS}` },
+    <p>Warum Altcoins nicht direkt dem Kauf-Score folgen: Geprüft an 84 Coins seit 2018, wöchentlich gehandelt, mit Gebühren, wäre das Portfolio auf 38 % pro Jahr gekommen
+      statt 76 % – nach günstigen Ständen fielen die meisten Altcoins weiter.</p>${LIMITS}` },
 
   weather: { title: 'Das Krypto-Wetter', body: () => `
     <p>Das Wetter beschreibt, wie es dem Markt gerade geht – nicht, ob sich ein Kauf lohnt. Grundlage ist das Markt-Wetter von 0 (Sturm) bis 100 (Sonne):</p>
@@ -551,8 +553,7 @@ const INFO = {
       <li><strong>Ethereum:</strong> ab 62 Punkten in 77–82 % der Fälle höher, zwischen 45 und 61 nur in 42 %.</li>
       <li><strong>Altcoins:</strong> seit 2022 auch nach günstigen Ständen nur in 40–47 % der Fälle höher, sonst meist deutlich tiefer.
         2018–2021 war das anders – damals stiegen fast alle Coins.</li></ul>
-    <p>Deshalb kauft die Strategie „Antizyklisch“ im Portfolio bei günstigem Kauf-Score nur Bitcoin und Ethereum nach.
-      Die Signale der einzelnen Coins bewerten dagegen die nächsten Wochen.</p>
+    <p>Deshalb folgen Bitcoin und Ethereum vor allem dem Kauf-Score, Altcoins vor allem ihrem Trend – aber nie gegen den Kompass.</p>
     <p class="muted">Seit 2022 gab es nur einen Zyklus – eine Tendenz, keine Gewissheit.</p>` },
 
   forecast: { title: 'Aussicht für den Gesamtmarkt', body: () => `
@@ -594,7 +595,8 @@ const INFO = {
       <li><strong>Marktphase (45 %):</strong> Stärke von Bitcoin und Fear &amp; Greed – für alle Coins gleich.</li></ul>
     <p>Die Bausteine sind die Zutaten des Scores, keine eigenen Prognosen: Ein starker mittelfristiger Baustein heißt nicht, dass der Kurs in 30 Tagen stark steigt.
       Was auf den Score in der Vergangenheit folgte, steht unter „Aussicht nach Zeitraum“.</p>
-    <p>Bärenmarkt-Filter, Gier-Bremse, Nachrichten und der antizyklische Einstieg können den Score begrenzen oder verschieben. Dann weicht er von der Summe der Bausteine ab.</p>
+    <p>Bei Bitcoin und Ethereum zählen diese Bausteine nur zu 20 % – zu 80 % zählt der Kauf-Score des Zyklus-Kompasses. Bei Altcoins können Bärenmarkt-Filter, Gier-Bremse,
+      Nachrichten und der Kompass (kein Verkaufssignal bei günstigem, höchstens „Eher kaufen“ bei teurem Zyklus) den Score begrenzen. Dann weicht er von der Summe der Bausteine ab.</p>
     <p>„Verfeinert“ heißt: Für diesen Coin liegen Tageskurse aus bis zu 4 Jahren vor. Sonst gilt die Schnellbewertung aus den Marktdaten der letzten 7 Tage bis 12 Monate.</p>` },
 
   mood: { title: 'Stimmung des Coins', body: () => `
@@ -816,7 +818,6 @@ function marketView(preview = false) {
       <a class="panel calc-teaser" href="#/rechner"><span class="calc-icon" aria-hidden="true">🧮</span><span><strong>Sparplan- und Portfolio-Rechner</strong>
         <span class="muted">Was wäre aus einem Sparplan geworden – mit einem Coin, mit Bitcoin oder mit dem Portfolio-Manager?</span></span><span class="btn ghost">Ausprobieren</span></a>
     </div>
-    <section class="panel" id="market-forecast" hidden></section>
     <section id="favs" hidden></section>
     <section>
       <h2>Stärkste Kaufsignale</h2>
@@ -976,20 +977,6 @@ function marketView(preview = false) {
         <p>Bitcoin liegt ${num(-cy.dd, 0)} % unter seinem Allzeithoch. Ein Jahr nach vergleichbaren Ständen seit 2022:</p>
         <ul class="plain"><li>${after('Bitcoin', cy.btcUp, cy.btcMedian)}</li>
           <li>${after('Mittlerer Coin', cy.altUp, cy.altMedian)}</li></ul>`;
-    }
-    const fc = m?.forecast;
-    $('#market-forecast').hidden = !fc;
-    if (fc) {
-      const cell = (s) => {
-        if (!s) return '<td class="num muted">–</td>';
-        const [word, dir] = outlookOf(s);
-        const basis = isNum(s.up) ? `<div class="muted fc-range">höher in ${s.up} von 100 Fällen</div>` : '';
-        return `<td class="num"><strong class="${tone(dir)}">${word}</strong>${basis}</td>`;
-      };
-      const row = (label, hint, f) => `<tr><td><strong>${label}</strong><div class="muted fc-range">${hint}</div></td>${cell(f.short)}${cell(f.medium)}${cell(f.long)}</tr>`;
-      $('#market-forecast').innerHTML = `<div class="head-row"><div class="label">Aussicht für den Gesamtmarkt</div>${infoBtn('forecast')}</div>
-        <div class="table-wrap"><table class="fc-table"><thead><tr><th></th><th class="num">7 Tage</th><th class="num">30 Tage</th><th class="num">12 Monate</th></tr></thead>
-          <tbody>${row('Bitcoin', 'Leitwährung', fc.btc)}${row('Mittlerer Coin', 'typischer Altcoin', fc.alt)}</tbody></table></div>`;
     }
     // Erfolgskontrolle: was aus den Kaufsignalen der Seite tatsächlich geworden ist
     const rec = state.record;
@@ -1395,7 +1382,7 @@ function detailView(id) {
         <dl><div><dt>Prognose-Score</dt><dd class="${tone(a.score)}">${a.score === null ? '–' : signed(a.score, 0) + ' / 100'}</dd></div>
           ${strength ? `<div><dt>Signalstärke</dt><dd>${strength}</dd></div>` : ''}
           <div><dt>Haltedauer</dt><dd>${a.horizon}</dd></div>
-          ${a.scope ? `<div><dt>Signal gilt für</dt><dd>${a.scope === 'weeks' ? 'die nächsten Wochen – nicht zum langen Halten' : 'Wochen bis Monate'}</dd></div>` : ''}
+          ${a.scope ? `<div><dt>Signal gilt für</dt><dd>${a.scope === 'weeks' ? 'die nächsten Wochen – nicht zum langen Halten' : a.scope === 'year' ? '12 Monate und länger (Zyklus-Kompass)' : 'Wochen bis Monate'}</dd></div>` : ''}
           <div><dt>Risiko</dt><dd>${riskTag(a.risk)}</dd></div>
           ${a.mood ? `<div><dt>Stimmung des Coins</dt><dd>${a.mood.value} / 100 · ${moodLabel(a.mood.value)}</dd></div>` : ''}
           <div><dt>Übereinstimmung</dt><dd>${a.agreement ? `${a.agreement.agreeing} von ${a.agreement.of} Zeiträumen` : '–'}</dd></div></dl></div>
@@ -1409,13 +1396,15 @@ function detailView(id) {
   // „Kurz gesagt“: das Signal in Alltagssprache, mit der Häufigkeit aus vergleichbaren Fällen
   function summary(a) {
     if (a.signal === 'none') return '';
-    const say = a.anticyclical ? 'Antizyklischer Einstieg für mindestens 12 Monate – kurzfristig kann der Kurs weiter fallen.'
+    const say = a.byCycle ? { Kaufen: 'Der Zyklus ist günstig – ein guter Stand für Käufe in Raten über mindestens 12 Monate.', 'Eher kaufen': 'Der Zyklus ist eher günstig – Käufe in Raten über mindestens 12 Monate.',
+      Halten: 'Weder billig noch teuer – ein Sparplan kann normal weiterlaufen.', 'Eher verkaufen': 'Der Zyklus ist teuer – nicht nachkaufen.', Verkaufen: 'Der Zyklus ist überhitzt – Gewinne sichern.' }[a.label] ?? ''
+      : a.anticyclical ? 'Antizyklischer Einstieg für mindestens 12 Monate – kurzfristig kann der Kurs weiter fallen.'
       : { Kaufen: 'Die Daten sprechen für einen Kauf.', 'Eher kaufen': 'Die Daten sprechen leicht für einen Kauf – ein schwaches Signal.',
         Halten: 'Im Moment kein klarer Vorteil – abwarten.', 'Eher verkaufen': 'Die Daten sprechen eher gegen einen Kauf.',
         Verkaufen: 'Die Daten sprechen gegen einen Kauf.' }[a.label] ?? '';
     const up = a.forecast?.medium?.up, year = a.forecast?.long;
     return `<p class="d-summary"><strong>Kurz gesagt:</strong> <span>${say}</span>
-      ${isNum(up) ? `<span>In vergleichbaren Fällen stand der Kurs 30 Tage später in ${up} von 100 Fällen höher.</span>` : ''}
+      ${isNum(up) && !a.byCycle ? `<span>In vergleichbaren Fällen stand der Kurs 30 Tage später in ${up} von 100 Fällen höher.</span>` : ''}
       ${year?.byBuy && isNum(year.up) ? `<span>Auf 12 Monate (nach dem Kauf-Score): in ${year.up} von 100 vergleichbaren Fällen höher.</span>` : ''}
       <span class="muted">Eine Wahrscheinlichkeit, keine Garantie.</span></p>`;
   }
@@ -1469,7 +1458,10 @@ function detailView(id) {
     const why = a.reasons;
     const reasonList = (list) => list.map((f) => `<li><strong class="${tone(f.points)}">${signed(f.points, 0)}</strong> ${esc(f.name)} <span class="muted">(${f.horizon})</span>: ${esc(f.text)}</li>`).join('');
     const percent = !fcast ? '' : `<section class="panel"><div class="head-row"><h2>Aussicht nach Zeitraum</h2>${infoBtn('percent')}</div>
-        <div class="stat-grid">${fbox('In 7 Tagen', fcast.short)}${fbox('In 30 Tagen', fcast.medium)}${fbox('In 12 Monaten', fcast.long)}</div>
+        ${a.byCycle ? `<div class="stat-grid">${fbox('In 12 Monaten', fcast.long)}</div>
+          <p class="hint">Bitcoin und Ethereum folgen vor allem dem Kauf-Score des Zyklus-Kompasses – er gilt für 12 Monate und länger.
+            Auf Sicht von Wochen gab der Zyklus keinen Vorteil: Der Kurs kann weiter fallen, wie stark, zeigt die übliche Schwankungsbreite unten.</p>`
+          : `<div class="stat-grid">${fbox('In 7 Tagen', fcast.short)}${fbox('In 30 Tagen', fcast.medium)}${fbox('In 12 Monaten', fcast.long)}</div>`}
         ${why && (why.pro.length || why.contra.length) ? `<div class="h-cards reasons">
           <div><h3>Das spricht dafür</h3>${why.pro.length ? `<ul class="plain">${reasonList(why.pro)}</ul>` : '<p class="muted">Kein Merkmal spricht derzeit deutlich für den Coin.</p>'}</div>
           <div><h3>Das spricht dagegen</h3>${why.contra.length ? `<ul class="plain">${reasonList(why.contra)}</ul>` : '<p class="muted">Kein Merkmal spricht derzeit deutlich dagegen.</p>'}</div></div>` : ''}
@@ -1482,7 +1474,7 @@ function detailView(id) {
       if (!d.tests || d.testsWithRegime !== !!state.btcInd) {
         d.testsWithRegime = !!state.btcInd;
         // dieselben Zeiträume wie in der Prognose, damit sich beides vergleichen lässt
-        d.tests = [7, 30].map((days) => backtest(d.ind, state.btcInd, state.fng?.byDay, days));
+        d.tests = (a.byCycle ? [90, 365] : [7, 30]).map((days) => backtest(d.ind, state.btcInd, state.fng?.byDay, days, c.id));
       }
       const move = expectedMove(d.data.p);
       const span = (m) => `${money(c.current_price * Math.exp(-m))} bis ${money(c.current_price * Math.exp(m))}`;
@@ -1495,7 +1487,8 @@ function detailView(id) {
         <div class="head-row"><h2>Rückblick-Test über ${years >= 1.5 ? num(years, 1) + ' Jahre' : num(d.ind.n, 0) + ' Tage'}</h2>${infoBtn('backtest')}</div>
         <p class="hint">So liefen die Signale bei diesem Coin (Kursgeschichte von ${d.source}). Das beschreibt seine Vergangenheit und ist keine Vorhersage:
           Coins mit besonders gutem Rückblick liefen danach nicht besser als andere.</p>
-        <div class="h-cards">${d.tests.map((bt) => testBox(bt, bt.days === 7 ? fcast?.short : fcast?.medium, c.id === 'bitcoin' ? 'Bitcoin in vergleichbarer Marktphase' : 'alle geprüften Coins bei diesem Score')).join('') || '<p class="muted">Zu wenig Kursgeschichte für einen Rückblick-Test.</p>'}</div>`;
+        <div class="h-cards">${d.tests.map((bt) => testBox(bt, a.byCycle ? (bt.days >= 365 ? fcast?.long : null) : bt.days === 7 ? fcast?.short : fcast?.medium,
+          a.byCycle ? 'nach dem Kauf-Score' : 'alle geprüften Coins bei diesem Score')).join('') || '<p class="muted">Zu wenig Kursgeschichte für einen Rückblick-Test.</p>'}</div>`;
     } else if (d.error) extra = `<section class="panel"><p class="muted">${esc(d.error)}</p></section>`;
 
     $('#d-forecast').innerHTML = `${percent}
@@ -1505,8 +1498,9 @@ function detailView(id) {
         ${d.ind ? `Verfeinert mit ${num(d.ind.n, 0)} Tageskursen.` : 'Schnellbewertung – die verfeinerte Bewertung wird geladen …'}</p>
       <div class="h-cards">${block('short', 'Kurzfristig', 'die letzten Tage')}${block('medium', 'Mittelfristig', '2–4 Wochen')}
         ${block('long', 'Langfristig', '200 Tage bis 1 Jahr')}${block('regime', 'Marktphase', 'gilt für alle Coins, Schnitt aus 14 Tagen')}</div>
-      <p class="hint block-sum">Summe der Bausteine: <strong>${signed(blockSum, 0)}</strong>${a.score === null || blockSum === a.score ? ' – das ist der Prognose-Score.'
-        : `. Der Prognose-Score steht bei <strong>${signed(a.score, 0)}</strong>, weil ein Filter, Nachrichten oder der antizyklische Einstieg ihn verschieben.`}</p></details>
+      <p class="hint block-sum">Summe der Bausteine: <strong>${signed(blockSum, 0)}</strong>${a.byCycle ? `. Bei ${c.id === 'bitcoin' ? 'Bitcoin' : 'Ethereum'} zählen diese Bausteine nur zu 20 %, zu 80 % zählt der Kauf-Score des Zyklus-Kompasses (${a.regime?.buy}) – daraus ergibt sich der Score von <strong>${signed(a.score, 0)}</strong>.`
+        : a.score === null || blockSum === a.score ? ' – das ist der Prognose-Score.'
+        : `. Der Prognose-Score steht bei <strong>${signed(a.score, 0)}</strong>, weil ein Filter, Nachrichten oder der Zyklus-Kompass ihn verschieben.`}</p></details>
       ${extra}`;
   }
 

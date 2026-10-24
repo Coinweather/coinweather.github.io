@@ -562,80 +562,106 @@ export function outlookOf(s) {
     : s.mid < 0 && up <= 40 ? ['Sehr negativ', -1] : s.mid < 0 && up <= 47 ? ['Negativ', -1] : ['Neutral', 0];
 }
 
+// ---------- Kauf-Score im Coin-Score: alles folgt dem Zyklus-Kompass ----------
+// Bitcoin und Ethereum folgen zu 80 % dem Kauf-Score (100 − Zyklus-Risiko) und zu 20 % ihrem Trend. Altcoins folgen ihrem
+// Trend, aber nie gegen den Kompass: Ist der Zyklus günstig (Kauf-Score ab 62), gibt es kein Verkaufssignal; ist er teuer
+// (unter 45), höchstens „Eher kaufen“. Warum Altcoins nicht direkt dem Kauf-Score folgen: Seit 2022 lagen sie ein Jahr nach
+// günstigen Ständen meist tiefer (Bitcoin und Ethereum meist höher, siehe BUY_HISTORY).
+// Rückrechnung Portfolio-Manager (84 Coins, wöchentlich, 0,25 % Gebühr, 7 Starttage, Oktober 2026):
+//   so wie hier            75,6 % pro Jahr, 2018–21 134 %, seit 2022 40 %, größter Rückgang −41,7 %
+//   nur Trend (bis 10/2026) 73,2 %,            120 %,             43 %,                     −40,1 %
+//   alle Coins 60 % Kauf-Score / 40 % Trend   37,7 %, 40 %, 36 %, −41 %  (Altcoins in fallende Märkte gekauft)
+//   Altcoins bei teurem Zyklus ganz ohne Kauf 43,8 % (verpasst den Anstieg 2020/21) – deshalb nur begrenzt auf „Eher kaufen“
+export const CORE_BUY_WEIGHT = 0.8, CHEAP_FROM = 62, DEAR_BELOW = 45;
+export function coinScore(id, trendRaw, buy) {
+  if (!isNum(trendRaw)) return null;
+  const t = Math.round(clamp(trendRaw) * 100);
+  if (!isNum(buy)) return t;
+  if (CORE_IDS.has(id)) return Math.round(clamp((CORE_BUY_WEIGHT * buy + (1 - CORE_BUY_WEIGHT) * (50 + clamp(trendRaw) * 50) - 50) / 50) * 100);
+  if (buy >= CHEAP_FROM) return Math.max(t, -(BUY - 1));
+  if (buy < DEAR_BELOW) return Math.min(t, STRONG_BUY - 1);
+  return t;
+}
+
 function assemble(c, short, medium, long, regime, volDaily, news) {
   let raw = totalScore(short, medium, long, regime);
   if (raw === null) return none('Keine Daten', 'Zu wenig Kursdaten für eine Prognose.');
   const notes = [];
   if (news && news.score !== null) raw += W_NEWS * news.score;
-  if (greedZone(regime)) {
+  const buy = isNum(regime?.buy) ? regime.buy : null;
+  const byCycle = CORE_IDS.has(c.id) && buy !== null;
+  // Bärenmarkt-Filter und Gier-Bremse gelten für den Trend der Altcoins. Bei Bitcoin und Ethereum steckt beides im Kauf-Score.
+  if (!byCycle && greedZone(regime)) {
     raw = Math.min(raw, GREED_CAP);
     notes.push(`Gier-Bremse aktiv: Der Fear-&-Greed-Index liegt im 7-Tage-Schnitt bei ${num(regime.fng.avg7, 0)} (extreme Gier). In solchen Phasen stand der mittlere Coin 30 Tage später nur in rund jedem vierten Fall höher – das Modell gibt dann keine Kaufsignale.`);
   }
-  if (regime.bear) {
+  if (!byCycle && regime.bear) {
     raw = Math.min(raw, BEAR_CAP);
     notes.push('Bärenmarkt-Filter aktiv: Bitcoin liegt unter seinem 200-Tage-Schnitt im Abwärtstrend. In solchen Phasen gibt das Modell keine Kaufsignale.');
   }
-  // Antizyklischer Einstieg bei Bitcoin und Ethereum: tief im Zyklus hebt die Regel der Reserve auch den Kaufscore –
-  // auf die Kaufschwelle, in der Angst-Zone bis auf „Kaufen“. Sonst zeigte der Score „Halten“, während der
-  // Portfolio-Manager genau diese Coins aufstockt.
-  const deep = CORE_IDS.has(c.id) && isNum(regime?.cycle?.dd) && regime.cycle.dd <= CORE_DD;
-  const fear = deep ? fearZone(regime) : 0;
-  const anticyclical = deep && raw < (BUY + (STRONG_BUY - BUY) * fear) / 100;
-  // Die Prognosen für 7 und 30 Tage rechnen weiter mit dem Score ohne diese Anhebung – sie sagt nur etwas über 12 Monate
   const trendScore = Math.round(clamp(raw) * 100);
-  if (anticyclical) raw = (BUY + (STRONG_BUY - BUY) * fear) / 100;
-  const score = Math.round(clamp(raw) * 100);
+  const score = coinScore(c.id, raw, buy);
   let [signal, label] = signalOf(score);
-  if (anticyclical) label = 'Antizyklisch kaufen';
+  const year = buyHistory(buy);
+  if (byCycle) {
+    const h = year[c.id === 'bitcoin' ? 'btc' : 'eth'];
+    notes.unshift(`${c.id === 'bitcoin' ? 'Bitcoin' : 'Ethereum'} folgt vor allem dem Kauf-Score des Zyklus-Kompasses (80 %), dazu dem eigenen Trend (20 %). Kauf-Score heute: ${buy}. Nach vergleichbaren Ständen stand ${c.id === 'bitcoin' ? 'Bitcoin' : 'Ethereum'} seit 2022 ein Jahr später in ${h.up} % der Fälle höher. Kurzfristig kann der Kurs trotzdem weiter fallen – das Signal gilt für Käufe in Raten und mindestens 12 Monate.`);
+  } else if (buy !== null && buy >= CHEAP_FROM && trendScore <= -BUY) {
+    notes.unshift(`Der Trend ist schwach, aber der Zyklus ist günstig (Kauf-Score ${buy}) – deshalb kein Verkaufssignal, sondern „Halten“.`);
+  } else if (buy !== null && buy < DEAR_BELOW && trendScore >= STRONG_BUY) {
+    notes.unshift(`Starker Trend, aber der Zyklus ist teuer (Kauf-Score ${buy}) – deshalb höchstens „Eher kaufen“ und nur für die nächsten Wochen.`);
+  }
 
   const turnover = c.market_cap ? c.total_volume / c.market_cap : 0;
   if (signal === 'buy' && (turnover < 0.003 || c.total_volume < 50_000)) {
     [signal, label] = ['hold', 'Halten'];
     notes.push('Sehr geringes Handelsvolumen – das Kaufsignal wurde auf „Halten“ begrenzt, weil sich der Coin schwer handeln lässt.');
   }
-  if (signal === 'buy' && !anticyclical && (c.market_cap_rank ?? 9999) > SIGNAL_RANK) {
+  if (signal === 'buy' && !byCycle && (c.market_cap_rank ?? 9999) > SIGNAL_RANK) {
     [signal, label] = ['hold', 'Halten'];
     notes.push(`Kaufsignale gibt es nur für die ${SIGNAL_RANK} größten Coins – nur an solchen ist das Modell geprüft. Kleinere Coins liefen in der offenen Erfolgskontrolle deutlich schlechter; der Score reicht hier für ein Kaufsignal, angezeigt wird trotzdem „Halten“.`);
   }
-  if (regime.score !== null && Math.abs(regime.score) > 0.25) {
+  if (!byCycle && regime.score !== null && Math.abs(regime.score) > 0.25) {
     notes.push(`Die Marktphase ${regime.score > 0 ? 'stützt' : 'belastet'} die Bewertung deutlich (${signed(regime.score * W_REGIME * 100, 0)} Punkte).`);
   }
 
-  // Empfohlene Haltedauer: der längste Horizont, der das Signal trägt
+  // Empfohlene Haltedauer: bei Bitcoin und Ethereum 12 Monate (Kauf-Score), sonst der längste Horizont, der den Trend trägt
   const pos = (h) => h.score !== null && h.score > HORIZON_MIN;
   const neg = (h) => h.score !== null && h.score < -HORIZON_MIN;
   let hold = '–';
-  if (signal === 'buy') hold = pos(long) && !neg(medium) ? '1–3 Monate' : pos(medium) ? '2–4 Wochen' : pos(short) ? 'bis 1 Woche' : '2–4 Wochen';
+  if (signal === 'buy') hold = byCycle ? 'mindestens 12 Monate' : pos(long) && !neg(medium) ? '1–3 Monate' : pos(medium) ? '2–4 Wochen' : pos(short) ? 'bis 1 Woche' : '2–4 Wochen';
   else if (signal === 'hold') hold = 'Abwarten';
 
-  // Das Signal bewertet die nächsten Wochen. Zeigt die Jahressicht nach unten, ist ein Kaufsignal nur ein
-  // Handel auf Zeit – das muss dastehen, sonst widersprechen sich Signal und 12-Monats-Prognose.
   const forecast = forecastOf(trendScore, volDaily, short.score, long.score, regime, c.id);
-  // Ein Kaufsignal muss sich mit den Prozent-Prognosen decken: 7 und 30 Tage im Plus, sonst nur „Halten“
-  if (anticyclical) {
-    hold = 'mindestens 12 Monate';
-    notes.unshift(`Antizyklischer Einstieg: Bitcoin liegt ${num(-regime.cycle.dd, 0)} % unter seinem Allzeithoch${fear > 0 ? ' und der Fear-&-Greed-Index steht seit Wochen in der Angstzone' : ''}. `
-      + `Aus solchen Lagen stand ${c.id === 'bitcoin' ? 'Bitcoin ein Jahr später in 77–100 %' : 'Ethereum ein Jahr später in 57–100 %'} der Fälle höher. `
-      + 'Kurzfristig kann der Kurs weiter fallen – das Signal gilt für Käufe in Raten und eine Haltedauer von mindestens 12 Monaten.');
-  } else if (signal === 'buy' && (forecast.short.mid <= 0 || forecast.medium.mid <= 0)) {
+  // Ein Kaufsignal aus dem Trend muss sich mit den Prozent-Prognosen decken: 7 und 30 Tage im Plus, sonst nur „Halten“
+  if (!byCycle && signal === 'buy' && (forecast.short.mid <= 0 || forecast.medium.mid <= 0)) {
     [signal, label, hold] = ['hold', 'Halten', 'Abwarten'];
     notes.push('Der Score reicht für ein Kaufsignal, aber die Prognose für 7 oder 30 Tage liegt nicht im Plus – deshalb nur „Halten“.');
   }
-  const yearDown = forecast.long && !forecast.long.mixed && forecast.long.mid <= -5;
-  if (signal === 'buy' && yearDown && !anticyclical) {
+  // Zeigt die Jahressicht nach unten, ist ein Kaufsignal aus dem Trend nur ein Handel auf Zeit – das muss dastehen
+  const yearDown = !byCycle && forecast.long && forecast.long.mid <= -5;
+  if (signal === 'buy' && yearDown) {
     if (hold === '1–3 Monate') hold = '2–4 Wochen';
     notes.unshift(`Das Kaufsignal gilt für die nächsten Wochen, nicht zum langen Halten: Ein Jahr nach vergleichbaren Ständen des Kauf-Scores lag das mittlere Ergebnis solcher Coins seit 2022 bei ${signed(forecast.long.mid, 0)} %. Wer kauft, sollte nach der Haltedauer neu prüfen und bei einem Verkaufssignal aussteigen.`);
   }
+  const anticyclical = byCycle && signal === 'buy';
   return { signal, label, score, stable: false, short, medium, long, regime, news: news ?? null, horizon: hold,
-    anticyclical, scope: signal !== 'buy' ? null : anticyclical ? 'year' : yearDown ? 'weeks' : 'open',
-    risk: riskOf(c, volDaily), agreement: agreementOf(forecast, signal === 'sell' ? -1 : signal === 'buy' ? 1 : Math.sign(score)), notes,
-    forecast, reasons: withAnticyclical(reasons(short, medium, long, regime), anticyclical ? score - trendScore : 0, regime) };
+    anticyclical, byCycle, trendScore, scope: signal !== 'buy' ? null : byCycle ? 'year' : yearDown ? 'weeks' : 'open',
+    risk: riskOf(c, volDaily), agreement: agreementOf(byCycle ? { long: forecast.long } : forecast, signal === 'sell' ? -1 : signal === 'buy' ? 1 : Math.sign(score)), notes,
+    forecast, reasons: withCycle(reasons(short, medium, long, regime), byCycle ? Math.round(1.6 * (buy - 50)) : score - trendScore, buy, byCycle) };
 }
 
-// Der antizyklische Einstieg erscheint als eigener Grund – er ist kein Kursmerkmal, sondern die Regel der Reserve
-function withAnticyclical(why, points, regime) {
-  if (points > 0) why.pro.unshift({ name: 'Antizyklischer Einstieg', horizon: '12 Monate', points,
-    text: `Bitcoin ${num(-regime.cycle.dd, 0)} % unter dem Allzeithoch${fearZone(regime) > 0 ? ', seit Wochen Angst am Markt' : ''}` });
+// Der Kauf-Score erscheint als eigener Grund – mit den Punkten, um die er den Trend verschiebt
+function withCycle(why, points, buy, byCycle) {
+  // Bei Bitcoin und Ethereum zählt der Trend nur zu 20 % – seine Gründe entsprechend kleiner
+  if (byCycle) {
+    for (const list of [why.pro, why.contra]) for (const f of list) f.points = Math.round(f.points * (1 - CORE_BUY_WEIGHT));
+    why = { pro: why.pro.filter((f) => f.points > 0), contra: why.contra.filter((f) => f.points < 0) };
+  }
+  if (!points) return why;
+  const item = { name: 'Kauf-Score (Zyklus-Kompass)', horizon: '12 Monate', points,
+    text: byCycle ? `Kauf-Score ${buy} – zählt bei Bitcoin und Ethereum zu 80 %` : `Kauf-Score ${buy} – ${points > 0 ? 'günstiger Zyklus, kein Verkaufssignal' : 'teurer Zyklus, höchstens „Eher kaufen“'}` };
+  (points > 0 ? why.pro : why.contra).unshift(item);
   return why;
 }
 
@@ -789,7 +815,8 @@ function tradeSetup(c, a, ind, regime) {
   const calm = isNum(regime?.fng?.avg7) && regime.fng.avg7 >= TRADE_LIMITS.fng;
   // Der Markt muss mitgefallen sein – fällt ein Coin allein, steckt meist eine schlechte Nachricht dahinter
   const together = isNum(regime?.marketWeek) && regime.marketWeek <= TRADE_LIMITS.market;
-  const kind = sold && calm && together ? 'selloff' : a.score >= TRADE_LIMITS.score ? 'score' : null;
+  // Handelsmuster gelten für Tage: Sie rechnen mit dem Trend-Score, nicht mit dem Kauf-Score (Bitcoin, Ethereum)
+  const kind = sold && calm && together ? 'selloff' : (a.trendScore ?? a.score) >= TRADE_LIMITS.score ? 'score' : null;
   const info = { swing: r1(sw), r7: r7 === null ? null : r1(r7), blocked: !sold ? null : !together ? 'alone' : !calm ? 'fear' : null };
   if (!kind) return { ...info, kind: null };
   const s = TRADE_SETUPS[kind], entry = c.current_price;
@@ -882,8 +909,21 @@ export function analyseNews(articles, now = Date.now()) {
 // Wie entwickelte sich der Kurs in der Vergangenheit, nachdem das Modell ein Signal zeigte?
 // Bewertet wird der Gesamt-Score aus Tagesdaten und Marktphase; Nachrichten und Stundenkurse
 // gibt es für die Vergangenheit nicht.
-export function backtest(ind, btcInd, fngByDay, days) {
+export function backtest(ind, btcInd, fngByDay, days, id = null) {
   const btcIndex = btcInd ? new Map(btcInd.days.map((d, j) => [d, j])) : null;
+  // Kauf-Score je Tag aus den Bitcoin-Tageskursen bis zu diesem Tag – für dieselbe Regel wie heute (coinScore)
+  const buyAt = new Map();
+  if (btcInd && fngByDay) {
+    let hi = 0;
+    for (let j = 0; j < btcInd.n; j++) {
+      hi = Math.max(hi, btcInd.prices[j]);
+      if (j < 730) continue;
+      let sum = 0, k = 0;
+      for (let d = 0; d < 30; d++) { const v = fngByDay.get(btcInd.days[j] - d); if (isNum(v)) { sum += v; k++; } }
+      const b = buyScore(btcInd.prices.slice(j - 729, j + 1), (btcInd.prices[j] / hi - 1) * 100, k >= 20 ? sum / k : null);
+      if (b) buyAt.set(btcInd.days[j], b.value);
+    }
+  }
   const bucket = () => ({ n: 0, up: 0, sum: 0, list: [] });
   const res = { buy: bucket(), sell: bucket(), all: bucket() };
   // Die ersten 200 Tage dienen als Vorlauf für den 200-Tage-Schnitt, bei kurzer Historie weniger
@@ -899,7 +939,7 @@ export function backtest(ind, btcInd, fngByDay, days) {
     }
     const raw = totalScore(s.short, s.medium, s.long, regime);
     if (raw === null) continue;
-    const [signal] = signalOf(Math.round(raw * 100));
+    const [signal] = signalOf(coinScore(id, raw, buyAt.get(ind.days[i]) ?? null));
     const fwd = (ind.prices[i + days] / ind.prices[i] - 1) * 100;
     const targets = [res.all];
     if (signal === 'buy') targets.push(res.buy);

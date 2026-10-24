@@ -80,7 +80,8 @@ export async function buildCurve({ offset = 0, options = {}, coinScore = null } 
     for (const s of syms) {
       const i = IDX[s].get(day); if (i === undefined || i < 200) continue;
       const x = m.scoreAt(I[s], i); const raw = m.totalScore(x.short, x.medium, x.long, R); if (raw === null) continue;
-      const score = coinScore ? coinScore(raw, R) : Math.round(raw * 100), v = vol30(I[s], i);
+      // dieselbe Regel wie auf der Seite: Bitcoin und Ethereum vor allem nach dem Kauf-Score, Altcoins nach dem Trend (js/model.js coinScore)
+      const score = coinScore ? coinScore(raw, R, s) : m.coinScore(s === 'BTC' ? 'bitcoin' : s === 'ETH' ? 'ethereum' : s, raw, R.buy), v = vol30(I[s], i);
       const [signal] = m.signalOf(score);
       A[s] = { price: I[s].prices[i], analysis: { score, signal, long: x.long, risk: { level: v < 2.5 ? 0 : v < 5 ? 1 : v < 9 ? 2 : 3 }, horizon: '2–4 Wochen', stable: false } };
     }

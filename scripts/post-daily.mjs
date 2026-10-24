@@ -19,6 +19,7 @@
 import crypto from 'node:crypto';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import sharp from 'sharp';
+import { buyHistory } from '../js/model.js';
 
 const REPO = 'Coinweather/coinweather.github.io';
 const SNAPSHOT = `https://raw.githubusercontent.com/${REPO}/data/snapshot.json`;
@@ -157,7 +158,7 @@ const R = {
   cycle: market.cycle ? `${T.cycle}: ${T.zone[market.cycle.zone] ?? market.cycle.label}` : null,
   signals: T.signals(buys, rated),
 };
-const body = [`${T.weather}: ${R.sky}`, R.index, R.fng, R.btc, R.cycle, R.signals].filter(Boolean);
+const body = [`${T.weather}: ${R.sky}`, R.index, R.fng, R.btc, R.signals].filter(Boolean);
 
 // Größte Bewegungen der 100 größten Coins in 24 Stunden – Beobachtungen, keine Empfehlungen; Stablecoins zählen nicht
 const movers = coins.filter((c) => c.market_cap_rank <= 100 && c.analysis?.signal !== 'none' && !c.analysis?.stable
@@ -261,7 +262,7 @@ function richX() {
 const M = {
   en: {
     top: 'Top gainer (top 100)', flop: 'Biggest drop (top 100)', movesHead: 'Biggest moves of the top 100 in 24 h:', obs: 'Observations, not recommendations.', cycle: 'Cycle', signals: (n, of) => `Short-term buy signals: ${n} of ${of} coins`,
-    odds: (up, days) => `📈 After comparable market days since 2018, Bitcoin was higher ${days} days later in ${up} of 100 cases – a tendency, not a promise.`,
+    odds: (b, e) => `📈 Since 2022, after buy scores like today, Bitcoin was higher one year later in ${b} of 100 cases, Ethereum in ${e} – a tendency, not a promise.`,
     more: { facebook: '📸 More in the photos: the outlook and today’s top movers.', instagram: '👉 Swipe for the outlook and today’s top movers.' },
     vote: 'Comment your move: 🟢 buying · 🟡 holding · 🔴 selling',
     offer: '✅ Signals for 1,000 coins, portfolio check and an open track record of every call – 30 days free, no payment details needed',
@@ -270,7 +271,7 @@ const M = {
   },
   de: {
     top: 'Top-Gewinner (Top 100)', flop: 'Größter Verlierer (Top 100)', movesHead: 'Größte Bewegungen der Top 100 in 24 h:', obs: 'Beobachtungen, keine Empfehlungen.', cycle: 'Zyklus', signals: (n, of) => `Kaufsignale für die nächsten Wochen: ${n} von ${of} Coins`,
-    odds: (up, days) => `📈 Nach vergleichbaren Markttagen seit 2018 stand Bitcoin ${days} Tage später in ${up} von 100 Fällen höher – eine Tendenz, kein Versprechen.`,
+    odds: (b, e) => `📈 Seit 2022 stand Bitcoin nach Kauf-Scores wie heute ein Jahr später in ${b} von 100 Fällen höher, Ethereum in ${e} – eine Tendenz, kein Versprechen.`,
     more: { facebook: '📸 Mehr auf den Bildern: die Aussicht und die größten Bewegungen des Tages.', instagram: '👉 Wischen für die Aussicht und die größten Bewegungen des Tages.' },
     vote: 'Schreib in die Kommentare: 🟢 ich kaufe · 🟡 ich halte · 🔴 ich verkaufe',
     offer: '✅ Signale für 1000 Coins, Portfolio-Check und eine offene Erfolgskontrolle jedes Signals – 30 Tage kostenlos, ohne Zahlungsdaten',
@@ -278,7 +279,9 @@ const M = {
     follow: { facebook: '🔔 Folge der Seite für dein Krypto-Wetter jeden Morgen.', instagram: '🔔 Folge uns für dein Krypto-Wetter jeden Morgen.' },
   },
 }[lang];
-const odds = fc?.btc?.short && Number.isFinite(fc.btc.short.up) ? M.odds(fc.btc.short.up, fc.btc.short.days) : null;
+// Dieselbe Aussage wie die Seite: Wie es ein Jahr nach vergleichbaren Kauf-Scores weiterging (Zyklus-Kompass, seit 2022)
+const year = market.buy ? buyHistory(market.value) : null;
+const odds = year ? M.odds(year.btc.up, year.eth.up) : null;
 function rich(channel, reel = false) {
   const loser = losers[0];
   const list = (icon, l) => l.map((c) => `${icon} ${c.symbol.toUpperCase()} ${signed(c.price_change_percentage_24h_in_currency)}`);
@@ -293,7 +296,6 @@ function rich(channel, reel = false) {
     R.tip,
     fngLine(XT.week),
     btcLine,
-    market.cycle ? `🔁 ${M.cycle}: ${T.zone[market.cycle.zone] ?? market.cycle.label}` : null,
     `🎯 ${M.signals(buys, rated)}`,
     compassLine,
     ...(evening ? ['', ...moves] : moves),
@@ -321,22 +323,22 @@ const text = {
 // 1 Wetterbericht · 2 Aussicht · 3 größte Bewegungen · 4 Angebot. Instagram zeigt sie als Karussell, Facebook als Album.
 const S = {
   en: {
-    outlook: 'Outlook', outlookSub: 'How often was the price higher after', outlookSub2: 'comparable market days since 2018?',
-    days: (n) => `${n} days`, btcRow: 'Bitcoin', altRow: 'Average coin', btcHint: 'the market leader', altHint: 'a typical altcoin',
-    coin: '50 % = coin flip. Above 50: more often up than down.', tendency: 'A tendency from past data – not a guarantee.',
+    outlook: 'One year later', outlookSub: 'How often was the price higher one year', outlookSub2: (v) => `after a buy score like today (${v})? Since 2022`,
+    higher: 'higher', median: 'median', btcRow: 'Bitcoin', ethRow: 'Ethereum', altRow: 'Altcoins', btcHint: 'the market leader', ethHint: 'number two', altHint: 'the typical altcoin',
+    coin: 'Rain is buying weather – for Bitcoin and Ethereum.', tendency: 'One cycle since 2022 – a tendency, not a guarantee.',
     movers: 'Top movers · 24h', moversSub: 'The 100 largest coins by market cap', gainers: 'Gainers', losers: 'Losers',
     obs: 'Observations, not recommendations.', signals: 'Short-term signals', signalsVal: (n, of) => `${n} of ${of} coins`,
-    ctaTitle: 'Want the full picture?', bullets: ['Signals for 1,000 coins', 'Outlook for 7 days, 30 days and 12 months',
+    ctaTitle: 'Want the full picture?', bullets: ['Contrarian buy score from the Cycle Compass', 'Signals for 1,000 coins',
       'Portfolio check with a reserve target', 'Open track record – including the bad calls'],
     free: '30 days free', nopay: 'No payment details needed', bio: 'Link in bio', follow: 'Follow for your crypto weather every morning',
   },
   de: {
-    outlook: 'Aussicht', outlookSub: 'Wie oft stand der Kurs höher nach', outlookSub2: 'vergleichbaren Markttagen seit 2018?',
-    days: (n) => `${n} Tage`, btcRow: 'Bitcoin', altRow: 'Mittlerer Coin', btcHint: 'die Leitwährung', altHint: 'ein typischer Altcoin',
-    coin: '50 % = Münzwurf. Über 50: öfter rauf als runter.', tendency: 'Eine Tendenz aus vergangenen Daten – keine Garantie.',
+    outlook: 'Ein Jahr später', outlookSub: 'Wie oft stand der Kurs ein Jahr nach', outlookSub2: (v) => `einem Kauf-Score wie heute (${v}) höher? Seit 2022`,
+    higher: 'höher', median: 'Median', btcRow: 'Bitcoin', ethRow: 'Ethereum', altRow: 'Altcoins', btcHint: 'die Leitwährung', ethHint: 'die Nummer zwei', altHint: 'der typische Altcoin',
+    coin: 'Regen ist Kaufwetter – für Bitcoin und Ethereum.', tendency: 'Ein Zyklus seit 2022 – eine Tendenz, keine Garantie.',
     movers: 'Größte Bewegungen · 24 h', moversSub: 'Die 100 größten Coins nach Marktwert', gainers: 'Gewinner', losers: 'Verlierer',
     obs: 'Beobachtungen, keine Empfehlungen.', signals: 'Signale (Wochen)', signalsVal: (n, of) => `${n} von ${of} Coins`,
-    ctaTitle: 'Alles im Detail?', bullets: ['Signale für 1000 Coins', 'Aussicht für 7 Tage, 30 Tage und 12 Monate',
+    ctaTitle: 'Alles im Detail?', bullets: ['Antizyklischer Kauf-Score aus dem Zyklus-Kompass', 'Signale für 1000 Coins',
       'Portfolio-Check mit Reserve-Ziel', 'Offene Erfolgskontrolle – auch die Fehlgriffe'],
     free: '30 Tage kostenlos', nopay: 'Ohne Zahlungsdaten', bio: 'Link in der Bio', follow: 'Folge uns für dein Krypto-Wetter jeden Morgen',
   },
@@ -387,27 +389,29 @@ function slideWeather() {
     ${row(1105, S.signals, S.signalsVal(buys, rated))}`);
 }
 
+// Bild 2: Ein Jahr nach vergleichbaren Kauf-Scores – Bitcoin, Ethereum, Altcoins (dieselben Zahlen wie auf der Seite)
 function slideOutlook() {
-  const cell = (x, y, s) => {
-    if (!s || !Number.isFinite(s.up)) return `<text x="${x}" y="${y}" font-size="80" fill="${C.dim}" text-anchor="middle" font-weight="700">–</text>`;
-    return `<text x="${x}" y="${y}" font-size="88" fill="${upColor(s.up)}" text-anchor="middle" font-weight="700">${s.up}<tspan font-size="44"> %</tspan></text>
-      ${gaugeBar(x - 120, y + 30, 240, 16, s.up, upColor(s.up))}`;
-  };
-  const row = (y, label, hint, f) => `<text x="90" y="${y - 20}" font-size="44" fill="${C.text}" font-weight="700">${esc(label)}</text>
-    <text x="90" y="${y + 28}" font-size="30" fill="${C.muted}">${esc(hint)}</text>${cell(590, y + 10, f?.short)}${cell(860, y + 10, f?.medium)}`;
+  const h = year ?? { btc: {}, eth: {}, alt: {} };
+  const pct = (v) => (Number.isFinite(v) ? `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v)} %` : '–');
+  const row = (y, label, hint, r) => `<text x="90" y="${y - 20}" font-size="44" fill="${C.text}" font-weight="700">${esc(label)}</text>
+    <text x="90" y="${y + 28}" font-size="30" fill="${C.muted}">${esc(hint)}</text>
+    ${Number.isFinite(r.up) ? `<text x="640" y="${y + 10}" font-size="80" fill="${upColor(r.up)}" text-anchor="middle" font-weight="700">${r.up}<tspan font-size="40"> %</tspan></text>
+    ${gaugeBar(520, y + 34, 240, 14, r.up, upColor(r.up))}` : ''}
+    <text x="900" y="${y + 10}" font-size="52" fill="${r.median > 0 ? C.up : r.median < 0 ? C.down : C.text}" text-anchor="middle" font-weight="700">${esc(pct(r.median))}</text>`;
   return frame(2, `
-    <text x="90" y="330" font-size="72" fill="${C.text}" font-weight="700">${esc(S.outlook)}</text>
-    <text x="90" y="395" font-size="36" fill="${C.muted}">${esc(S.outlookSub)}</text>
-    <text x="90" y="442" font-size="36" fill="${C.muted}">${esc(S.outlookSub2)}</text>
-    <text x="590" y="545" font-size="34" fill="${C.muted}" text-anchor="middle">${esc(S.days(fc?.btc?.short?.days ?? 7))}</text>
-    <text x="860" y="545" font-size="34" fill="${C.muted}" text-anchor="middle">${esc(S.days(fc?.btc?.medium?.days ?? 30))}</text>
-    <line x1="90" y1="575" x2="990" y2="575" stroke="${C.line}" stroke-width="2"/>
-    ${row(690, S.btcRow, S.btcHint, fc?.btc)}
-    <line x1="90" y1="790" x2="990" y2="790" stroke="${C.line}" stroke-width="2"/>
-    ${row(905, S.altRow, S.altHint, fc?.alt)}
-    <line x1="90" y1="1005" x2="990" y2="1005" stroke="${C.line}" stroke-width="2"/>
-    <text x="90" y="1075" font-size="32" fill="${C.text}">${esc(S.coin)}</text>
-    <text x="90" y="1125" font-size="32" fill="${C.muted}">${esc(S.tendency)}</text>`);
+    <text x="90" y="320" font-size="72" fill="${C.text}" font-weight="700">${esc(S.outlook)}</text>
+    <text x="90" y="385" font-size="34" fill="${C.muted}">${esc(S.outlookSub)}</text>
+    <text x="90" y="430" font-size="34" fill="${C.muted}">${esc(S.outlookSub2(market.value))}</text>
+    <text x="640" y="520" font-size="32" fill="${C.muted}" text-anchor="middle">${esc(S.higher)}</text>
+    <text x="900" y="520" font-size="32" fill="${C.muted}" text-anchor="middle">${esc(S.median)}</text>
+    <line x1="90" y1="545" x2="990" y2="545" stroke="${C.line}" stroke-width="2"/>
+    ${row(650, S.btcRow, S.btcHint, h.btc)}
+    <line x1="90" y1="725" x2="990" y2="725" stroke="${C.line}" stroke-width="2"/>
+    ${row(830, S.ethRow, S.ethHint, h.eth)}
+    <line x1="90" y1="905" x2="990" y2="905" stroke="${C.line}" stroke-width="2"/>
+    ${row(1010, S.altRow, S.altHint, h.alt)}
+    <text x="90" y="1135" font-size="32" fill="${C.text}">${esc(S.coin)}</text>
+    <text x="90" y="1180" font-size="30" fill="${C.muted}">${esc(S.tendency)}</text>`);
 }
 
 function slideMovers() {
