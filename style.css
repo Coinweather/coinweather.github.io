@@ -801,3 +801,19 @@ details.d-fold > summary { font-size: 15px; letter-spacing: 0; text-transform: n
 .no-picks p:last-child { margin-bottom: 0; }
 .compass-risk .buy-history { margin: 0 0 14px; }
 .compass-link strong { font-size: 18px; }
+
+/* Was heißt das für dich? und Sprungleiste */
+.todo-box { margin-top: 16px; border-color: color-mix(in srgb, var(--up) 35%, var(--line)); }
+.todo-list { list-style: none; margin: 10px 0 4px; padding: 0; display: grid; gap: 10px; }
+.todo-list li { display: grid; grid-template-columns: 32px 1fr auto; gap: 12px; align-items: center; font-size: 15px; }
+.todo-icon { font-size: 22px; text-align: center; }
+.jump { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 16px 0 0; }
+.jump a { padding: 6px 12px; border: 1px solid var(--line-strong); border-radius: 999px; color: var(--muted); font-weight: 600; font-size: 13.5px; }
+.jump a:hover { color: var(--text); border-color: var(--accent); }
+.pager { gap: 14px; align-items: center; flex-wrap: wrap; }
+.pick-score small { font-size: 13px; color: var(--muted); font-weight: 600; margin-left: 2px; }
+#picks-sec, #cycle, .heat-wrap, .controls { scroll-margin-top: 90px; }
+@media (max-width: 560px) {
+  .todo-list li { grid-template-columns: 28px 1fr; }
+  .todo-list li .btn { grid-column: 2; justify-self: start; }
+}

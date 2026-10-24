@@ -563,24 +563,29 @@ export function outlookOf(s) {
 }
 
 // ---------- Kauf-Score im Coin-Score: alles folgt dem Zyklus-Kompass ----------
-// Bitcoin und Ethereum folgen zu 80 % dem Kauf-Score (100 − Zyklus-Risiko) und zu 20 % ihrem Trend. Altcoins folgen ihrem
-// Trend, aber nie gegen den Kompass: Ist der Zyklus günstig (Kauf-Score ab 62), gibt es kein Verkaufssignal; ist er teuer
-// (unter 45), höchstens „Eher kaufen“. Warum Altcoins nicht direkt dem Kauf-Score folgen: Seit 2022 lagen sie ein Jahr nach
-// günstigen Ständen meist tiefer (Bitcoin und Ethereum meist höher, siehe BUY_HISTORY).
+// Bitcoin und Ethereum folgen zu 80 % dem Kauf-Score (100 − Zyklus-Risiko) und zu 20 % ihrem Trend. Bei Altcoins kommt zum
+// Trend ein Zyklus-Bonus: je Kauf-Score-Punkt über 50 plus 1,2 Punkte (Kauf-Score 69 → +23). Dazu nie gegen den Kompass: Ist der
+// Zyklus günstig (ab 62), gibt es kein Verkaufssignal; ist er teuer (unter 45), höchstens „Eher kaufen“. Ein Abzug bei teurem
+// Zyklus wurde geprüft und kostete viel (verpasst den Anstieg 2020/21), deshalb nur die Obergrenze.
 // Rückrechnung Portfolio-Manager (84 Coins, wöchentlich, 0,25 % Gebühr, 7 Starttage, Oktober 2026):
-//   so wie hier            75,6 % pro Jahr, 2018–21 134 %, seit 2022 40 %, größter Rückgang −41,7 %
+//   so wie hier            79,1 % pro Jahr, 2018–21 141 %, seit 2022 42 %, größter Rückgang −42,6 %
+//   ohne Altcoin-Bonus      75,6 %,            134 %,             40 %,                     −41,7 %
+//   Bonus +1,6 je Punkt     75,6 %,            140 %,             37 %,                     −42,9 %
+//   Bonus und Abzug ±0,4    60,4 %
 //   nur Trend (bis 10/2026) 73,2 %,            120 %,             43 %,                     −40,1 %
 //   alle Coins 60 % Kauf-Score / 40 % Trend   37,7 %, 40 %, 36 %, −41 %  (Altcoins in fallende Märkte gekauft)
 //   Altcoins bei teurem Zyklus ganz ohne Kauf 43,8 % (verpasst den Anstieg 2020/21) – deshalb nur begrenzt auf „Eher kaufen“
-export const CORE_BUY_WEIGHT = 0.8, CHEAP_FROM = 62, DEAR_BELOW = 45;
+export const CORE_BUY_WEIGHT = 0.8, CHEAP_FROM = 62, DEAR_BELOW = 45, ALT_CYCLE_BONUS = 1.2;
+export const cycleBonus = (id, buy) => (CORE_IDS.has(id) || !isNum(buy) ? 0 : Math.round(Math.max(0, buy - 50) * ALT_CYCLE_BONUS));
 export function coinScore(id, trendRaw, buy) {
   if (!isNum(trendRaw)) return null;
   const t = Math.round(clamp(trendRaw) * 100);
   if (!isNum(buy)) return t;
   if (CORE_IDS.has(id)) return Math.round(clamp((CORE_BUY_WEIGHT * buy + (1 - CORE_BUY_WEIGHT) * (50 + clamp(trendRaw) * 50) - 50) / 50) * 100);
-  if (buy >= CHEAP_FROM) return Math.max(t, -(BUY - 1));
-  if (buy < DEAR_BELOW) return Math.min(t, STRONG_BUY - 1);
-  return t;
+  let x = Math.max(-100, Math.min(100, t + cycleBonus(id, buy)));
+  if (buy >= CHEAP_FROM) x = Math.max(x, -(BUY - 1));
+  if (buy < DEAR_BELOW) x = Math.min(x, STRONG_BUY - 1);
+  return x;
 }
 
 function assemble(c, short, medium, long, regime, volDaily, news) {
@@ -603,9 +608,13 @@ function assemble(c, short, medium, long, regime, volDaily, news) {
   const score = coinScore(c.id, raw, buy);
   let [signal, label] = signalOf(score);
   const year = buyHistory(buy);
+  // Trägt erst der Zyklus-Bonus einen Altcoin auf ein Kaufsignal, gilt das Signal wie bei Bitcoin und Ethereum für 12 Monate
+  const cycleLed = byCycle || (signal === 'buy' && signalOf(trendScore)[0] !== 'buy');
   if (byCycle) {
     const h = year[c.id === 'bitcoin' ? 'btc' : 'eth'];
     notes.unshift(`${c.id === 'bitcoin' ? 'Bitcoin' : 'Ethereum'} folgt vor allem dem Kauf-Score des Zyklus-Kompasses (80 %), dazu dem eigenen Trend (20 %). Kauf-Score heute: ${buy}. Nach vergleichbaren Ständen stand ${c.id === 'bitcoin' ? 'Bitcoin' : 'Ethereum'} seit 2022 ein Jahr später in ${h.up} % der Fälle höher. Kurzfristig kann der Kurs trotzdem weiter fallen – das Signal gilt für Käufe in Raten und mindestens 12 Monate.`);
+  } else if (cycleLed) {
+    notes.unshift(`Das Kaufsignal kommt vor allem vom günstigen Zyklus (Kauf-Score ${buy}, +${Math.round(cycleBonus(c.id, buy) / 2)} Punkte). Es gilt für Käufe in Raten über 12 Monate – kurzfristig kann der Kurs weiter fallen. Altcoins standen seit 2022 ein Jahr nach solchen Ständen in ${year.alt.up} % der Fälle höher.`);
   } else if (buy !== null && buy >= CHEAP_FROM && trendScore <= -BUY) {
     notes.unshift(`Der Trend ist schwach, aber der Zyklus ist günstig (Kauf-Score ${buy}) – deshalb kein Verkaufssignal, sondern „Halten“.`);
   } else if (buy !== null && buy < DEAR_BELOW && trendScore >= STRONG_BUY) {
@@ -629,25 +638,26 @@ function assemble(c, short, medium, long, regime, volDaily, news) {
   const pos = (h) => h.score !== null && h.score > HORIZON_MIN;
   const neg = (h) => h.score !== null && h.score < -HORIZON_MIN;
   let hold = '–';
-  if (signal === 'buy') hold = byCycle ? 'mindestens 12 Monate' : pos(long) && !neg(medium) ? '1–3 Monate' : pos(medium) ? '2–4 Wochen' : pos(short) ? 'bis 1 Woche' : '2–4 Wochen';
+  if (signal === 'buy') hold = cycleLed ? 'mindestens 12 Monate' : pos(long) && !neg(medium) ? '1–3 Monate' : pos(medium) ? '2–4 Wochen' : pos(short) ? 'bis 1 Woche' : '2–4 Wochen';
   else if (signal === 'hold') hold = 'Abwarten';
 
   const forecast = forecastOf(trendScore, volDaily, short.score, long.score, regime, c.id);
   // Ein Kaufsignal aus dem Trend muss sich mit den Prozent-Prognosen decken: 7 und 30 Tage im Plus, sonst nur „Halten“
-  if (!byCycle && signal === 'buy' && (forecast.short.mid <= 0 || forecast.medium.mid <= 0)) {
+  if (!cycleLed && signal === 'buy' && (forecast.short.mid <= 0 || forecast.medium.mid <= 0)) {
     [signal, label, hold] = ['hold', 'Halten', 'Abwarten'];
     notes.push('Der Score reicht für ein Kaufsignal, aber die Prognose für 7 oder 30 Tage liegt nicht im Plus – deshalb nur „Halten“.');
   }
   // Zeigt die Jahressicht nach unten, ist ein Kaufsignal aus dem Trend nur ein Handel auf Zeit – das muss dastehen
-  const yearDown = !byCycle && forecast.long && forecast.long.mid <= -5;
+  const yearDown = !cycleLed && forecast.long && forecast.long.mid <= -5;
   if (signal === 'buy' && yearDown) {
     if (hold === '1–3 Monate') hold = '2–4 Wochen';
     notes.unshift(`Das Kaufsignal gilt für die nächsten Wochen, nicht zum langen Halten: Ein Jahr nach vergleichbaren Ständen des Kauf-Scores lag das mittlere Ergebnis solcher Coins seit 2022 bei ${signed(forecast.long.mid, 0)} %. Wer kauft, sollte nach der Haltedauer neu prüfen und bei einem Verkaufssignal aussteigen.`);
   }
   const anticyclical = byCycle && signal === 'buy';
   return { signal, label, score, stable: false, short, medium, long, regime, news: news ?? null, horizon: hold,
-    anticyclical, byCycle, trendScore, scope: signal !== 'buy' ? null : byCycle ? 'year' : yearDown ? 'weeks' : 'open',
-    risk: riskOf(c, volDaily), agreement: agreementOf(byCycle ? { long: forecast.long } : forecast, signal === 'sell' ? -1 : signal === 'buy' ? 1 : Math.sign(score)), notes,
+    anticyclical, byCycle, cycleLed: cycleLed && signal === 'buy', trendScore, cycle: byCycle ? null : cycleBonus(c.id, buy),
+    scope: signal !== 'buy' ? null : cycleLed ? 'year' : yearDown ? 'weeks' : 'open',
+    risk: riskOf(c, volDaily), agreement: agreementOf(cycleLed ? { long: forecast.long } : forecast, signal === 'sell' ? -1 : signal === 'buy' ? 1 : Math.sign(score)), notes,
     forecast, reasons: withCycle(reasons(short, medium, long, regime), byCycle ? Math.round(1.6 * (buy - 50)) : score - trendScore, buy, byCycle) };
 }
 
@@ -660,7 +670,7 @@ function withCycle(why, points, buy, byCycle) {
   }
   if (!points) return why;
   const item = { name: 'Kauf-Score (Zyklus-Kompass)', horizon: '12 Monate', points,
-    text: byCycle ? `Kauf-Score ${buy} – zählt bei Bitcoin und Ethereum zu 80 %` : `Kauf-Score ${buy} – ${points > 0 ? 'günstiger Zyklus, kein Verkaufssignal' : 'teurer Zyklus, höchstens „Eher kaufen“'}` };
+    text: byCycle ? `Kauf-Score ${buy} – zählt bei Bitcoin und Ethereum zu 80 %` : `Kauf-Score ${buy} – ${points > 0 ? 'günstiger Zyklus: Bonus für Altcoins, kein Verkaufssignal' : 'teurer Zyklus, höchstens „Eher kaufen“'}` };
   (points > 0 ? why.pro : why.contra).unshift(item);
   return why;
 }

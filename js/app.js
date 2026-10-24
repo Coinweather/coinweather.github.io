@@ -15,7 +15,7 @@ const RETRY_MS = 30_000;
 const FNG_REFRESH_MS = 30 * 60_000;
 const BTC_REFRESH_MS = 10 * 60_000;
 const NO_REGIME = { score: null, factors: [] };
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 25;   // Zeilen je Schritt; „Weitere anzeigen“ lädt jeweils so viele nach
 // Zentral berechnete Daten (scripts/snapshot.mjs, alle 15 Minuten über GitHub Actions)
 // Beim lokalen Entwickeln wird die Datei gelesen, die `node scripts/snapshot.mjs` nach out/ schreibt
 const SNAPSHOT_URL = ['localhost', '127.0.0.1'].includes(location.hostname) ? 'out/snapshot.json'
@@ -345,12 +345,13 @@ async function newsLoop() {
 
 const badge = (a, extra = '') => `<span class="badge ${a.signal} ${extra}">${esc(a.label)}</span>`;
 
+// Eine Skala für alles: Der Score eines Coins (intern −100 … +100) erscheint wie der Kauf-Score des Markts von 0 bis 100
+const to100 = (score) => (score === null || score === undefined ? null : Math.round(50 + score / 2));
 function scoreCell(score) {
-  if (score === null) return '<span class="muted">–</span>';
-  const w = Math.abs(score) / 2;
-  const left = score >= 0 ? 50 : 50 - w;
-  return `<div class="score"><span class="score-num ${tone(score)}">${signed(score, 0)}</span>
-    <span class="bar"><i class="${tone(score)}" style="left:${left}%;width:${w}%"></i></span></div>`;
+  if (score === null || score === undefined) return '<span class="muted">–</span>';
+  const v = to100(score);
+  return `<div class="score"><span class="score-num ${tone(score)}">${v}</span>
+    <span class="bar"><i class="${tone(score)}" style="left:0;width:${v}%"></i></span></div>`;
 }
 
 const riskTag = (risk) => (risk.label === '–' ? '<span class="muted">–</span>' : `<span class="risk r${risk.level}">${risk.label}</span>`);
@@ -492,7 +493,7 @@ const LIMITS = `<p class="muted">Alle Rückrechnungen enthalten nur Coins, die e
 
 const INFO = {
   model: { title: 'So entstehen die Prognosen', body: () => `
-    <p>Jeder Coin bekommt einen Score von −100 bis +100. Er setzt sich aus vier Bausteinen zusammen:</p>
+    <p>Jeder Coin bekommt einen Kauf-Score von 0 bis 100 – dieselbe Skala wie der Kauf-Score des Markts. Ab 58 heißt es „Eher kaufen“, ab 70 „Kaufen“, bis 43 „Eher verkaufen“, bis 36 „Verkaufen“. Er setzt sich aus vier Bausteinen und dem Zyklus-Kompass zusammen:</p>
     <ul><li><strong>Marktphase (45 %)</strong> – Stärke von Bitcoin (RSI, Veränderung über 30 Tage, Abstand zum 50- und 200-Tage-Schnitt) und Fear &amp; Greed, über 14 Tage geglättet.</li>
       <li><strong>Kurzfristig (20 %)</strong> – Erholung nach einem Ausverkauf; ein starker Tagesrückgang zählt nur, wenn der Markt mitfällt.</li>
       <li><strong>Mittelfristig (25 %)</strong> – Schwung über 2–4 Wochen und Handelsvolumen.</li>
@@ -500,11 +501,11 @@ const INFO = {
     <p>In jedem Baustein zählt die Schwankung des Coins mit: Ruhigere Coins schnitten in der Prüfung in beiden Zeiträumen besser ab als der Markt.</p>
     <h3>Über allem steht der Zyklus-Kompass</h3>
     <ul><li><strong>Bitcoin und Ethereum:</strong> Ihr Score besteht zu 80 % aus dem Kauf-Score (100 − Zyklus-Risiko) und zu 20 % aus ihrem Trend. Ihr Signal gilt für 12 Monate und länger.</li>
-      <li><strong>Altcoins:</strong> Ihr Score folgt dem Trend, aber nie gegen den Kompass: Bei günstigem Zyklus (Kauf-Score ab 62) gibt es kein Verkaufssignal, bei teurem (unter 45) höchstens „Eher kaufen“.
-        Altcoins folgen nicht direkt dem Kauf-Score, weil sie seit 2022 ein Jahr nach günstigen Ständen meist tiefer standen.</li>
+      <li><strong>Altcoins:</strong> Ihr Score ist ihr Trend plus ein Zyklus-Bonus: je Kauf-Score-Punkt über 50 kommen 0,6 Punkte dazu (bei 69 also +12).
+        Dazu nie gegen den Kompass: Bei günstigem Zyklus (ab 62) gibt es kein Verkaufssignal, bei teurem (unter 45) höchstens „Eher kaufen“.</li>
       <li><strong>Bärenmarkt und Gier-Bremse:</strong> Liegt Bitcoin unter seinem 200-Tage-Schnitt im Abwärtstrend oder Fear &amp; Greed im 7-Tage-Schnitt bei 75–85, bekommen Altcoins keine Kaufsignale.</li></ul>
-    <p>Rückrechnung des Portfolio-Managers mit genau diesen Regeln: 76 % pro Jahr seit 2018, seit 2022 40 %, größter Rückgang −42 %
-      (nur nach dem Trend: 73 %, 43 %, −40 %). Alle Coins direkt nach dem Kauf-Score wären auf 38 % pro Jahr gekommen.</p>
+    <p>Rückrechnung des Portfolio-Managers mit genau diesen Regeln: 79 % pro Jahr seit 2018, seit 2022 42 %, größter Rückgang −43 %
+      (nur nach dem Trend: 73 %, 43 %, −40 %). Ein Abzug bei teurem Zyklus hätte viel gekostet (60 % pro Jahr) – deshalb dort nur die Obergrenze.</p>
     <p>Bärenmarkt und Gier-Bremse steuern auch das Reserve-Ziel im Portfolio. Eigene Regeln je Altcoin (kein Kauf im eigenen Abwärtstrend, kein Kauf nach eigener Gier, Kauf nach eigener Angst)
       halfen in der Prüfung jeweils nur in einem von zwei Zeiträumen und sind deshalb nicht eingebaut.</p>
     <h3>Grundlage</h3>
@@ -530,12 +531,12 @@ const INFO = {
       Seit 2022 war der Zyklus nie überhitzt; die teure Seite ist darum weniger gut belegt als die günstige.</p>
     <h3>Wo der Kauf-Score überall gilt</h3>
     <ul><li><strong>Bitcoin und Ethereum:</strong> Ihr Signal besteht zu 80 % aus dem Kauf-Score.</li>
-      <li><strong>Altcoins:</strong> nie gegen den Kompass – kein Verkaufssignal bei günstigem, höchstens „Eher kaufen“ bei teurem Zyklus.</li>
+      <li><strong>Altcoins:</strong> Zyklus-Bonus im Score (je Punkt über 50 plus 0,6), kein Verkaufssignal bei günstigem, höchstens „Eher kaufen“ bei teurem Zyklus.</li>
       <li><strong>12-Monats-Sicht</strong> auf der Startseite und bei jedem Coin.</li>
       <li><strong>Portfolio-Manager und Modell-Portfolio:</strong> rechnen mit genau diesen Signalen.</li>
       <li><strong>Zyklus-Kompass:</strong> Das Zyklus-Risiko ist 100 minus Kauf-Score.</li></ul>
-    <p>Warum Altcoins nicht direkt dem Kauf-Score folgen: Geprüft an 84 Coins seit 2018, wöchentlich gehandelt, mit Gebühren, wäre das Portfolio auf 38 % pro Jahr gekommen
-      statt 76 % – nach günstigen Ständen fielen die meisten Altcoins weiter.</p>${LIMITS}` },
+    <p>Geprüft an 84 Coins seit 2018, wöchentlich gehandelt, mit Gebühren: So kam der Portfolio-Manager auf 79 % pro Jahr. Hätten alle Coins zu 60 % direkt dem Kauf-Score
+      gefolgt, wären es nur 38 % gewesen – nach günstigen Ständen fielen viele Altcoins zunächst weiter.</p>${LIMITS}` },
 
   weather: { title: 'Das Krypto-Wetter', body: () => `
     <p>Das Wetter beschreibt, wie es dem Markt gerade geht – nicht, ob sich ein Kauf lohnt. Grundlage ist das Markt-Wetter von 0 (Sturm) bis 100 (Sonne):</p>
@@ -553,7 +554,7 @@ const INFO = {
       <li><strong>Ethereum:</strong> ab 62 Punkten in 77–82 % der Fälle höher, zwischen 45 und 61 nur in 42 %.</li>
       <li><strong>Altcoins:</strong> seit 2022 auch nach günstigen Ständen nur in 40–47 % der Fälle höher, sonst meist deutlich tiefer.
         2018–2021 war das anders – damals stiegen fast alle Coins.</li></ul>
-    <p>Deshalb folgen Bitcoin und Ethereum vor allem dem Kauf-Score, Altcoins vor allem ihrem Trend – aber nie gegen den Kompass.</p>
+    <p>Deshalb folgen Bitcoin und Ethereum vor allem dem Kauf-Score; bei Altcoins zählt er als Bonus zu ihrem Trend – und nie gegen den Kompass.</p>
     <p class="muted">Seit 2022 gab es nur einen Zyklus – eine Tendenz, keine Gewissheit.</p>` },
 
   forecast: { title: 'Aussicht für den Gesamtmarkt', body: () => `
@@ -581,7 +582,7 @@ const INFO = {
       Wie stark der Kurs in beide Richtungen ausschlagen kann, zeigt „Übliche Schwankungsbreite“.</p>
     <h3>Was ein Kaufsignal bedeutet</h3>
     <p>„Eher kaufen“ ist ein schwaches Signal: etwas mehr als jeder zweite Fall lief ins Plus, der Vorteil entsteht erst über viele Käufe, weil einzelne davon stark steigen.
-      Ein deutliches Signal („Kaufen“) beginnt bei Score 40. Sicher ist kein einzelner Kauf.</p>
+      Ein deutliches Signal („Kaufen“) beginnt bei einem Kauf-Score von 70. Sicher ist kein einzelner Kauf.</p>
     <h3>12 Monate</h3>
     <p>Die Jahressicht folgt dem Kauf-Score – getrennt für Bitcoin, Ethereum und Altcoins, gemessen an allen Tagen seit 2022.
       Beim einzelnen Altcoin verschiebt sein langfristiger Trend das Ergebnis etwas. Das ist nur ein Zyklus und damit eine schmale Grundlage.</p>
@@ -595,8 +596,9 @@ const INFO = {
       <li><strong>Marktphase (45 %):</strong> Stärke von Bitcoin und Fear &amp; Greed – für alle Coins gleich.</li></ul>
     <p>Die Bausteine sind die Zutaten des Scores, keine eigenen Prognosen: Ein starker mittelfristiger Baustein heißt nicht, dass der Kurs in 30 Tagen stark steigt.
       Was auf den Score in der Vergangenheit folgte, steht unter „Aussicht nach Zeitraum“.</p>
-    <p>Bei Bitcoin und Ethereum zählen diese Bausteine nur zu 20 % – zu 80 % zählt der Kauf-Score des Zyklus-Kompasses. Bei Altcoins können Bärenmarkt-Filter, Gier-Bremse,
-      Nachrichten und der Kompass (kein Verkaufssignal bei günstigem, höchstens „Eher kaufen“ bei teurem Zyklus) den Score begrenzen. Dann weicht er von der Summe der Bausteine ab.</p>
+    <p>Bei Bitcoin und Ethereum zählen diese Bausteine nur zu 20 % – zu 80 % zählt der Kauf-Score des Zyklus-Kompasses. Bei Altcoins kommt ein Zyklus-Bonus dazu
+      (je Kauf-Score-Punkt über 50 plus 0,6 Punkte); Bärenmarkt-Filter, Gier-Bremse, Nachrichten und die Obergrenze bei teurem Zyklus können den Score begrenzen.
+      Dann weicht er von der Summe der Bausteine ab.</p>
     <p>„Verfeinert“ heißt: Für diesen Coin liegen Tageskurse aus bis zu 4 Jahren vor. Sonst gilt die Schnellbewertung aus den Marktdaten der letzten 7 Tage bis 12 Monate.</p>` },
 
   mood: { title: 'Stimmung des Coins', body: () => `
@@ -782,15 +784,45 @@ const previewCta = (title, text) => {
   </section>`;
 };
 
+// Zyklus-Kompass auf jeder Coin-Seite: Kauf-Score, seine Bausteine und was er heute für genau diesen Coin bedeutet
+function coinCompass(c) {
+  const m = state.market, b = m?.buy;
+  if (!b || !c || c.analysis?.signal === 'none') return '';
+  const core = c.id === 'bitcoin' || c.id === 'ethereum';
+  const h = yearAfterBuy(m.value)?.[c.id === 'bitcoin' ? 'btc' : c.id === 'ethereum' ? 'eth' : 'alt'];
+  const name = `<span translate="no">${esc(c.name)}</span>`;
+  const rule = core ? `Der Kauf-Score zählt im Score von ${name} zu 80 %, der eigene Trend zu 20 %. Das Signal gilt für 12 Monate und länger.`
+    : m.value > 50 ? `Der Zyklus ist ${m.value >= 75 ? 'günstig' : 'eher günstig'} – ${name} bekommt dafür +${Math.round((c.analysis?.cycle ?? 0) / 2)} Punkte im Kauf-Score${m.value >= 62 ? ' und kein Verkaufssignal' : ''}. Dazu zählt sein eigener Trend.`
+      : m.value < 45 ? `Der Zyklus ist teuer – deshalb höchstens „Eher kaufen“ für ${name}, und nur für die nächsten Wochen.`
+        : `Der Zyklus ist weder billig noch teuer – über das Signal von ${name} entscheidet heute sein Trend.`;
+  const who = c.id === 'bitcoin' ? 'Bitcoin' : c.id === 'ethereum' ? 'Ethereum' : 'Altcoins';
+  return `<section class="panel coin-compass">
+    <div class="head-row"><div class="label">Zyklus-Kompass · Kauf-Score</div><a class="link-more" href="#/indikatoren">Zyklus-Kompass →</a></div>
+    <div class="cc-top"><div class="cc-score"><strong>${m.value}</strong><small> / 100</small>${badge(m)}</div>
+      <div><h3>${BUY_TITLE[m.label]}</h3><p>${rule}</p></div></div>
+    ${h ? `<div class="buy-history"><div class="label">Ein Jahr nach Ständen wie heute · seit 2022</div>
+      <div class="bh-grid"><div><strong class="${h.up >= 55 ? 'up' : h.up <= 45 ? 'down' : ''}">${h.up} %</strong><span>${who} ein Jahr später höher</span></div>
+        <div><strong class="${tone(h.median)}">${signed(h.median, 0)} %</strong><span>mittleres Ergebnis nach einem Jahr</span></div></div></div>` : ''}
+    <details class="fold"><summary>Das steckt im Kauf-Score</summary>
+      <ul class="buy-inputs">${BUY_INPUTS.map(([k, label, sub, val]) => {
+        const cheap = Math.round(100 - b.parts[k]), [cls, word] = cheapTag(cheap);
+        return `<li><span class="bi-name"><strong>${label}</strong><small>${sub}</small></span><span class="bi-val">${val(b.raw)}</span>
+          <span class="bi-bar"><i class="${cls}" style="width:${Math.max(4, cheap)}%"></i></span><span class="bi-tag ${cls}">${word}</span></li>`;
+      }).join('')}</ul></details>
+  </section>`;
+}
+
 // Detailansicht eines Coins ohne Konto: Hinweis auf das kostenlose Konto, darunter das Angebot
 function lockedCoinView(id) {
-  view.innerHTML = '<div id="locked-head"></div><div id="locked-sales"></div>';
+  view.innerHTML = '<div id="locked-head"></div><div id="locked-compass"></div><div id="locked-sales"></div>';
   const sales = site.pricingView($('#locked-sales'), { access, user: () => depot.user, record: () => state.record });
   const head = () => {
     const c = state.coins.find((x) => x.id === id);
     const name = c ? `<span translate="no">${esc(c.name)}</span>` : 'diesen Coin';
     $('#locked-head').innerHTML = previewCta(`Signal und Aussicht für ${name}`,
       'Mit einem kostenlosen Konto siehst du für jeden der 1000 Coins das Signal, die Aussicht für 7 und 30 Tage und den Rückblick. 30 Tage alle Funktionen, ohne Zahlungsdaten.');
+    const ck = `${state.market?.value}|${c?.id}`;
+    if ($('#locked-compass').dataset.key !== ck) { $('#locked-compass').dataset.key = ck; $('#locked-compass').innerHTML = coinCompass(c); }
   };
   return { update() { head(); sales.update(); } };
 }
@@ -806,6 +838,9 @@ function marketView(preview = false) {
       <div class="panel buy-card" id="g-market"></div>
       <div class="panel buy-parts" id="buy-parts"></div>
     </section>
+    <section class="panel todo-box" id="todo"></section>
+    <nav class="jump" aria-label="Auf dieser Seite"><span class="label">Auf dieser Seite</span>
+      <a href="#" data-jump="#picks-sec">Kaufsignale</a><a href="#" data-jump="#cycle">12 Monate</a><a href="#" data-jump=".heat-wrap">Heatmap</a><a href="#" data-jump=".controls">Alle Coins</a></nav>
     ${preview ? previewCta('Die Großwetterlage siehst du hier frei. Welche Coins gerade ein Kaufsignal haben, zeigt dein kostenloses Konto.',
       '30 Tage alle Funktionen, ohne Zahlungsdaten. Anmelden mit Google dauert 10 Sekunden.') : ''}
     <section class="hero hero-two">
@@ -819,9 +854,9 @@ function marketView(preview = false) {
         <span class="muted">Was wäre aus einem Sparplan geworden – mit einem Coin, mit Bitcoin oder mit dem Portfolio-Manager?</span></span><span class="btn ghost">Ausprobieren</span></a>
     </div>
     <section id="favs" hidden></section>
-    <section>
+    <section id="picks-sec">
       <h2>Stärkste Kaufsignale</h2>
-      <p class="hint">Coins aus den Top 500 mit ausreichend Handelsvolumen, sortiert nach Prognose-Score – riskantere Coins werden dabei abgewertet.</p>
+      <p class="hint">Coins aus den Top 500 mit ausreichend Handelsvolumen, sortiert nach Kauf-Score – riskantere Coins werden dabei abgewertet.</p>
       <div id="picks" class="picks"></div>
     </section>
     <section class="panel" id="record" hidden></section>
@@ -844,7 +879,7 @@ function marketView(preview = false) {
       <thead><tr>
         ${th('rank', '#', 'num col-rank')}${th('name', 'Coin', 'col-coin')}${th('price', 'Kurs', 'num')}${th('h24', '24 h', 'num')}
         ${th('d7', `7 ${i18n.span('T')}`, 'num col-7d')}${th('d30', `30 ${i18n.span('T')}`, 'num col-30d')}${th('mcap', 'Marktkap.', 'num col-cap')}
-        <th class="col-chart">7 Tage</th>${th('score', 'Prognose', 'col-score')}
+        <th class="col-chart">7 Tage</th>${th('score', 'Kauf-Score', 'col-score')}
         <th class="col-hold">Haltedauer</th><th class="col-risk">Risiko</th><th>Signal</th>
       </tr></thead>
       <tbody id="rows"></tbody>
@@ -852,6 +887,12 @@ function marketView(preview = false) {
     <div class="pager" id="pager"></div>`;
 
   $('#search').addEventListener('input', (e) => { state.query = e.target.value; state.page = 1; table(); });
+  view.querySelector('.jump').addEventListener('click', (e) => {
+    const sel = e.target.closest('[data-jump]')?.dataset.jump;
+    if (!sel) return;
+    e.preventDefault();
+    view.querySelector(sel)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
   let heatRange = '24h';
   $('#heat-range').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-heat]');
@@ -884,7 +925,6 @@ function marketView(preview = false) {
     const p = Number(e.target.closest('[data-page]')?.dataset.page);
     if (!p) return;
     state.page = p; table();
-    $('.table-wrap', view).scrollIntoView({ block: 'start' });
   });
 
   // Teilen: führt direkt in die App (kostenlose Vorschau) in der Sprache des Besuchers; Herkunft „share“ in der Nutzerübersicht
@@ -936,8 +976,31 @@ function marketView(preview = false) {
         ${q ? `<div><strong class="${q.up >= 55 ? 'up' : q.up <= 45 ? 'down' : ''}">${q.up} %</strong><span>nach 90 Tagen höher</span></div>` : ''}</div>`;
   }
 
+  // Was heißt das für dich? – aus dem Kauf-Score drei klare nächste Schritte
+  function todo() {
+    const m = state.market, el = $('#todo');
+    if (!m?.buy || !el) { if (el) el.hidden = true; return; }
+    el.hidden = false;
+    const v = m.value;
+    const steps = v >= 62 ? [['🌧️', 'Günstiger Zyklus: in Raten kaufen – vor allem Bitcoin und Ethereum, über mindestens 12 Monate.', '#/coin/bitcoin', 'Bitcoin ansehen'],
+      ['🧮', 'Ausrechnen, was ein Sparplan gebracht hätte – mit einem Coin, mit Bitcoin oder mit dem Portfolio-Manager.', '#/rechner', 'Sparplan rechnen'],
+      ['💼', 'Den Portfolio-Manager deinen Bestand prüfen lassen: was kaufen, was halten, wie viel Reserve.', depot.user ? '#/portfolio' : '#/konto', depot.user ? 'Portfolio prüfen' : 'Kostenlos starten']]
+      : v >= 45 ? [['☁️', 'Weder billig noch teuer: Ein Sparplan kann normal weiterlaufen.', '#/rechner', 'Sparplan rechnen'],
+        ['📈', 'Für die nächsten Wochen zählt der Trend: die stärksten Kaufsignale ansehen.', '#picks-sec', 'Kaufsignale ansehen'],
+        ['💼', 'Den Portfolio-Manager deinen Bestand prüfen lassen.', depot.user ? '#/portfolio' : '#/konto', depot.user ? 'Portfolio prüfen' : 'Kostenlos starten']]
+        : [['☀️', 'Teurer Zyklus: nicht nachkaufen, Gewinne teilweise sichern.', depot.user ? '#/portfolio' : '#/konto', depot.user ? 'Portfolio prüfen' : 'Kostenlos starten'],
+          ['🧭', 'Im Zyklus-Kompass sehen, welche Bausteine heiß laufen.', '#/indikatoren', 'Zyklus-Kompass'],
+          ['🧮', 'Prüfen, wie ein Sparplan durch teure Phasen kam.', '#/rechner', 'Sparplan rechnen']];
+    el.innerHTML = `<div class="label">Was heißt das für dich?</div>
+      <ol class="todo-list">${steps.map(([icon, text, href, btn]) => `<li><span class="todo-icon" aria-hidden="true">${icon}</span><span>${text}</span>
+        <a class="btn ghost small" href="${href.startsWith('#/') ? href : '#'}"${href.startsWith('#/') ? '' : ` data-jump-to="${href}"`}>${btn}</a></li>`).join('')}</ol>
+      <p class="hint">Keine Anlageberatung – eine Einordnung aus vergangenen Daten.</p>`;
+    for (const a of el.querySelectorAll('[data-jump-to]')) a.addEventListener('click', (e) => { e.preventDefault(); view.querySelector(a.dataset.jumpTo)?.scrollIntoView({ behavior: 'smooth' }); });
+  }
+
   function hero() {
     weather();
+    todo();
     const m = state.market;
     $('#g-market').innerHTML = m ? `<div class="buy-gauge"><div class="label">Jetzt kaufen? · Kauf-Score</div>${gauge(m.value, SELL_TO_BUY)}
           <div class="gauge-value">${m.value}<small> / 100</small></div>${badge(m, 'big')}</div>
@@ -1037,7 +1100,7 @@ function marketView(preview = false) {
     $('#picks').innerHTML = list.length ? list.map((c) => `<a class="pick panel" href="#/coin/${encodeURIComponent(c.id)}">
         <div class="coin-cell"><img src="${esc(c.image)}" alt="" loading="lazy">
           <div><div class="coin-name">${esc(c.name)}</div><div class="coin-sym">${esc(c.symbol)} · #${c.market_cap_rank}</div></div></div>
-        <div class="pick-score ${tone(c.analysis.score)}">${signed(c.analysis.score, 0)}</div>
+        <div class="pick-score ${tone(c.analysis.score)}">${to100(c.analysis.score)}<small>/100</small></div>
         <div class="pick-meta">${badge(c.analysis)}<span>Haltedauer: <strong>${c.analysis.horizon}</strong></span><span>Risiko: ${riskTag(c.analysis.risk)}</span></div>
       </a>`).join('')
       : noPicks();
@@ -1058,7 +1121,7 @@ function marketView(preview = false) {
 
     const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
     state.page = Math.min(state.page, pages);
-    const rows = list.slice((state.page - 1) * PAGE_SIZE, state.page * PAGE_SIZE);
+    const rows = list.slice(0, state.page * PAGE_SIZE);
 
     for (const h of view.querySelectorAll('th[data-sort]')) {
       h.classList.toggle('sorted', h.dataset.sort === state.sort.key);
@@ -1087,9 +1150,9 @@ function marketView(preview = false) {
     }).join('') : `<tr><td colspan="12" class="empty">${state.coins.length ? 'Keine Coins gefunden.' : 'Lade Kurse …'}</td></tr>`;
 
     const btn = (p, label, active) => `<button class="chip ${active ? 'active' : ''}" data-page="${p}">${label}</button>`;
-    $('#pager').innerHTML = pages > 1
-      ? `<div class="chips">${Array.from({ length: pages }, (_, i) => btn(i + 1, `${i * PAGE_SIZE + 1}–${Math.min((i + 1) * PAGE_SIZE, list.length)}`, state.page === i + 1)).join('')}</div>`
-      : '';
+    $('#pager').innerHTML = state.page < pages
+      ? `<button class="btn ghost" data-page="${state.page + 1}">Weitere ${Math.min(PAGE_SIZE, list.length - rows.length)} anzeigen</button><span class="muted">${rows.length} von ${list.length} Coins</span>`
+      : list.length > PAGE_SIZE ? `<span class="muted">Alle ${list.length} Coins angezeigt</span>` : '';
   }
 
   // Erste Schritte nach der Anmeldung: eine kurze Liste mit Haken – verschwindet, wenn alles erledigt oder ausgeblendet ist
@@ -1260,6 +1323,7 @@ function detailView(id) {
   view.innerHTML = `
     <a class="back" href="#/">← Zurück zur Übersicht</a>
     <div id="d-head"></div>
+    <div id="d-compass"></div>
     <section class="panel">
       <div class="panel-top"><h2>Kursverlauf</h2>
         <div class="chips" id="ranges">${Object.keys(RANGES).map((r) => `<button class="chip ${r === d.range ? 'active' : ''}" data-range="${r}">${i18n.span(r)}</button>`).join('')}</div></div>
@@ -1379,7 +1443,7 @@ function detailView(id) {
         <div>${pct(c.price_change_percentage_24h_in_currency)} <span class="muted">in 24 Stunden</span></div>
         ${rangeChange(c)}</div>
       <div class="d-signal">${badge(a, 'big')}
-        <dl><div><dt>Prognose-Score</dt><dd class="${tone(a.score)}">${a.score === null ? '–' : signed(a.score, 0) + ' / 100'}</dd></div>
+        <dl><div><dt>Kauf-Score</dt><dd class="${tone(a.score)}">${a.score === null ? '–' : to100(a.score) + ' / 100'}</dd></div>
           ${strength ? `<div><dt>Signalstärke</dt><dd>${strength}</dd></div>` : ''}
           <div><dt>Haltedauer</dt><dd>${a.horizon}</dd></div>
           ${a.scope ? `<div><dt>Signal gilt für</dt><dd>${a.scope === 'weeks' ? 'die nächsten Wochen – nicht zum langen Halten' : a.scope === 'year' ? '12 Monate und länger (Zyklus-Kompass)' : 'Wochen bis Monate'}</dd></div>` : ''}
@@ -1404,7 +1468,7 @@ function detailView(id) {
         Verkaufen: 'Die Daten sprechen gegen einen Kauf.' }[a.label] ?? '';
     const up = a.forecast?.medium?.up, year = a.forecast?.long;
     return `<p class="d-summary"><strong>Kurz gesagt:</strong> <span>${say}</span>
-      ${isNum(up) && !a.byCycle ? `<span>In vergleichbaren Fällen stand der Kurs 30 Tage später in ${up} von 100 Fällen höher.</span>` : ''}
+      ${isNum(up) && !a.byCycle && !a.cycleLed ? `<span>In vergleichbaren Fällen stand der Kurs 30 Tage später in ${up} von 100 Fällen höher.</span>` : ''}
       ${year?.byBuy && isNum(year.up) ? `<span>Auf 12 Monate (nach dem Kauf-Score): in ${year.up} von 100 vergleichbaren Fällen höher.</span>` : ''}
       <span class="muted">Eine Wahrscheinlichkeit, keine Garantie.</span></p>`;
   }
@@ -1438,7 +1502,7 @@ function detailView(id) {
       const h = a[key], pts = share(key);
       return `<div class="panel h-card">
       <div class="panel-top"><div><h3>${title}</h3><div class="muted">${hint}${pts === null ? '' : ` · Bewertung ${signed(h.score * 100, 0)}, zählt ${num(WEIGHTS[key] * 100, 0)} %`}</div></div>
-        <span class="outlook ${tone(pts === null ? 0 : Math.round(pts))}">${pts === null ? '–' : `${signed(pts, 0)} ${Math.abs(Math.round(pts)) === 1 ? 'Punkt' : 'Punkte'}`}</span></div>
+        <span class="outlook ${tone(pts === null ? 0 : Math.round(pts / 2))}">${pts === null ? '–' : `${signed(pts / 2, 0)} ${Math.abs(Math.round(pts / 2)) === 1 ? 'Punkt' : 'Punkte'}`}</span></div>
       ${factorList(h.factors)}</div>`;
     };
 
@@ -1456,10 +1520,10 @@ function detailView(id) {
       return `<div><div class="label">${title}</div><div class="value ${tone(dir)}">${word}</div><div class="muted">${basis}</div></div>`;
     };
     const why = a.reasons;
-    const reasonList = (list) => list.map((f) => `<li><strong class="${tone(f.points)}">${signed(f.points, 0)}</strong> ${esc(f.name)} <span class="muted">(${f.horizon})</span>: ${esc(f.text)}</li>`).join('');
+    const reasonList = (list) => list.map((f) => `<li><strong class="${tone(f.points)}">${signed(f.points / 2, 0)}</strong> ${esc(f.name)} <span class="muted">(${f.horizon})</span>: ${esc(f.text)}</li>`).join('');
     const percent = !fcast ? '' : `<section class="panel"><div class="head-row"><h2>Aussicht nach Zeitraum</h2>${infoBtn('percent')}</div>
-        ${a.byCycle ? `<div class="stat-grid">${fbox('In 12 Monaten', fcast.long)}</div>
-          <p class="hint">Bitcoin und Ethereum folgen vor allem dem Kauf-Score des Zyklus-Kompasses – er gilt für 12 Monate und länger.
+        ${a.byCycle || a.cycleLed ? `<div class="stat-grid">${fbox('In 12 Monaten', fcast.long)}</div>
+          <p class="hint">${a.byCycle ? 'Bitcoin und Ethereum folgen vor allem dem Kauf-Score des Zyklus-Kompasses – er gilt für 12 Monate und länger.' : 'Dieses Kaufsignal kommt vor allem vom günstigen Zyklus – es gilt für 12 Monate und länger.'}
             Auf Sicht von Wochen gab der Zyklus keinen Vorteil: Der Kurs kann weiter fallen, wie stark, zeigt die übliche Schwankungsbreite unten.</p>`
           : `<div class="stat-grid">${fbox('In 7 Tagen', fcast.short)}${fbox('In 30 Tagen', fcast.medium)}${fbox('In 12 Monaten', fcast.long)}</div>`}
         ${why && (why.pro.length || why.contra.length) ? `<div class="h-cards reasons">
@@ -1498,9 +1562,10 @@ function detailView(id) {
         ${d.ind ? `Verfeinert mit ${num(d.ind.n, 0)} Tageskursen.` : 'Schnellbewertung – die verfeinerte Bewertung wird geladen …'}</p>
       <div class="h-cards">${block('short', 'Kurzfristig', 'die letzten Tage')}${block('medium', 'Mittelfristig', '2–4 Wochen')}
         ${block('long', 'Langfristig', '200 Tage bis 1 Jahr')}${block('regime', 'Marktphase', 'gilt für alle Coins, Schnitt aus 14 Tagen')}</div>
-      <p class="hint block-sum">Summe der Bausteine: <strong>${signed(blockSum, 0)}</strong>${a.byCycle ? `. Bei ${c.id === 'bitcoin' ? 'Bitcoin' : 'Ethereum'} zählen diese Bausteine nur zu 20 %, zu 80 % zählt der Kauf-Score des Zyklus-Kompasses (${a.regime?.buy}) – daraus ergibt sich der Score von <strong>${signed(a.score, 0)}</strong>.`
-        : a.score === null || blockSum === a.score ? ' – das ist der Prognose-Score.'
-        : `. Der Prognose-Score steht bei <strong>${signed(a.score, 0)}</strong>, weil ein Filter, Nachrichten oder der Zyklus-Kompass ihn verschieben.`}</p></details>
+      <p class="hint block-sum">So ergibt sich der Kauf-Score: Ausgangswert 50, die Bausteine zusammen <strong>${signed(blockSum / 2, 0)}</strong>${a.byCycle
+          ? `. Bei ${c.id === 'bitcoin' ? 'Bitcoin' : 'Ethereum'} zählen sie nur zu 20 %, zu 80 % zählt der Kauf-Score des Zyklus-Kompasses (${a.regime?.buy}) – zusammen <strong>${to100(a.score)}/100</strong>.`
+          : a.cycle ? `, dazu der Zyklus-Bonus <strong>+${Math.round(a.cycle / 2)}</strong> – zusammen <strong>${to100(a.score)}/100</strong>${to100(a.score) !== Math.round(50 + blockSum / 2 + a.cycle / 2) ? ' (Filter, Nachrichten oder die Grenzen des Kompasses verschieben ihn)' : ''}.`
+          : ` – zusammen <strong>${to100(a.score)}/100</strong>${to100(a.score) !== Math.round(50 + blockSum / 2) ? ' (Filter, Nachrichten oder die Grenzen des Kompasses verschieben ihn)' : ''}.`}</p></details>
       ${extra}`;
   }
 
@@ -1549,7 +1614,11 @@ function detailView(id) {
       chart();
     } else if (d.range === '7T' || d.range === '1T') chart();
     const a = c.analysis;
-    head(c, a); forecast(c, a); news(a); stats(c);
+    head(c, a);
+    // Kompass nur neu zeichnen, wenn sich der Kauf-Score ändert – sonst klappt die Aufschlüsselung bei jedem Kurs-Update zu
+    const ck = `${state.market?.value}|${a.signal}`;
+    if (d.compassKey !== ck) { d.compassKey = ck; $('#d-compass').innerHTML = coinCompass(c); }
+    forecast(c, a); news(a); stats(c);
   }
 
   return self;
