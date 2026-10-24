@@ -2,12 +2,14 @@
 // Die App selbst steckt in einer einzigen Seite mit #-Adressen – die kann Google kaum lesen. Darum gibt es zusätzlich,
 // in allen 7 Sprachen der App (Englisch ohne Vorsilbe, die anderen unter /de/, /es/, /fr/, /it/, /pt/, /tr/):
 //   /crypto-weather-today/   der Kryptomarkt heute: Kauf-Score, Fear & Greed, Zyklus, Aussicht, größte Bewegungen
+//   /should-i-buy-bitcoin-now/  „Soll ich jetzt Bitcoin kaufen?“: Kauf-Score mit seinen fünf Bausteinen, Jahresrückblick, FAQ (für Google)
 //   /fear-and-greed-index/   der Fear & Greed Index heute mit dem, was die Rückrechnung über Angst und Gier zeigt
 //   /coin/<id>/              je eine Seite für die 500 größten Coins: Kurs, Entwicklung, Großwetterlage, Signal (verdeckt)
 //   /coins/                  Übersicht mit Links auf alle Coin-Seiten
 //   /bitcoin-cycle-risk/, /altcoin-season-index/, /pi-cycle-top/, /mayer-multiple/   Indikatoren aus dem Zyklus-Kompass
 //   /savings-plan/<id>/      Sparplan-Rückblick für die 40 größten Coins (100 $ pro Monat, 1000 $ einmalig) und eine Übersicht
 //   sitemap.xml, robots.txt, feed.xml (RSS, englisch)
+//   og/<sprache>.jpg         tagesaktuelles Vorschaubild für geteilte Links (braucht sharp, sonst bleibt og-image.jpg)
 // Jede Seite verweist auf ihre Fassungen in den anderen Sprachen (hreflang), damit Google jedem Land die passende zeigt.
 // Die Seiten sagen klar: keine Anlageberatung. Die Signale einzelner Coins bleiben wie in der App dem kostenlosen Konto
 // vorbehalten – außer Bitcoin und Ethereum als Beispiel.
@@ -661,6 +663,108 @@ const EMB = {
     h: 'Ücretsiz kripto hava durumu widget’ı', p: 'Okuyucularına bugünün kripto hava durumunu göster – alım skoru, Korku ve Açgözlülük ve Bitcoin, 15 dakikada bir güncel. Ücretsiz, kayıt yok, tek satır kod. Kodu sayfana kopyala:', dark: 'Koyu', light: 'Açık' },
 };
 
+// ---------- „Should I buy Bitcoin now?“ – der Kauf-Score als eigene Seite (hohe Suchnachfrage) ----------
+const BQ = {
+  en: { rain: 'Rain is buying weather.', nav: 'Should I buy Bitcoin now?', path: '/should-i-buy-bitcoin-now/',
+    title: (v, l, d) => `Should I buy Bitcoin now? Buy score ${v}/100 (${l}) – ${d}`,
+    desc: (v, l, p) => `Today’s contrarian Bitcoin buy score: ${v}/100 (${l}). Bitcoin at ${p}. Built from Mayer Multiple, 2-year average, Pi Cycle, distance to the high and Fear & Greed – with what followed one year later. Not financial advice.`,
+    h1: (v, l) => `Should I buy Bitcoin now? Buy score today: ${v}/100 – ${l}`,
+    intro: 'Nobody can time the bottom. What the data can tell you is whether Bitcoin is cheap or expensive in its cycle. Coinweather’s buy score is contrarian: it rises when Bitcoin is far below its long-term averages and its high, and when the market is scared – and it falls when everyone is greedy. Rain is buying weather.',
+    inputsH: 'What’s in the buy score today', cheap: 'cheap', neutral: 'neutral', dear: 'expensive', bar: 'The longer the bar, the cheaper. All five count equally.',
+    histH: 'What happened one year after readings like today (since 2022)', higher: 'higher one year later', median: 'median result',
+    btc: 'Bitcoin', eth: 'Ethereum', alt: 'Typical altcoin',
+    caveat: 'Over 90 days there was no edge – after cheap readings the price often kept falling first. The buy score is made for buying in instalments over 12 months and longer, not for timing. Since 2022 there has only been one cycle: a tendency, not a promise.',
+    stats: { score: 'Buy score', price: 'Bitcoin', ath: 'below the all-time high', fng: 'Fear & Greed' },
+    faq: [['Is now a good time to buy Bitcoin?', (v, l, up) => `Coinweather’s buy score is ${v}/100 today (${l}). Since 2022, after readings like this, Bitcoin was higher one year later in ${up} % of cases. In the short term the price can still fall further.`],
+      ['How is the buy score calculated?', () => 'It averages five well-known cycle components – Mayer Multiple, the 2-year moving average, Pi Cycle, the distance to the all-time high and the 30-day Fear & Greed Index – and turns them into one number from 0 (overheated) to 100 (cheap).'],
+      ['Does this work for altcoins too?', (v, l, up, alt) => `Less so. Since 2022 the typical altcoin was higher one year after comparable readings in only ${alt} % of cases. That is why Coinweather gives altcoins only a bonus from the buy score on top of their own trend.`]],
+    cta: 'See the buy score for 1,000 coins, the Cycle Compass and the portfolio manager' },
+  de: { rain: 'Regen ist Kaufwetter.', nav: 'Soll ich jetzt Bitcoin kaufen?', path: '/should-i-buy-bitcoin-now/',
+    title: (v, l, d) => `Soll ich jetzt Bitcoin kaufen? Kauf-Score ${v}/100 („${l}“) – ${d}`,
+    desc: (v, l, p) => `Der antizyklische Bitcoin-Kauf-Score heute: ${v}/100 („${l}“). Bitcoin bei ${p}. Aus Mayer-Multiple, 2-Jahres-Schnitt, Pi-Cycle, Abstand zum Hoch und Fear & Greed – mit dem, was ein Jahr später folgte. Keine Anlageberatung.`,
+    h1: (v, l) => `Soll ich jetzt Bitcoin kaufen? Kauf-Score heute: ${v}/100 – ${l}`,
+    intro: 'Den Boden erwischt niemand sicher. Was die Daten sagen können: ob Bitcoin in seinem Zyklus günstig oder teuer ist. Der Kauf-Score von Coinweather ist antizyklisch: Er steigt, wenn Bitcoin weit unter seinen langen Schnitten und seinem Hoch steht und Angst herrscht – und er sinkt, wenn alle gierig sind. Regen ist Kaufwetter.',
+    inputsH: 'Das steckt heute im Kauf-Score', cheap: 'günstig', neutral: 'neutral', dear: 'teuer', bar: 'Je länger der Balken, desto günstiger. Alle fünf zählen gleich.',
+    histH: 'Was ein Jahr nach Ständen wie heute geschah (seit 2022)', higher: 'ein Jahr später höher', median: 'mittleres Ergebnis',
+    btc: 'Bitcoin', eth: 'Ethereum', alt: 'Typischer Altcoin',
+    caveat: 'Auf 90 Tage gab es keinen Vorteil – nach günstigen Ständen fiel der Kurs oft erst weiter. Der Kauf-Score ist für Käufe in Raten über 12 Monate und länger gemacht, nicht für den perfekten Zeitpunkt. Seit 2022 gab es nur einen Zyklus: eine Tendenz, kein Versprechen.',
+    stats: { score: 'Kauf-Score', price: 'Bitcoin', ath: 'unter dem Allzeithoch', fng: 'Fear & Greed' },
+    faq: [['Ist jetzt ein guter Zeitpunkt, Bitcoin zu kaufen?', (v, l, up) => `Der Kauf-Score von Coinweather steht heute bei ${v}/100 („${l}“). Seit 2022 stand Bitcoin nach solchen Ständen ein Jahr später in ${up} % der Fälle höher. Kurzfristig kann der Kurs trotzdem weiter fallen.`],
+      ['Wie wird der Kauf-Score berechnet?', () => 'Er mittelt fünf bekannte Zyklus-Bausteine – Mayer-Multiple, 2-Jahres-Schnitt, Pi-Cycle, Abstand zum Allzeithoch und Fear & Greed der letzten 30 Tage – zu einer Zahl von 0 (überhitzt) bis 100 (günstig).'],
+      ['Gilt das auch für Altcoins?', (v, l, up, alt) => `Weniger. Seit 2022 stand der typische Altcoin ein Jahr nach vergleichbaren Ständen nur in ${alt} % der Fälle höher. Deshalb bekommen Altcoins bei Coinweather nur einen Bonus aus dem Kauf-Score zu ihrem eigenen Trend.`]],
+    cta: 'Kauf-Score für 1000 Coins, Zyklus-Kompass und Portfolio-Manager ansehen' },
+  es: { rain: 'La lluvia es tiempo de compra.', nav: '¿Comprar Bitcoin ahora?', path: '/should-i-buy-bitcoin-now/',
+    title: (v, l, d) => `¿Debo comprar Bitcoin ahora? Puntuación de compra ${v}/100 («${l}») – ${d}`,
+    desc: (v, l, p) => `La puntuación de compra anticíclica de Bitcoin hoy: ${v}/100 («${l}»). Bitcoin a ${p}. Basada en el múltiplo de Mayer, la media de 2 años, Pi Cycle, la distancia al máximo y Fear & Greed, con lo que pasó un año después. No es asesoramiento financiero.`,
+    h1: (v, l) => `¿Debo comprar Bitcoin ahora? Puntuación de compra hoy: ${v}/100 – ${l}`,
+    intro: 'Nadie acierta el suelo con seguridad. Lo que sí dicen los datos es si Bitcoin está barato o caro en su ciclo. La puntuación de compra de Coinweather es anticíclica: sube cuando Bitcoin está muy por debajo de sus medias largas y de su máximo y domina el miedo, y baja cuando todos son codiciosos. La lluvia es tiempo de compra.',
+    inputsH: 'Qué contiene hoy la puntuación de compra', cheap: 'barato', neutral: 'neutral', dear: 'caro', bar: 'Cuanto más larga la barra, más barato. Los cinco cuentan igual.',
+    histH: 'Qué pasó un año después de niveles como hoy (desde 2022)', higher: 'más alto un año después', median: 'resultado medio',
+    btc: 'Bitcoin', eth: 'Ethereum', alt: 'Altcoin típica',
+    caveat: 'A 90 días no hubo ventaja: tras niveles baratos el precio a menudo siguió cayendo al principio. La puntuación de compra sirve para comprar por partes a 12 meses o más, no para acertar el momento. Desde 2022 solo hubo un ciclo: una tendencia, no una promesa.',
+    stats: { score: 'Puntuación de compra', price: 'Bitcoin', ath: 'por debajo del máximo histórico', fng: 'Fear & Greed' },
+    faq: [['¿Es buen momento para comprar Bitcoin?', (v, l, up) => `La puntuación de compra de Coinweather está hoy en ${v}/100 («${l}»). Desde 2022, tras niveles así, Bitcoin estaba más alto un año después en el ${up} % de los casos. A corto plazo el precio puede seguir cayendo.`],
+      ['¿Cómo se calcula la puntuación de compra?', () => 'Promedia cinco componentes de ciclo conocidos – múltiplo de Mayer, media de 2 años, Pi Cycle, distancia al máximo histórico y Fear & Greed de 30 días – en un número de 0 (sobrecalentado) a 100 (barato).'],
+      ['¿Sirve también para las altcoins?', (v, l, up, alt) => `Menos. Desde 2022 la altcoin típica estaba más alta un año después de niveles comparables solo en el ${alt} % de los casos. Por eso Coinweather da a las altcoins solo una bonificación de la puntuación de compra sobre su propia tendencia.`]],
+    cta: 'Ver la puntuación de compra de 1000 monedas, la Brújula del ciclo y el gestor de cartera' },
+  fr: { rain: 'La pluie, c’est le temps d’acheter.', nav: 'Acheter du Bitcoin maintenant ?', path: '/should-i-buy-bitcoin-now/',
+    title: (v, l, d) => `Faut-il acheter du Bitcoin maintenant ? Score d’achat ${v}/100 (« ${l} ») – ${d}`,
+    desc: (v, l, p) => `Le score d’achat anticyclique du Bitcoin aujourd’hui : ${v}/100 (« ${l} »). Bitcoin à ${p}. Basé sur le Mayer Multiple, la moyenne sur 2 ans, le Pi Cycle, la distance au record et le Fear & Greed – avec ce qui a suivi un an plus tard. Pas un conseil en investissement.`,
+    h1: (v, l) => `Faut-il acheter du Bitcoin maintenant ? Score d’achat du jour : ${v}/100 – ${l}`,
+    intro: 'Personne ne trouve le creux à coup sûr. Ce que les données peuvent dire : si le Bitcoin est bon marché ou cher dans son cycle. Le score d’achat de Coinweather est anticyclique : il monte quand le Bitcoin est loin sous ses moyennes longues et son record et que la peur domine – et il baisse quand tout le monde est avide. La pluie, c’est le temps d’acheter.',
+    inputsH: 'Ce que contient le score d’achat aujourd’hui', cheap: 'bon marché', neutral: 'neutre', dear: 'cher', bar: 'Plus la barre est longue, plus c’est bon marché. Les cinq comptent autant.',
+    histH: 'Ce qui s’est passé un an après des niveaux comme aujourd’hui (depuis 2022)', higher: 'plus haut un an plus tard', median: 'résultat médian',
+    btc: 'Bitcoin', eth: 'Ethereum', alt: 'Altcoin typique',
+    caveat: 'Sur 90 jours, aucun avantage – après des niveaux bon marché, le cours a souvent d’abord continué de baisser. Le score d’achat sert aux achats par étapes sur 12 mois et plus, pas à trouver le bon moment. Depuis 2022, il n’y a eu qu’un cycle : une tendance, pas une promesse.',
+    stats: { score: 'Score d’achat', price: 'Bitcoin', ath: 'sous le record', fng: 'Fear & Greed' },
+    faq: [['Est-ce le bon moment pour acheter du Bitcoin ?', (v, l, up) => `Le score d’achat de Coinweather est aujourd’hui de ${v}/100 (« ${l} »). Depuis 2022, après de tels niveaux, le Bitcoin était plus haut un an plus tard dans ${up} % des cas. À court terme, le cours peut encore baisser.`],
+      ['Comment le score d’achat est-il calculé ?', () => 'Il fait la moyenne de cinq composantes de cycle connues – Mayer Multiple, moyenne sur 2 ans, Pi Cycle, distance au record et Fear & Greed sur 30 jours – en un nombre de 0 (surchauffe) à 100 (bon marché).'],
+      ['Est-ce valable pour les altcoins ?', (v, l, up, alt) => `Moins. Depuis 2022, l’altcoin typique n’était plus haut un an après des niveaux comparables que dans ${alt} % des cas. C’est pourquoi Coinweather n’accorde aux altcoins qu’un bonus du score d’achat en plus de leur propre tendance.`]],
+    cta: 'Voir le score d’achat de 1000 cryptos, la Boussole du cycle et le gestionnaire de portefeuille' },
+  it: { rain: 'La pioggia è tempo di acquisto.', nav: 'Comprare Bitcoin ora?', path: '/should-i-buy-bitcoin-now/',
+    title: (v, l, d) => `Devo comprare Bitcoin ora? Punteggio di acquisto ${v}/100 («${l}») – ${d}`,
+    desc: (v, l, p) => `Il punteggio di acquisto anticiclico di Bitcoin oggi: ${v}/100 («${l}»). Bitcoin a ${p}. Basato su Mayer Multiple, media a 2 anni, Pi Cycle, distanza dal massimo e Fear & Greed – con ciò che è seguito un anno dopo. Non è una consulenza finanziaria.`,
+    h1: (v, l) => `Devo comprare Bitcoin ora? Punteggio di acquisto oggi: ${v}/100 – ${l}`,
+    intro: 'Nessuno becca il fondo con certezza. Quello che i dati possono dire è se Bitcoin è conveniente o caro nel suo ciclo. Il punteggio di acquisto di Coinweather è anticiclico: sale quando Bitcoin è molto sotto le sue medie lunghe e il massimo e domina la paura – e scende quando tutti sono avidi. La pioggia è tempo di acquisto.',
+    inputsH: 'Cosa c’è oggi nel punteggio di acquisto', cheap: 'conveniente', neutral: 'neutro', dear: 'caro', bar: 'Più lunga è la barra, più è conveniente. Tutti e cinque contano allo stesso modo.',
+    histH: 'Cosa è successo un anno dopo livelli come oggi (dal 2022)', higher: 'più alto un anno dopo', median: 'risultato mediano',
+    btc: 'Bitcoin', eth: 'Ethereum', alt: 'Altcoin tipico',
+    caveat: 'Su 90 giorni nessun vantaggio – dopo livelli convenienti il prezzo spesso è prima sceso ancora. Il punteggio di acquisto serve per acquisti a rate su 12 mesi e oltre, non per azzeccare il momento. Dal 2022 c’è stato un solo ciclo: una tendenza, non una promessa.',
+    stats: { score: 'Punteggio di acquisto', price: 'Bitcoin', ath: 'sotto il massimo storico', fng: 'Fear & Greed' },
+    faq: [['È un buon momento per comprare Bitcoin?', (v, l, up) => `Il punteggio di acquisto di Coinweather oggi è ${v}/100 («${l}»). Dal 2022, dopo livelli simili, Bitcoin era più alto un anno dopo nel ${up} % dei casi. Nel breve periodo il prezzo può comunque scendere.`],
+      ['Come si calcola il punteggio di acquisto?', () => 'Fa la media di cinque componenti di ciclo note – Mayer Multiple, media a 2 anni, Pi Cycle, distanza dal massimo storico e Fear & Greed a 30 giorni – in un numero da 0 (surriscaldato) a 100 (conveniente).'],
+      ['Vale anche per gli altcoin?', (v, l, up, alt) => `Meno. Dal 2022 l’altcoin tipico era più alto un anno dopo livelli comparabili solo nel ${alt} % dei casi. Per questo Coinweather dà agli altcoin solo un bonus dal punteggio di acquisto sul loro trend.`]],
+    cta: 'Vedi il punteggio di acquisto di 1000 coin, la Bussola del ciclo e il gestore di portafoglio' },
+  pt: { rain: 'Chuva é tempo de compra.', nav: 'Comprar Bitcoin agora?', path: '/should-i-buy-bitcoin-now/',
+    title: (v, l, d) => `Devo comprar Bitcoin agora? Pontuação de compra ${v}/100 (“${l}”) – ${d}`,
+    desc: (v, l, p) => `A pontuação de compra anticíclica do Bitcoin hoje: ${v}/100 (“${l}”). Bitcoin a ${p}. Baseada no Mayer Multiple, média de 2 anos, Pi Cycle, distância da máxima e Fear & Greed – com o que veio um ano depois. Não é recomendação de investimento.`,
+    h1: (v, l) => `Devo comprar Bitcoin agora? Pontuação de compra hoje: ${v}/100 – ${l}`,
+    intro: 'Ninguém acerta o fundo com certeza. O que os dados podem dizer é se o Bitcoin está barato ou caro no seu ciclo. A pontuação de compra do Coinweather é anticíclica: sobe quando o Bitcoin está bem abaixo das médias longas e da máxima e o medo domina – e cai quando todos estão gananciosos. Chuva é tempo de compra.',
+    inputsH: 'O que compõe hoje a pontuação de compra', cheap: 'barato', neutral: 'neutro', dear: 'caro', bar: 'Quanto mais longa a barra, mais barato. Os cinco contam igualmente.',
+    histH: 'O que aconteceu um ano depois de níveis como hoje (desde 2022)', higher: 'mais alto um ano depois', median: 'resultado mediano',
+    btc: 'Bitcoin', eth: 'Ethereum', alt: 'Altcoin típica',
+    caveat: 'Em 90 dias não houve vantagem – após níveis baratos o preço muitas vezes caiu mais primeiro. A pontuação de compra serve para compras em parcelas por 12 meses ou mais, não para acertar o momento. Desde 2022 houve só um ciclo: uma tendência, não uma promessa.',
+    stats: { score: 'Pontuação de compra', price: 'Bitcoin', ath: 'abaixo da máxima histórica', fng: 'Fear & Greed' },
+    faq: [['É um bom momento para comprar Bitcoin?', (v, l, up) => `A pontuação de compra do Coinweather está hoje em ${v}/100 (“${l}”). Desde 2022, depois de níveis assim, o Bitcoin estava mais alto um ano depois em ${up} % dos casos. No curto prazo o preço ainda pode cair.`],
+      ['Como a pontuação de compra é calculada?', () => 'Ela faz a média de cinco componentes de ciclo conhecidos – Mayer Multiple, média de 2 anos, Pi Cycle, distância da máxima histórica e Fear & Greed de 30 dias – em um número de 0 (superaquecido) a 100 (barato).'],
+      ['Vale também para altcoins?', (v, l, up, alt) => `Menos. Desde 2022 a altcoin típica estava mais alta um ano após níveis comparáveis só em ${alt} % dos casos. Por isso o Coinweather dá às altcoins só um bônus da pontuação de compra sobre a própria tendência.`]],
+    cta: 'Ver a pontuação de compra de 1000 moedas, a Bússola do ciclo e o gestor de carteira' },
+  tr: { rain: 'Yağmur alım havasıdır.', nav: 'Şimdi Bitcoin alınır mı?', path: '/should-i-buy-bitcoin-now/',
+    title: (v, l, d) => `Şimdi Bitcoin almalı mıyım? Alım skoru ${v}/100 (“${l}”) – ${d}`,
+    desc: (v, l, p) => `Bugünün döngüye karşı Bitcoin alım skoru: ${v}/100 (“${l}”). Bitcoin ${p}. Mayer Multiple, 2 yıllık ortalama, Pi Cycle, zirveye uzaklık ve Korku ve Açgözlülük’ten oluşur – bir yıl sonra ne olduğuyla birlikte. Yatırım tavsiyesi değildir.`,
+    h1: (v, l) => `Şimdi Bitcoin almalı mıyım? Bugünkü alım skoru: ${v}/100 – ${l}`,
+    intro: 'Dibi kimse kesin yakalayamaz. Verilerin söyleyebileceği şey, Bitcoin’in döngüsünde ucuz mu pahalı mı olduğudur. Coinweather alım skoru döngüye karşıdır: Bitcoin uzun ortalamalarının ve zirvesinin çok altındayken ve korku hâkimken yükselir – herkes açgözlüyken düşer. Yağmur alım havasıdır.',
+    inputsH: 'Bugün alım skorunda neler var', cheap: 'ucuz', neutral: 'nötr', dear: 'pahalı', bar: 'Çubuk ne kadar uzunsa o kadar ucuz. Beşi de eşit sayılır.',
+    histH: 'Bugünkü gibi seviyelerden bir yıl sonra ne oldu (2022’den beri)', higher: 'bir yıl sonra daha yüksek', median: 'ortanca sonuç',
+    btc: 'Bitcoin', eth: 'Ethereum', alt: 'Tipik altcoin',
+    caveat: '90 günlük vadede avantaj yoktu – ucuz seviyelerden sonra fiyat çoğu zaman önce düşmeye devam etti. Alım skoru 12 ay ve üzeri kademeli alımlar içindir, doğru anı yakalamak için değil. 2022’den beri yalnızca bir döngü oldu: bir eğilim, vaat değil.',
+    stats: { score: 'Alım skoru', price: 'Bitcoin', ath: 'zirvenin altında', fng: 'Korku ve Açgözlülük' },
+    faq: [['Şimdi Bitcoin almak için iyi bir zaman mı?', (v, l, up) => `Coinweather alım skoru bugün ${v}/100 (“${l}”). 2022’den beri bu tür seviyelerden sonra Bitcoin bir yıl sonra vakaların % ${up} kadarında daha yüksekti. Kısa vadede fiyat yine de düşebilir.`],
+      ['Alım skoru nasıl hesaplanır?', () => 'Bilinen beş döngü bileşeninin – Mayer Multiple, 2 yıllık ortalama, Pi Cycle, tüm zamanların zirvesine uzaklık ve 30 günlük Korku ve Açgözlülük – ortalamasını 0 (aşırı ısınmış) ile 100 (ucuz) arasında tek bir sayıya çevirir.'],
+      ['Altcoinler için de geçerli mi?', (v, l, up, alt) => `Daha az. 2022’den beri tipik altcoin benzer seviyelerden bir yıl sonra vakaların yalnızca % ${alt} kadarında daha yüksekti. Bu yüzden Coinweather altcoinlere kendi trendlerinin üzerine alım skorundan yalnızca bir bonus verir.`]],
+    cta: '1000 coinin alım skorunu, Döngü Pusulası’nı ve portföy yöneticisini gör' },
+};
+
 const LANG_ORDER = ['en', 'de', 'es', 'fr', 'it', 'pt', 'tr'];
 const prefix = (lang) => (lang === 'en' ? '' : `/${lang}`);
 
@@ -677,10 +781,11 @@ h2{margin:30px 0 8px;font-size:22px}.muted{color:var(--muted)}.panel{background:
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.stat .v{font-size:24px;font-weight:800}.stat .l{color:var(--muted);font-size:13px}
 .up{color:var(--up)}.down{color:var(--down)}table{width:100%;border-collapse:collapse}td,th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}
 td.n,th.n{text-align:right}.cta{border-color:var(--accent)}.links{columns:3 160px;padding-left:18px}footer{border-top:1px solid var(--line);margin-top:40px;padding:18px 0 40px;font-size:13.5px}
-.langs a{margin-right:10px}.share a{margin-right:12px;font-weight:700;text-decoration:none}`;
+.langs,.share{display:flex;flex-wrap:wrap;gap:4px 12px}.share a{font-weight:700;text-decoration:none}`;
 
 // ---------- Seiten einer Sprache ----------
 const pages = [];   // { lang, key, path, html }
+const ogText = {};  // je Sprache die Zeilen für das tagesaktuelle Vorschaubild
 for (const lang of LANG_ORDER) {
   const L = TX[lang], pre = prefix(lang);
   const locale = i18n.LANGS[lang][1];
@@ -695,7 +800,8 @@ for (const lang of LANG_ORDER) {
   const app = (hash = '') => `/?von=seo${lang === 'en' ? '' : `-${lang}`}&lang=${lang}${hash}`;
   const odds = isNum(btcUp7) ? L.odds(btcUp7, btcUp30) : '';
   const fngV = fng?.value ?? '–', fngM = fng ? mood(fng.value) : '–';
-  const add = (key, path, title, description, body) => pages.push({ lang, key, path: `${pre}${path}`, title, description, body, day, L, app });
+  ogText[lang] = { label, day, idx: L.idx, fng: fng ? `${L.fng}: ${fng.value} – ${mood(fng.value)}` : '', btc: btc ? `Bitcoin ${usd(btc.current_price)}` : '' };
+  const add = (key, path, title, description, body, head = '') => pages.push({ lang, key, path: `${pre}${path}`, title, description, body, head, day, L, app });
   const offer = (text) => `<section class="panel cta"><strong>${text}</strong><p class="muted">${L.offer}</p>
     <p><a class="btn" href="${app('#/konto')}">${L.start}</a> <a class="btn ghost" href="${app()}">${L.noSignup}</a></p></section>`;
   const stats = () => `<div class="grid">
@@ -715,7 +821,38 @@ for (const lang of LANG_ORDER) {
     <div class="panel"><table><tr><th>${L.gain}</th><th class="n">${L.price}</th><th class="n">${L.h24}</th></tr>${rows(movers.slice(0, 5))}</table></div>
     <div class="panel"><table><tr><th>${L.lose}</th><th class="n">${L.price}</th><th class="n">${L.h24}</th></tr>${rows(movers.slice(-5).reverse())}</table></div>
     ${record?.d7 ? `<h2>${L.recH}</h2><p>${L.recPara(new Date(record.since * 86_400_000).toLocaleDateString(locale), pct(record.d7.avg), record.d7.up, record.d7.n, pct(record.d7.btc), isNum(record.d7.mkt) ? pct(record.d7.mkt) : null)}</p>` : ''}
+    <p><a href="${pre}${BQ[lang].path}">${esc(BQ[lang].nav)} →</a></p>
     ${offer(L.tOffer)}`);
+
+  // „Soll ich jetzt Bitcoin kaufen?“ – Kauf-Score mit Bausteinen, Jahresrückblick und FAQ
+  if (market.buy?.parts && year) {
+    const Q = BQ[lang], X = IX[lang], v = market.value, ath = btc?.ath_change_percentage;
+    const zone = (c) => (c >= 62 ? ['up', Q.cheap] : c < 45 ? ['down', Q.dear] : ['', Q.neutral]);
+    const inputs = ['mayer', 'twoYear', 'pi', 'ath', 'fng'].filter((k) => isNum(market.buy.parts[k])).map((k) => {
+      const c = Math.round(100 - market.buy.parts[k]), [t, w] = zone(c);
+      return `<tr><td>${esc(X.parts[k])}</td><td style="width:38%"><div style="background:var(--line);border-radius:6px;height:10px"><div style="width:${c}%;height:10px;border-radius:6px;background:var(--accent)"></div></div></td>
+        <td class="n">${c}</td><td class="n ${t}">${esc(w)}</td></tr>`;
+    }).join('');
+    const sign = (m) => `${m > 0 ? '+' : m < 0 ? '−' : ''}${Math.abs(m)} %`;
+    const hrow = (n, h) => `<tr><td>${esc(n)}</td><td class="n">${h.up} %</td><td class="n ${tone(h.median)}">${sign(h.median)}</td></tr>`;
+    const faq = Q.faq.map(([q, a]) => [q, a(v, label, year.btc.up, year.alt.up)]);
+    const ld = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) };
+    add('bq', Q.path, Q.title(v, label, day), Q.desc(v, label, usd(btc?.current_price)),
+      `<h1>${esc(Q.h1(v, label))}</h1><p class="muted">${esc(day)}</p>
+      <div class="grid"><div class="panel stat"><div class="l">${esc(Q.stats.score)}</div><div class="v">${v}/100</div><div>${esc(label)}</div></div>
+        <div class="panel stat"><div class="l">${esc(Q.stats.price)}</div><div class="v">${usd(btc?.current_price)}</div><div class="${tone(ch(btc, '24h'))}">${pct(ch(btc, '24h'))} · 24h</div></div>
+        ${isNum(ath) ? `<div class="panel stat"><div class="l">${esc(Q.stats.ath)}</div><div class="v">${num(Math.abs(ath), 0)} %</div></div>` : ''}
+        ${fng ? `<div class="panel stat"><div class="l">${esc(Q.stats.fng)}</div><div class="v">${fng.value}</div><div>${mood(fng.value)}</div></div>` : ''}</div>
+      <p>${esc(Q.intro)}</p>
+      <h2>${esc(Q.inputsH)}</h2><div class="panel"><table>${inputs}</table></div><p class="muted">${esc(Q.bar)}</p>
+      <h2>${esc(Q.histH)}</h2><div class="panel"><table><tr><th></th><th class="n">${esc(Q.higher)}</th><th class="n">${esc(Q.median)}</th></tr>
+        ${hrow(Q.btc, year.btc)}${hrow(Q.eth, year.eth)}${hrow(Q.alt, year.alt)}</table></div>
+      <p class="muted">${esc(Q.caveat)}</p>
+      <section class="panel cta"><strong>${esc(Q.cta)}</strong><p><a class="btn" href="${app()}">${L.open}</a> <a class="btn ghost" href="${app('#/indikatoren')}">${esc(X.fullBtn)}</a></p></section>
+      ${faq.map(([q, a]) => `<h2>${esc(q)}</h2><p>${esc(a)}</p>`).join('')}
+      <p><a href="${pre}/crypto-weather-today/">${L.fullRep}</a> · <a href="${pre}/bitcoin-cycle-risk/">${esc(X.nav)}</a> · <a href="${pre}/coin/bitcoin/">${L.btcLink}</a></p>`,
+      `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`);
+  }
 
   // Coin-Seiten
   for (const [i, c] of top.entries()) {
@@ -841,6 +978,47 @@ for (const lang of LANG_ORDER) {
     ${offer(L.lOffer)}`);
 }
 
+// ---------- Tagesaktuelles Vorschaubild je Sprache (beim Teilen auf WhatsApp, X, Facebook …) ----------
+// Ohne sharp (lokal nicht installiert) bleibt das feste og-image.jpg.
+const ogImage = {};
+try {
+  const { default: sharp } = await import('sharp');
+  await mkdir(`${out}/og`, { recursive: true });
+  const C = { bg: '#0b0f17', panel: '#121826', line: '#263042', text: '#e8ecf3', muted: '#9aa4b2', sun: '#f7931a', up: '#3ecf8e', down: '#ef5b5b', rain: '#5aa9ff' };
+  const v = market.value, accent = v >= 62 ? C.up : v < 45 ? C.down : C.sun;
+  const sky = ['storm', 'rain', 'cloud', 'partly', 'sun'][market.mood?.sky ?? 2] ?? 'cloud';
+  const sun = `<circle cx="0" cy="0" r="62" fill="${C.sun}"/>`;
+  const cloud = (fill) => `<g fill="${fill}"><circle cx="-40" cy="20" r="50"/><circle cx="20" cy="0" r="65"/><circle cx="80" cy="25" r="45"/><rect x="-90" y="20" width="215" height="50" rx="25"/></g>`;
+  const drops = `<g stroke="${C.rain}" stroke-width="10" stroke-linecap="round"><line x1="-40" y1="95" x2="-50" y2="125"/><line x1="10" y1="95" x2="0" y2="125"/><line x1="60" y1="95" x2="50" y2="125"/></g>`;
+  const icon = { sun, partly: `<g transform="translate(-30,-30)">${sun}</g>${cloud('#e8ecf3')}`, cloud: cloud('#9aa4b2'),
+    rain: `${cloud('#7c8796')}${drops}`, storm: `${cloud('#5c6675')}<path d="M10 80 L-15 130 L10 130 L-5 175 L45 115 L20 115 L35 80 Z" fill="${C.sun}"/>` }[sky];
+  for (const lang of LANG_ORDER) {
+    const t = ogText[lang], Q = BQ[lang];
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" font-family="DejaVu Sans, Segoe UI, Arial, sans-serif">
+      <rect width="1200" height="630" fill="${C.bg}"/><rect x="0" y="0" width="1200" height="10" fill="${C.sun}"/>
+      <text x="70" y="92" font-size="38" font-weight="700" fill="${C.text}">☁ Coinweather</text>
+      <text x="1130" y="92" font-size="28" fill="${C.muted}" text-anchor="end">${esc(t.day)}</text>
+      <text x="70" y="165" font-size="44" font-weight="700" fill="${C.text}">${esc(Q.nav)}</text>
+      <text x="70" y="235" font-size="30" fill="${C.muted}">${esc(t.idx)}</text>
+      <text x="70" y="385" font-size="150" font-weight="700" fill="${accent}">${v}<tspan font-size="56" fill="${C.muted}">/100</tspan></text>
+      <text x="70" y="455" font-size="50" font-weight="700" fill="${C.text}">${esc(t.label)}</text>
+      <rect x="70" y="480" width="640" height="18" rx="9" fill="${C.line}"/><rect x="70" y="480" width="${Math.max(18, 6.4 * v)}" height="18" rx="9" fill="${accent}"/>
+      <g transform="translate(960,265) scale(1.1)">${icon}</g>
+      <text x="1130" y="505" font-size="30" fill="${C.text}" text-anchor="end">${esc(t.btc)}</text>
+      <text x="1130" y="465" font-size="30" fill="${C.muted}" text-anchor="end">${esc(t.fng)}</text>
+      <line x1="70" y1="540" x2="1130" y2="540" stroke="${C.line}" stroke-width="2"/>
+      <text x="70" y="590" font-size="32" font-weight="700" fill="${C.sun}">${esc(Q.rain)}</text>
+      <text x="1130" y="590" font-size="28" fill="${C.muted}" text-anchor="end">coinweather.github.io</text></svg>`;
+    await writeFile(`${out}/og/${lang}.jpg`, await sharp(Buffer.from(svg)).jpeg({ quality: 88 }).toBuffer());
+    ogImage[lang] = `${SITE}/og/${lang}.jpg?d=${iso.slice(0, 10)}`;
+  }
+  // Startseite der App: dasselbe Bild (englisch), mit Datum in der Adresse, damit Facebook & Co. es neu laden
+  await cp(`${out}/og/en.jpg`, `${out}/og-image.jpg`);
+  const ix = await readFile(`${out}/index.html`, 'utf8');
+  await writeFile(`${out}/index.html`, ix.replaceAll(`${SITE}/og-image.jpg"`, `${SITE}/og-image.jpg?d=${iso.slice(0, 10)}"`));
+  console.log('Vorschaubilder: 7 Sprachen');
+} catch (err) { console.log(`Vorschaubilder nicht erstellt: ${err.message}`); }
+
 // ---------- Schreiben: jede Seite mit Verweisen auf ihre anderen Sprachen ----------
 const byKey = new Map();
 for (const p of pages) { if (!byKey.has(p.key)) byKey.set(p.key, []); byKey.get(p.key).push(p); }
@@ -854,15 +1032,15 @@ for (const p of pages) {
   const html = `<!doctype html>
 <html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(p.title)}</title><meta name="description" content="${esc(p.description)}">
-<link rel="canonical" href="${SITE}${p.path}">${alternates}<meta name="theme-color" content="#0b0f17">
+<link rel="canonical" href="${SITE}${p.path}">${alternates}<meta name="theme-color" content="#0b0f17">${p.head}
 <meta property="og:type" content="article"><meta property="og:title" content="${esc(p.title)}"><meta property="og:description" content="${esc(p.description)}">
-<meta property="og:url" content="${SITE}${p.path}"><meta property="og:image" content="${SITE}/og-image.jpg"><meta name="twitter:card" content="summary_large_image">
+<meta property="og:url" content="${SITE}${p.path}"><meta property="og:image" content="${ogImage[lang] ?? `${SITE}/og-image.jpg`}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%23f7931a%27/%3E%3C/svg%3E">
 <style>${CSS}</style></head>
 <body><header><div class="wrap"><a class="brand" href="${app()}">☁️ Coinweather</a><a class="btn" href="${app()}">${L.open}</a></div></header>
 <main class="wrap">${p.body}
 <p class="share muted">↗ <a href="https://wa.me/?text=${shareText}%20${share}" rel="noopener" target="_blank">WhatsApp</a><a href="https://t.me/share/url?url=${share}&text=${shareText}" rel="noopener" target="_blank">Telegram</a><a href="https://twitter.com/intent/tweet?url=${share}&text=${shareText}" rel="noopener" target="_blank">X</a><a href="https://www.facebook.com/sharer/sharer.php?u=${share}" rel="noopener" target="_blank">Facebook</a></p></main>
-<footer><div class="wrap"><p><a href="${pre}/crypto-weather-today/">${L.today}</a> · <a href="${pre}/fear-and-greed-index/">${esc(L.fngNav)}</a> · <a href="${pre}/coins/">${L.all}</a> · <a href="${pre}/savings-plan/">${SP[lang].nav}</a> · <a href="${pre}/bitcoin-cycle-risk/">${IX[lang].nav}</a> · <a href="${pre}/embed/">${EMB[lang].nav}</a> ·
+<footer><div class="wrap"><p><a href="${pre}/crypto-weather-today/">${L.today}</a> · <a href="${pre}${BQ[lang].path}">${esc(BQ[lang].nav)}</a> · <a href="${pre}/fear-and-greed-index/">${esc(L.fngNav)}</a> · <a href="${pre}/coins/">${L.all}</a> · <a href="${pre}/savings-plan/">${SP[lang].nav}</a> · <a href="${pre}/bitcoin-cycle-risk/">${IX[lang].nav}</a> · <a href="${pre}/embed/">${EMB[lang].nav}</a> ·
 <a href="/?lang=${lang}#/risiko">${L.risk}</a> · <a href="/?lang=${lang}#/impressum">${L.legal}</a> · <a href="/?lang=${lang}#/datenschutz">${L.privacy}</a></p>
 <p class="langs">${twins.map((t) => `<a href="${t.path}" hreflang="${t.lang}"${t.lang === lang ? ' aria-current="page"' : ''}>${LANG_NAME[t.lang]}</a>`).join('')}</p>
 <p class="muted">${L.foot(esc(p.day))} Data: CoinGecko, Binance, Gate.io, alternative.me.</p></div></footer>
