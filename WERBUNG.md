@@ -4,6 +4,42 @@ Alle Texte sind zum Kopieren. Die täglichen Beiträge laufen automatisch (siehe
 hier stehen die einmaligen Beiträge zum Start. Jeder Kanal hat einen eigenen Link mit `?von=…` – so siehst du in der
 Nutzerübersicht (Admin → „Herkunft“), woher die Anmeldungen kommen. Profiltexte stehen in [SOCIAL-MEDIA.md](SOCIAL-MEDIA.md).
 
+## Die stärksten Botschaften (Stand 24.10.2026, abends) – zuerst diese verwenden
+
+Alles auf der Seite sagt jetzt dasselbe: Wetter = Stimmung, Kauf-Score = Zyklus-Kompass, Bitcoin und Ethereum folgen ihm,
+Altcoins nie dagegen. Daraus drei Botschaften, die man in einem Satz versteht:
+
+1. **„Regen ist Kaufwetter.“** Wenn alle Angst haben, ist Bitcoin meist günstig. Seit 2022: ab Kauf-Score 62 stand Bitcoin ein Jahr
+   später in 69–76 % der Fälle höher, Ethereum in 77–82 %. Altcoins nur in 40–47 % – das sagen wir offen.
+2. **„Ein Score, eine Aussage.“** Kompass, Kauf-Score, Coin-Signale und Portfolio-Manager widersprechen sich nicht.
+3. **„Wir zeigen auch, wo wir falsch lagen.“** Offene Erfolgskontrolle jedes Signals.
+
+**Reddit-Kommentar (r/Bitcoin, r/CryptoCurrency Daily):**
+> Built a free dashboard that does one thing: tells you if the cycle is cheap or expensive, as a single 0–100 buy score
+> (Mayer Multiple, 2-year MA, Pi Cycle, distance to ATH, 30-day Fear & Greed). Honest part: since 2022 a high score was followed by a
+> higher BTC a year later in ~70 % of days, ETH ~80 % – but altcoins only ~45 %, so it doesn't pretend alts work the same.
+> Useless for timing the bottom (no edge over 90 days), useful for DCA. https://coinweather.github.io/?von=reddit
+
+**X / Bluesky (angeheftet):**
+> Crypto has two kinds of days:
+> ☀️ everyone is greedy → expensive
+> 🌧️ everyone is scared → cheap
+> Our free buy score measures which one it is. Today: 69/100, lean buy. 🌧️
+> https://coinweather.github.io/?von=x
+
+**TikTok / Reels / Shorts (Text für die tägliche KI-Stimme ist automatisch, das hier für eigene Videos):**
+> „Alle haben Angst? Gut. Unser Kauf-Score steht bei 69. Seit 2022 stand Bitcoin nach solchen Tagen ein Jahr später in 69 von 100 Fällen höher.
+> Altcoins übrigens nicht – das sagen wir auch. Keine Anlageberatung. Link in der Bio.“
+
+**Instagram-Bio:** `Crypto weather ☁️ Daily contrarian buy score (0–100) · 🌧️ Rain is buying weather · Free, no signup ↓`
+
+**Hacker News – Show HN:**
+> **Show HN: One buy score for crypto that the whole site (and its portfolio backtest) agrees with**
+> I kept seeing dashboards where the "sentiment" says sell while the "cycle" says buy. So I rebuilt mine around one contrarian score
+> (100 − cycle risk). BTC/ETH signals follow it (80 %), altcoins follow their trend but never against it. Backtest of the rules-based
+> portfolio: ~76 %/yr since 2018 in-sample, −42 % max drawdown; switching *all* coins to the cycle score dropped it to ~38 %/yr – so I didn't.
+> https://coinweather.github.io/?von=hn
+
 ## Neuer Aufhänger: „Regen ist Kaufwetter“ (Stand 24.10.2026, Mittag)
 
 Die Startseite trennt jetzt **Wetter** (Stimmung am Markt) und **Kauf-Score** (antizyklisch, 12 Monate). Das ergibt eine einfache,

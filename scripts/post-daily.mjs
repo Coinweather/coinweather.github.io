@@ -175,6 +175,8 @@ const btcDay = btc?.price_change_percentage_24h_in_currency ?? 0;
 const H = {
   en: {
     mood: (from, to) => `Sentiment ${to > from ? 'heated up' : 'cooled down'} this week: Fear & Greed ${from} → ${to}`,
+    rain: (v) => `Rainy market, cheap cycle: our buy score is ${v}/100 – rain is buying weather`,
+    sun: (v) => `Sunny market, hot cycle: our buy score is only ${v}/100`,
     btc: (v) => `Bitcoin ${v > 0 ? 'up' : 'down'} ${fmt(Math.abs(v), 1)} % today – here’s the bigger picture`,
     plain: ['Your 30-second crypto weather check', 'Is now a good time to buy crypto? Today’s forecast', 'Sun or storm? The crypto market in 30 seconds'],
     ask: ['Buying, holding or waiting? 👇', 'What’s your read on the market today? 👇', 'Fear or greed – where are you today? 👇',
@@ -185,6 +187,8 @@ const H = {
   },
   de: {
     mood: (from, to) => `Die Stimmung hat sich diese Woche ${to > from ? 'erhitzt' : 'abgekühlt'}: Fear & Greed ${from} → ${to}`,
+    rain: (v) => `Regnerischer Markt, günstiger Zyklus: Unser Kauf-Score steht bei ${v}/100 – Regen ist Kaufwetter`,
+    sun: (v) => `Sonniger Markt, heißer Zyklus: Unser Kauf-Score steht nur bei ${v}/100`,
     btc: (v) => `Bitcoin heute ${v > 0 ? 'plus' : 'minus'} ${fmt(Math.abs(v), 1)} % – so steht der Markt insgesamt`,
     plain: ['Dein 30-Sekunden-Wettercheck für Krypto', 'Ist jetzt ein guter Zeitpunkt für Krypto? Die Vorhersage für heute',
       'Sonne oder Sturm? Der Kryptomarkt in 30 Sekunden'],
@@ -199,7 +203,7 @@ const H = {
 // Leuten angezeigt zu werden, die dem Konto noch nicht folgen
 const evening = env.EDITION === 'evening';
 const EVENING = { en: 'Today’s biggest crypto movers', de: 'Die größten Krypto-Bewegungen heute' }[lang];
-const hook = evening ? EVENING : fng && Number.isFinite(fng.week) && Math.abs(fng.value - fng.week) >= 8 ? H.mood(fng.week, fng.value)
+const hook = evening ? EVENING : R.tip ? (R.tip === TIP.rain ? H.rain(market.value) : H.sun(market.value)) : fng && Number.isFinite(fng.week) && Math.abs(fng.value - fng.week) >= 8 ? H.mood(fng.week, fng.value)
   : Math.abs(btcDay) >= 3 ? H.btc(btcDay) : H.plain[daily % H.plain.length];
 const ask = H.ask[daily % H.ask.length];
 // X erlaubt 280 Zeichen (Links zählen 23, Emojis doppelt), Bluesky 300 – notfalls entfällt die Frage, dann die Hashtags
@@ -246,7 +250,6 @@ function richX() {
     `${R.icon} ${hook}`, '',
     `📊 ${XT.index}: ${market.value}/100 · ${R.label}`,
     withBar ? bar(market.value) : null,
-    withCompass ? R.tip : null,
     fngLine(XT.week),
     btcLine,
     withCompass ? compassLine : null,
@@ -293,7 +296,6 @@ function rich(channel, reel = false) {
     `${R.icon} ${T.weather}: ${R.sky}`,
     `📊 ${XT.index}: ${market.value}/100 · ${R.label}`,
     bar(market.value),
-    R.tip,
     fngLine(XT.week),
     btcLine,
     `🎯 ${M.signals(buys, rated)}`,
