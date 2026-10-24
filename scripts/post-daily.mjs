@@ -138,7 +138,8 @@ const fmt = (v, d = 0) => v.toLocaleString(T.locale, { maximumFractionDigits: d,
 const signed = (v, d = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmt(Math.abs(v), d)} %`;
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const day = new Date(snap.time).toLocaleDateString(T.locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Zurich' });
-const link = (channel) => `${SITE}?von=${channel}`;
+// Datum in der Adresse: X, Facebook & Co. laden die Vorschau dann jeden Tag neu (die Seite hat ein tagesaktuelles Vorschaubild)
+const link = (channel) => `${SITE}?von=${channel}&d=${new Date(snap.time).toISOString().slice(0, 10)}`;
 const daily = Math.floor(snap.time / 86_400_000);   // wechselt täglich: Aufhänger und Frage
 
 // Das Wetter zeigt die Stimmung (Markt-Wetter), der Kauf-Score ist antizyklisch: bei Regen und günstigem Zyklus hoch
@@ -312,7 +313,7 @@ function rich(channel, reel = false) {
 }
 
 const text = {
-  telegram: [`${R.icon} <b>${T.title} – ${esc(day)}</b>`, `<i>${esc(hook)}</i>`, '', ...body.map(esc), '', `<i>${T.note}</i>`, `👉 <a href="${link('telegram')}">${T.cta}</a>`].join('\n'),
+  telegram: [`${R.icon} <b>${T.title} – ${esc(day)}</b>`, `<i>${esc(hook)}</i>`, '', ...body.map(esc), '', `<i>${T.note}</i>`, `👉 <a href="${esc(link('telegram'))}">${T.cta}</a>`].join('\n'),
   x: richX(),
   bluesky: short('bluesky', 300),
   facebook: rich('facebook'),
