@@ -519,8 +519,9 @@ const INFO = {
       <li><strong>Altcoins:</strong> Ihr Score ist ihr Trend plus ein Zyklus-Bonus: je Kauf-Score-Punkt über 50 kommen 0,6 Punkte dazu (bei 69 also +12).
         Dazu nie gegen den Kompass: Bei günstigem Zyklus (ab 62) gibt es kein Verkaufssignal, bei teurem (unter 45) höchstens „Eher kaufen“.</li>
       <li><strong>Bärenmarkt und Gier-Bremse:</strong> Liegt Bitcoin unter seinem 200-Tage-Schnitt im Abwärtstrend oder Fear &amp; Greed im 7-Tage-Schnitt bei 75–85, wird der Trend der Altcoins gedeckelt – ein Kaufsignal entsteht dann nur noch über den Zyklus-Bonus.</li></ul>
-    <p>Rückrechnung des Portfolio-Managers mit genau diesen Regeln und der Reserve nach Kompass und Trend (Mittel aus 7 Starttagen): 81 % pro Jahr seit 2018, seit 2022 43 %, größter Rückgang −46 %
-      (früher nur nach dem Trend: 73 %, 43 %, −40 %). Ein Abzug bei teurem Zyklus hätte viel gekostet (60 % pro Jahr) – deshalb dort nur die Obergrenze.</p>
+    <p>Beim Entwickeln an 84 Coins (Mittel aus 7 Starttagen) kamen diese Regeln mit der Reserve nach Kompass und Trend auf 81 % pro Jahr seit 2018, seit 2022 43 %, größter Rückgang −46 %
+      (früher nur nach dem Trend: 73 %, 43 %, −40 %). Ein Abzug bei teurem Zyklus hätte viel gekostet (60 % pro Jahr) – deshalb dort nur die Obergrenze.
+      Das heutige Modell-Portfolio wählt zusätzlich aus den größten Coins mit Kursgeschichte: +${RESERVE_BACKTEST.balanced.perYear} % pro Jahr, seit 2022 +${RESERVE_BACKTEST.balanced.recent} %, größter Rückgang −${RESERVE_BACKTEST.balanced.drawdown} %.</p>
     <p>Bärenmarkt und Gier-Bremse steuern auch das Reserve-Ziel im Portfolio. Eigene Regeln je Altcoin (kein Kauf im eigenen Abwärtstrend, kein Kauf nach eigener Gier, Kauf nach eigener Angst)
       halfen in der Prüfung jeweils nur in einem von zwei Zeiträumen und sind deshalb nicht eingebaut.</p>
     <h3>Grundlage</h3>
@@ -548,7 +549,7 @@ const INFO = {
     <ul><li><strong>Bitcoin und Ethereum:</strong> Ihr Signal besteht zu 80 % aus dem Kauf-Score.</li>
       <li><strong>Altcoins:</strong> Zyklus-Bonus im Score (je Punkt über 50 plus 0,6), kein Verkaufssignal bei günstigem, höchstens „Eher kaufen“ bei teurem Zyklus.</li>
       <li><strong>12-Monats-Sicht</strong> auf der Startseite und bei jedem Coin.</li>
-      <li><strong>Portfolio-Manager und Modell-Portfolio:</strong> rechnen mit genau diesen Signalen.</li>
+      <li><strong>Autopilot, Portfolio-Manager und Modell-Portfolio:</strong> rechnen mit genau diesen Signalen.</li>
       <li><strong>Zyklus-Kompass:</strong> Das Zyklus-Risiko ist 100 minus Kauf-Score.</li></ul>
     <p>Geprüft an 84 Coins seit 2018, wöchentlich gehandelt, mit Gebühren: So kam der Portfolio-Manager auf 81 % pro Jahr. Hätten alle Coins zu 60 % direkt dem Kauf-Score
       gefolgt, wären es nur 38 % gewesen – nach günstigen Ständen fielen viele Altcoins zunächst weiter.</p>${LIMITS}` },
@@ -674,7 +675,7 @@ const INFO = {
 
   autopilot: { title: 'So arbeitet der Autopilot', body: () => `
     <p>Der Autopilot hält dein Portfolio in denselben Anteilen wie das Modell-Portfolio deiner Strategie. Das Modell folgt genau den Regeln des Portfolio-Managers
-      und ist dieselbe Kurve, die der Rechner unter „Mit dem Portfolio-Manager“ zeigt.</p>
+      und ist dieselbe Kurve, die der Rechner unter „Mit dem Autopiloten“ zeigt.</p>
     <ul><li><strong>Jede Woche geprüft:</strong> Am Prüftag entscheidet das Modell nach Kaufsignalen, Zyklus-Kompass und Schutzregeln, was es kauft und verkauft.
         Am Morgen danach stehen die Schritte hier.</li>
       <li><strong>Kursbewegungen allein lösen nichts aus:</strong> Steigt ein Coin, steigt er im Modell genauso. Gehandelt wird nur, wenn das Modell handelt oder Geld dazukommt.</li>
@@ -899,7 +900,7 @@ function marketView(preview = false) {
     <div class="teaser-row">
       <a class="panel compass-teaser" href="#/indikatoren" id="compass-teaser" hidden></a>
       <a class="panel calc-teaser" href="#/rechner"><span class="calc-icon" aria-hidden="true">🧮</span><span><strong>Sparplan- und Portfolio-Rechner</strong>
-        <span class="muted">Was wäre aus einem Sparplan geworden – mit einem Coin, mit Bitcoin oder mit dem Portfolio-Manager?</span></span><span class="btn ghost">Ausprobieren</span></a>
+        <span class="muted">Was wäre aus einem Sparplan geworden – mit einem Coin, mit Bitcoin oder mit dem Autopiloten?</span></span><span class="btn ghost">Ausprobieren</span></a>
     </div>
     <section id="favs" hidden></section>
     <section id="picks-sec">
@@ -1031,11 +1032,11 @@ function marketView(preview = false) {
     el.hidden = false;
     const v = m.value;
     const steps = v >= 62 ? [['🌧️', 'Günstiger Zyklus: in Raten kaufen – vor allem Bitcoin und Ethereum, über mindestens 12 Monate.', '#/coin/bitcoin', 'Bitcoin ansehen'],
-      ['🧮', 'Ausrechnen, was ein Sparplan gebracht hätte – mit einem Coin, mit Bitcoin oder mit dem Portfolio-Manager.', '#/rechner', 'Sparplan rechnen'],
-      ['💼', 'Den Portfolio-Manager deinen Bestand prüfen lassen: was kaufen, was halten, wie viel Reserve.', depot.user ? '#/portfolio' : '#/konto', depot.user ? 'Portfolio prüfen' : 'Kostenlos starten']]
+      ['🧮', 'Ausrechnen, was ein Sparplan gebracht hätte – mit einem Coin, mit Bitcoin oder mit dem Autopiloten.', '#/rechner', 'Sparplan rechnen'],
+      ['💼', 'Den Autopiloten sagen lassen, was du kaufst und wie viel Reserve du hältst.', depot.user ? '#/portfolio' : '#/konto', depot.user ? 'Portfolio prüfen' : 'Kostenlos starten']]
       : v >= 45 ? [['☁️', 'Weder billig noch teuer: Ein Sparplan kann normal weiterlaufen.', '#/rechner', 'Sparplan rechnen'],
         ['📈', 'Für die nächsten Wochen zählt der Trend: die stärksten Kaufsignale ansehen.', '#picks-sec', 'Kaufsignale ansehen'],
-        ['💼', 'Den Portfolio-Manager deinen Bestand prüfen lassen.', depot.user ? '#/portfolio' : '#/konto', depot.user ? 'Portfolio prüfen' : 'Kostenlos starten']]
+        ['💼', 'Den Autopiloten sagen lassen, was du kaufst.', depot.user ? '#/portfolio' : '#/konto', depot.user ? 'Portfolio prüfen' : 'Kostenlos starten']]
         : [['☀️', 'Teurer Zyklus: nicht nachkaufen, Gewinne teilweise sichern.', depot.user ? '#/portfolio' : '#/konto', depot.user ? 'Portfolio prüfen' : 'Kostenlos starten'],
           ['🧭', 'Im Zyklus-Kompass sehen, welche Bausteine heiß laufen.', '#/indikatoren', 'Zyklus-Kompass'],
           ['🧮', 'Prüfen, wie ein Sparplan durch teure Phasen kam.', '#/rechner', 'Sparplan rechnen']];
@@ -3559,8 +3560,8 @@ async function modelSection(el) {
   el.innerHTML = `
     <section class="panel model-head">
       <div class="label">Modell-Portfolio</div>
-      <h2>Der Portfolio-Manager als Musterdepot</h2>
-      <p class="muted">So wäre ein Depot gelaufen, das seit ${startYear} jede Woche genau den Regeln des Portfolio-Managers folgt – mit Reserve in schwachen Phasen,
+      <h2>Der Autopilot als Musterdepot</h2>
+      <p class="muted">So wäre ein Depot gelaufen, das seit ${startYear} jede Woche genau den Regeln des Autopiloten folgt – mit Reserve in schwachen Phasen,
         Auswahl aus ${c.coins} geprüften Coins und 0,25 % Gebühr je Handel. Daneben Bitcoin zum Vergleich.</p>
       <div class="kpi-grid">
         ${isNum(y1) ? stat('Letzte 12 Monate', `${signed(y1, 0)} %`, tone(y1), isNum(b1) ? `Bitcoin ${signed(b1, 0)} %` : '') : ''}
@@ -3594,7 +3595,7 @@ async function modelSection(el) {
       <p class="muted">Der Autopilot im Portfolio sagt dir, was du kaufst, damit dein Portfolio genau diesem Modell folgt – und meldet sich, wenn sich etwas ändert.
         Hast du schon Coins, prüft der Manager sie auf Wunsch einzeln. Ausführen tust du alles selbst bei deiner Börse.</p></div>
       <div class="btn-row"><a class="btn" href="${depot.user ? '#/portfolio' : '#/konto'}">${depot.user ? 'Autopilot starten' : 'Kostenlos starten'}</a></div></section>
-    <p class="share-row hint">${shareLinks(shareUrl('#/modell'), `${i18n.say('Modell-Portfolio des Portfolio-Managers')}: ${signed(c.stats.cagr, 0)} % / ${i18n.say('Jahr')} – Coinweather`)}</p>`;
+    <p class="share-row hint">${shareLinks(shareUrl('#/modell'), `${i18n.say('Modell-Portfolio des Autopiloten')}: ${signed(c.stats.cagr, 0)} % / ${i18n.say('Jahr')} – Coinweather`)}</p>`;
   // Diagramm: beide Linien ab dem gewählten Start auf 100 gesetzt
   const chart = (years) => {
     const from = years ? Math.max(0, c.nav.length - 1 - years * 365) : 0;
@@ -3858,7 +3859,7 @@ function calculatorView(arg, { focus } = {}) {
     <section class="panel calc">
       <div class="label">Kostenloser Rechner</div>
       <h1 class="page-title">Sparplan- und Portfolio-Rechner</h1>
-      <p class="muted">Was wäre aus einem monatlichen Sparplan oder einer Einmalanlage geworden – mit einem Coin, mit Bitcoin oder mit dem Portfolio-Manager von Coinweather?
+      <p class="muted">Was wäre aus einem monatlichen Sparplan oder einer Einmalanlage geworden – mit einem Coin, mit Bitcoin oder mit dem Autopiloten von Coinweather?
         Gerechnet mit echten Tageskursen der letzten bis zu 4 Jahre.</p>
       <form id="calc-form" class="calc-form">
         <label>Coin<input id="calc-coin" list="calc-coins" autocomplete="off" required></label>
@@ -3925,7 +3926,7 @@ function calculatorView(arg, { focus } = {}) {
       const ways = [
         { key: 'coin', title: `Nur <span translate="no">${esc(c.name)}</span>`, img: c.image, res: r, color: 'var(--text)' },
         ...(b ? [{ key: 'btc', title: 'Nur Bitcoin', img: btc.image, res: b, color: 'var(--accent-2)' }] : []),
-        ...(mgr ? [{ key: 'mgr', title: 'Mit dem Portfolio-Manager', icon: '🤖', res: mgr, color: 'var(--accent)', note: `wählt aus ${curve.coins} geprüften Coins, Reserve in schwachen Phasen` }] : []),
+        ...(mgr ? [{ key: 'mgr', title: 'Mit dem Autopiloten', icon: '🤖', res: mgr, color: 'var(--accent)', note: `wählt aus ${curve.coins} geprüften Coins, Reserve in schwachen Phasen` }] : []),
       ];
       const best = ways.length > 1 ? ways.reduce((x, w) => (w.res.last > x.res.last ? w : x)) : null;
       const card = (w) => `<div class="way ${w.key}${w === best ? ' best' : ''}">
@@ -3942,7 +3943,7 @@ function calculatorView(arg, { focus } = {}) {
           <div class="ways">${ways.map(card).join('')}</div>
           <div id="calc-chart" class="chart"></div>
           ${r.worst < 0 ? `<p class="hint">Am ${new Date(r.worstAt).toLocaleDateString(settings.locale)} lag der Wert in ${esc(c.name)} ${num(-r.worst * 100, 0)} % unter dem eingezahlten Betrag. Wer da verkauft hätte, hätte den Verlust mitgenommen.</p>` : ''}
-          ${mgr ? `<p class="hint"><strong>Portfolio-Manager:</strong> Rückrechnung an den Kursen, an denen die Regeln entwickelt wurden, mit 0,25 % Gebühr je Handel. Die Zukunft fällt meist schlechter aus;
+          ${mgr ? `<p class="hint"><strong>Autopilot:</strong> Rückrechnung an den Kursen, an denen die Regeln entwickelt wurden, mit 0,25 % Gebühr je Handel. Die Zukunft fällt meist schlechter aus;
             Coins, die es nicht mehr gibt, fehlen. Größter Rückgang des Modell-Portfolios seit ${new Date(curve.t[0]).getUTCFullYear()}: ${num(-curve.stats.maxDrawdown, 0)} %.</p>` : ''}
           <p class="hint">Rückblick mit echten Tageskursen, ohne Steuern. Die Vergangenheit ist keine Prognose – Kryptowerte können stark fallen, bis zum Totalverlust.</p>
           <p class="share-row hint">${shareLinks(shareUrl(location.hash), msg, 'Ergebnis teilen')}</p>
@@ -3951,7 +3952,7 @@ function calculatorView(arg, { focus } = {}) {
           : previewCta('Und wie sieht es heute aus?', 'Mit einem kostenlosen Konto siehst du für jeden der 1000 Coins das Signal, die Aussicht für 7 und 30 Tage und den Rückblick. 30 Tage alle Funktionen, ohne Zahlungsdaten.')}`;
       drawChart($('#calc-chart'), { t: r.days, p: r.value, note: c.name, overlays: [{ values: r.paid, color: 'var(--muted)', label: 'Eingezahlt' },
         ...(btcAt ? [{ values: r.days.map((t) => btcAt.get(dayKey(t)) ?? null), color: 'var(--accent-2)', label: 'Bitcoin' }] : []),
-        ...(mgrAt ? [{ values: r.days.map((t) => mgrAt.get(dayKey(t)) ?? null), color: 'var(--accent)', label: 'Mit dem Portfolio-Manager' }] : [])] });
+        ...(mgrAt ? [{ values: r.days.map((t) => mgrAt.get(dayKey(t)) ?? null), color: 'var(--accent)', label: 'Mit dem Autopiloten' }] : [])] });
     } catch (err) {
       if (mine === run) out.innerHTML = `<section class="panel"><p class="muted">Kursgeschichte nicht erreichbar: ${esc(err.message)}</p></section>`;
     }

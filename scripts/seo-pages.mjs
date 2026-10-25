@@ -63,7 +63,7 @@ await writeFile(`${out}/${INDEXNOW_KEY}.txt`, INDEXNOW_KEY);
 const snap = process.env.SNAPSHOT_FILE ? JSON.parse(await readFile(process.env.SNAPSHOT_FILE, 'utf8')) : await (await fetch(`${SNAPSHOT}?t=${Date.now()}`)).json();
 const { market, fng, coins, record } = snap;
 
-// Modell-Portfolio des Portfolio-Managers für den Sparplan-Rechner (scripts/model-curve.mjs) – fehlt es, zeigt der Rechner es nicht
+// Modell-Portfolio des Autopiloten für den Sparplan-Rechner (scripts/model-curve.mjs) – fehlt es, zeigt der Rechner es nicht
 let modelData = null;
 try {
   const { buildCurve, COINS } = await import('./model-curve.mjs');
@@ -701,7 +701,7 @@ const BQ = {
     faq: [['Is now a good time to buy Bitcoin?', (v, l, up) => `Coinweather’s buy score is ${v}/100 today (${l}). Since 2022, after readings like this, Bitcoin was higher one year later in ${up} % of cases. In the short term the price can still fall further.`],
       ['How is the buy score calculated?', () => 'It averages five well-known cycle components – Mayer Multiple, the 2-year moving average, Pi Cycle, the distance to the all-time high and the 30-day Fear & Greed Index – and turns them into one number from 0 (overheated) to 100 (cheap).'],
       ['Does this work for altcoins too?', (v, l, up, alt) => `Less so. Since 2022 the typical altcoin was higher one year after comparable readings in only ${alt} % of cases. That is why Coinweather gives altcoins only a bonus from the buy score on top of their own trend.`]],
-    cta: 'See the buy score for 1,000 coins, the Cycle Compass and the portfolio manager' },
+    cta: 'See the buy score for 1,000 coins, the Cycle Compass and the autopilot' },
   de: { rain: 'Regen ist Kaufwetter.', nav: 'Soll ich jetzt Bitcoin kaufen?', path: '/should-i-buy-bitcoin-now/',
     title: (v, l, d) => `Soll ich jetzt Bitcoin kaufen? Kauf-Score ${v}/100 („${l}“) – ${d}`,
     desc: (v, l, p) => `Der antizyklische Bitcoin-Kauf-Score heute: ${v}/100 („${l}“). Bitcoin bei ${p}. Aus Mayer-Multiple, 2-Jahres-Schnitt, Pi-Cycle, Abstand zum Hoch und Fear & Greed – mit dem, was ein Jahr später folgte. Keine Anlageberatung.`,
@@ -715,7 +715,7 @@ const BQ = {
     faq: [['Ist jetzt ein guter Zeitpunkt, Bitcoin zu kaufen?', (v, l, up) => `Der Kauf-Score von Coinweather steht heute bei ${v}/100 („${l}“). Seit 2022 stand Bitcoin nach solchen Ständen ein Jahr später in ${up} % der Fälle höher. Kurzfristig kann der Kurs trotzdem weiter fallen.`],
       ['Wie wird der Kauf-Score berechnet?', () => 'Er mittelt fünf bekannte Zyklus-Bausteine – Mayer-Multiple, 2-Jahres-Schnitt, Pi-Cycle, Abstand zum Allzeithoch und Fear & Greed der letzten 30 Tage – zu einer Zahl von 0 (überhitzt) bis 100 (günstig).'],
       ['Gilt das auch für Altcoins?', (v, l, up, alt) => `Weniger. Seit 2022 stand der typische Altcoin ein Jahr nach vergleichbaren Ständen nur in ${alt} % der Fälle höher. Deshalb bekommen Altcoins bei Coinweather nur einen Bonus aus dem Kauf-Score zu ihrem eigenen Trend.`]],
-    cta: 'Kauf-Score für 1000 Coins, Zyklus-Kompass und Portfolio-Manager ansehen' },
+    cta: 'Kauf-Score für 1000 Coins, Zyklus-Kompass und Autopilot ansehen' },
   es: { rain: 'La lluvia es tiempo de compra.', nav: '¿Comprar Bitcoin ahora?', path: '/should-i-buy-bitcoin-now/',
     title: (v, l, d) => `¿Debo comprar Bitcoin ahora? Puntuación de compra ${v}/100 («${l}») – ${d}`,
     desc: (v, l, p) => `La puntuación de compra anticíclica de Bitcoin hoy: ${v}/100 («${l}»). Bitcoin a ${p}. Basada en el múltiplo de Mayer, la media de 2 años, Pi Cycle, la distancia al máximo y Fear & Greed, con lo que pasó un año después. No es asesoramiento financiero.`,
@@ -729,7 +729,7 @@ const BQ = {
     faq: [['¿Es buen momento para comprar Bitcoin?', (v, l, up) => `La puntuación de compra de Coinweather está hoy en ${v}/100 («${l}»). Desde 2022, tras niveles así, Bitcoin estaba más alto un año después en el ${up} % de los casos. A corto plazo el precio puede seguir cayendo.`],
       ['¿Cómo se calcula la puntuación de compra?', () => 'Promedia cinco componentes de ciclo conocidos – múltiplo de Mayer, media de 2 años, Pi Cycle, distancia al máximo histórico y Fear & Greed de 30 días – en un número de 0 (sobrecalentado) a 100 (barato).'],
       ['¿Sirve también para las altcoins?', (v, l, up, alt) => `Menos. Desde 2022 la altcoin típica estaba más alta un año después de niveles comparables solo en el ${alt} % de los casos. Por eso Coinweather da a las altcoins solo una bonificación de la puntuación de compra sobre su propia tendencia.`]],
-    cta: 'Ver la puntuación de compra de 1000 monedas, la Brújula del ciclo y el gestor de cartera' },
+    cta: 'Ver la puntuación de compra de 1000 monedas, la Brújula del ciclo y el piloto automático' },
   fr: { rain: 'La pluie, c’est le temps d’acheter.', nav: 'Acheter du Bitcoin maintenant ?', path: '/should-i-buy-bitcoin-now/',
     title: (v, l, d) => `Faut-il acheter du Bitcoin maintenant ? Score d’achat ${v}/100 (« ${l} ») – ${d}`,
     desc: (v, l, p) => `Le score d’achat anticyclique du Bitcoin aujourd’hui : ${v}/100 (« ${l} »). Bitcoin à ${p}. Basé sur le Mayer Multiple, la moyenne sur 2 ans, le Pi Cycle, la distance au record et le Fear & Greed – avec ce qui a suivi un an plus tard. Pas un conseil en investissement.`,
@@ -743,7 +743,7 @@ const BQ = {
     faq: [['Est-ce le bon moment pour acheter du Bitcoin ?', (v, l, up) => `Le score d’achat de Coinweather est aujourd’hui de ${v}/100 (« ${l} »). Depuis 2022, après de tels niveaux, le Bitcoin était plus haut un an plus tard dans ${up} % des cas. À court terme, le cours peut encore baisser.`],
       ['Comment le score d’achat est-il calculé ?', () => 'Il fait la moyenne de cinq composantes de cycle connues – Mayer Multiple, moyenne sur 2 ans, Pi Cycle, distance au record et Fear & Greed sur 30 jours – en un nombre de 0 (surchauffe) à 100 (bon marché).'],
       ['Est-ce valable pour les altcoins ?', (v, l, up, alt) => `Moins. Depuis 2022, l’altcoin typique n’était plus haut un an après des niveaux comparables que dans ${alt} % des cas. C’est pourquoi Coinweather n’accorde aux altcoins qu’un bonus du score d’achat en plus de leur propre tendance.`]],
-    cta: 'Voir le score d’achat de 1000 cryptos, la Boussole du cycle et le gestionnaire de portefeuille' },
+    cta: 'Voir le score d’achat de 1000 cryptos, la Boussole du cycle et le pilote automatique' },
   it: { rain: 'La pioggia è tempo di acquisto.', nav: 'Comprare Bitcoin ora?', path: '/should-i-buy-bitcoin-now/',
     title: (v, l, d) => `Devo comprare Bitcoin ora? Punteggio di acquisto ${v}/100 («${l}») – ${d}`,
     desc: (v, l, p) => `Il punteggio di acquisto anticiclico di Bitcoin oggi: ${v}/100 («${l}»). Bitcoin a ${p}. Basato su Mayer Multiple, media a 2 anni, Pi Cycle, distanza dal massimo e Fear & Greed – con ciò che è seguito un anno dopo. Non è una consulenza finanziaria.`,
@@ -757,7 +757,7 @@ const BQ = {
     faq: [['È un buon momento per comprare Bitcoin?', (v, l, up) => `Il punteggio di acquisto di Coinweather oggi è ${v}/100 («${l}»). Dal 2022, dopo livelli simili, Bitcoin era più alto un anno dopo nel ${up} % dei casi. Nel breve periodo il prezzo può comunque scendere.`],
       ['Come si calcola il punteggio di acquisto?', () => 'Fa la media di cinque componenti di ciclo note – Mayer Multiple, media a 2 anni, Pi Cycle, distanza dal massimo storico e Fear & Greed a 30 giorni – in un numero da 0 (surriscaldato) a 100 (conveniente).'],
       ['Vale anche per gli altcoin?', (v, l, up, alt) => `Meno. Dal 2022 l’altcoin tipico era più alto un anno dopo livelli comparabili solo nel ${alt} % dei casi. Per questo Coinweather dà agli altcoin solo un bonus dal punteggio di acquisto sul loro trend.`]],
-    cta: 'Vedi il punteggio di acquisto di 1000 coin, la Bussola del ciclo e il gestore di portafoglio' },
+    cta: 'Vedi il punteggio di acquisto di 1000 coin, la Bussola del ciclo e il pilota automatico' },
   pt: { rain: 'Chuva é tempo de compra.', nav: 'Comprar Bitcoin agora?', path: '/should-i-buy-bitcoin-now/',
     title: (v, l, d) => `Devo comprar Bitcoin agora? Pontuação de compra ${v}/100 (“${l}”) – ${d}`,
     desc: (v, l, p) => `A pontuação de compra anticíclica do Bitcoin hoje: ${v}/100 (“${l}”). Bitcoin a ${p}. Baseada no Mayer Multiple, média de 2 anos, Pi Cycle, distância da máxima e Fear & Greed – com o que veio um ano depois. Não é recomendação de investimento.`,
@@ -771,7 +771,7 @@ const BQ = {
     faq: [['É um bom momento para comprar Bitcoin?', (v, l, up) => `A pontuação de compra do Coinweather está hoje em ${v}/100 (“${l}”). Desde 2022, depois de níveis assim, o Bitcoin estava mais alto um ano depois em ${up} % dos casos. No curto prazo o preço ainda pode cair.`],
       ['Como a pontuação de compra é calculada?', () => 'Ela faz a média de cinco componentes de ciclo conhecidos – Mayer Multiple, média de 2 anos, Pi Cycle, distância da máxima histórica e Fear & Greed de 30 dias – em um número de 0 (superaquecido) a 100 (barato).'],
       ['Vale também para altcoins?', (v, l, up, alt) => `Menos. Desde 2022 a altcoin típica estava mais alta um ano após níveis comparáveis só em ${alt} % dos casos. Por isso o Coinweather dá às altcoins só um bônus da pontuação de compra sobre a própria tendência.`]],
-    cta: 'Ver a pontuação de compra de 1000 moedas, a Bússola do ciclo e o gestor de carteira' },
+    cta: 'Ver a pontuação de compra de 1000 moedas, a Bússola do ciclo e o piloto automático' },
   tr: { rain: 'Yağmur alım havasıdır.', nav: 'Şimdi Bitcoin alınır mı?', path: '/should-i-buy-bitcoin-now/',
     title: (v, l, d) => `Şimdi Bitcoin almalı mıyım? Alım skoru ${v}/100 (“${l}”) – ${d}`,
     desc: (v, l, p) => `Bugünün döngüye karşı Bitcoin alım skoru: ${v}/100 (“${l}”). Bitcoin ${p}. Mayer Multiple, 2 yıllık ortalama, Pi Cycle, zirveye uzaklık ve Korku ve Açgözlülük’ten oluşur – bir yıl sonra ne olduğuyla birlikte. Yatırım tavsiyesi değildir.`,
@@ -785,7 +785,7 @@ const BQ = {
     faq: [['Şimdi Bitcoin almak için iyi bir zaman mı?', (v, l, up) => `Coinweather alım skoru bugün ${v}/100 (“${l}”). 2022’den beri bu tür seviyelerden sonra Bitcoin bir yıl sonra vakaların % ${up} kadarında daha yüksekti. Kısa vadede fiyat yine de düşebilir.`],
       ['Alım skoru nasıl hesaplanır?', () => 'Bilinen beş döngü bileşeninin – Mayer Multiple, 2 yıllık ortalama, Pi Cycle, tüm zamanların zirvesine uzaklık ve 30 günlük Korku ve Açgözlülük – ortalamasını 0 (aşırı ısınmış) ile 100 (ucuz) arasında tek bir sayıya çevirir.'],
       ['Altcoinler için de geçerli mi?', (v, l, up, alt) => `Daha az. 2022’den beri tipik altcoin benzer seviyelerden bir yıl sonra vakaların yalnızca % ${alt} kadarında daha yüksekti. Bu yüzden Coinweather altcoinlere kendi trendlerinin üzerine alım skorundan yalnızca bir bonus verir.`]],
-    cta: '1000 coinin alım skorunu, Döngü Pusulası’nı ve portföy yöneticisini gör' },
+    cta: '1000 coinin alım skorunu, Döngü Pusulası’nı ve otomatik pilotu gör' },
 };
 
 // „Should I buy Ethereum now?“ – Ethereum folgt zu 80 % dem Kauf-Score des Markts, zu 20 % seinem Trend (wie in der App)
