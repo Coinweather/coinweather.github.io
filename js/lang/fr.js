@@ -2005,4 +2005,9 @@ export default {
   "Deine E-Mail-Adresse für die Anmeldung, das Portfolio, das du einträgst, und eine einfache Nutzungsstatistik deines Kontos (wann und welche Bereiche du nutzt). Besuche zählen wir anonym, ohne Cookies. Keine Werbe-Cookies, keine Analyse-Dienste von Dritten. Im Konto kannst du alles löschen": "Ton adresse e-mail pour la connexion, le portefeuille que tu saisis et une statistique d’utilisation simple de ton compte (quand et quelles rubriques tu utilises). Nous comptons les visites de manière anonyme, sans cookies. Pas de cookies publicitaires, pas de services d’analyse tiers. Dans ton compte, tu peux tout supprimer",
   "Für dieses Intervall gibt es gerade keine Kursdaten. Versuch es gleich noch einmal oder wähle ein anderes": "Pas de données de cours pour cet intervalle en ce moment. Réessaie dans un instant ou choisis-en un autre",
   "nur Kurse, keine Kerzen": "cours uniquement, pas de bougies",
+  "Dieser Bereich konnte nicht vollständig angezeigt werden": "Cette section n’a pas pu s’afficher entièrement",
+  "Bitte lade die Seite neu": "Recharge la page",
+  "Neu laden": "Recharger",
+  "# Bausteine": "# composantes",
+  "# Kaufsignale": "# signaux d’achat",
 };

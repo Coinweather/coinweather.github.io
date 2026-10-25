@@ -2005,4 +2005,9 @@ export default {
   "Deine E-Mail-Adresse für die Anmeldung, das Portfolio, das du einträgst, und eine einfache Nutzungsstatistik deines Kontos (wann und welche Bereiche du nutzt). Besuche zählen wir anonym, ohne Cookies. Keine Werbe-Cookies, keine Analyse-Dienste von Dritten. Im Konto kannst du alles löschen": "Tu dirección de correo electrónico para iniciar sesión, la cartera que introduces y una estadística de uso sencilla de tu cuenta (cuándo y qué áreas usas). Contamos las visitas de forma anónima, sin cookies. Sin cookies publicitarias ni servicios de análisis de terceros. En tu cuenta puedes borrarlo todo",
   "Für dieses Intervall gibt es gerade keine Kursdaten. Versuch es gleich noch einmal oder wähle ein anderes": "Ahora no hay datos de precio para este intervalo. Vuelve a intentarlo en un momento o elige otro",
   "nur Kurse, keine Kerzen": "solo precios, sin velas",
+  "Dieser Bereich konnte nicht vollständig angezeigt werden": "Esta sección no se pudo mostrar por completo",
+  "Bitte lade die Seite neu": "Vuelve a cargar la página",
+  "Neu laden": "Recargar",
+  "# Bausteine": "# componentes",
+  "# Kaufsignale": "# señales de compra",
 };

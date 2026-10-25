@@ -49,11 +49,23 @@ if (!out) throw new Error('Zielordner fehlt');
 
 // ---------- App-Dateien übernehmen ----------
 await mkdir(out, { recursive: true });
-for (const f of ['index.html', 'style.css', 'og-image.jpg', '.nojekyll', 'manifest.webmanifest', 'sw.js', 'widget.html']) await cp(new URL(f, root), `${out}/${f}`);
+for (const f of ['index.html', 'style.css', 'og-image.jpg', '.nojekyll', 'manifest.webmanifest', 'sw.js', 'widget.html', 'favicon.ico']) await cp(new URL(f, root), `${out}/${f}`);
 await cp(new URL('icons', root), `${out}/icons`, { recursive: true });
 // Bestätigungsdatei der Google Search Console – muss dauerhaft erreichbar bleiben
 for (const f of await readdir(root)) if (/^google[0-9a-f]+\.html$/.test(f)) await cp(new URL(f, root), `${out}/${f}`);
 await cp(new URL('js', root), `${out}/js`, { recursive: true });
+// Jede Veröffentlichung bekommt eigene Adressen für Skripte und Stil (…/app.js?v=…). Sonst kann ein Browser nach einem Update
+// alte und neue Dateien mischen – fehlt dann eine neue Funktion, startet die Seite gar nicht.
+const BUILD = (process.env.GITHUB_SHA ?? Date.now().toString(36)).slice(0, 10);
+const IMPORT = /((?:\bfrom|\bimport)\s*\(?\s*['"`])(\.{1,2}\/[^'"`?]+?\.m?js)(['"`])/g;
+for (const f of await readdir(`${out}/js`, { recursive: true })) {
+  if (!/\.m?js$/.test(f)) continue;
+  const file = `${out}/js/${f}`, text = await readFile(file, 'utf8');
+  const next = text.replace(IMPORT, `$1$2?v=${BUILD}$3`);
+  if (next !== text) await writeFile(file, next);
+}
+const html = await readFile(`${out}/index.html`, 'utf8');
+await writeFile(`${out}/index.html`, html.replace('src="js/app.js"', `src="js/app.js?v=${BUILD}"`).replace('href="style.css"', `href="style.css?v=${BUILD}"`));
 await mkdir(`${out}/werbung`, { recursive: true });
 for (const f of await readdir(new URL('werbung', root))) if (f.endsWith('.jpg')) await cp(new URL(`werbung/${f}`, root), `${out}/werbung/${f}`);
 await writeFile(`${out}/${INDEXNOW_KEY}.txt`, INDEXNOW_KEY);

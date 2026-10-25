@@ -1025,3 +1025,15 @@ details.d-fold > summary { font-size: 15px; letter-spacing: 0; text-transform: n
 .vis-hours span { position: absolute; bottom: -18px; left: 0; font-size: 11px; color: var(--muted); }
 .vis-box:has(.vis-hours) { padding-bottom: 28px; }
 .vis-path { margin: 4px 0 8px; padding-left: 20px; font-size: 13.5px; columns: 2 260px; }
+
+/* Startseite auf dem Handy: Details eingeklappt, Doppeltes weg */
+.parts-fold > summary { display: flex; align-items: baseline; gap: 10px; cursor: pointer; list-style: none; }
+.parts-fold > summary::-webkit-details-marker { display: none; }
+.parts-fold > summary::after { content: "▾"; margin-left: auto; color: var(--muted); transition: transform .15s; }
+.parts-fold[open] > summary::after { transform: rotate(180deg); }
+.parts-fold:not([open]) .parts-count { display: inline; }
+.parts-fold[open] .parts-count { display: none; }
+@media (max-width: 720px) {
+  /* Das Markt-Wetter steht schon oben – hier bleibt nur die Herleitung zum Aufklappen */
+  #market-parts .mood-row, #market-parts .mood-bar, #market-parts .range-labels, #market-parts .mood-text { display: none; }
+}

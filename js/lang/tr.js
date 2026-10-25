@@ -2005,4 +2005,9 @@ export default {
   "Deine E-Mail-Adresse für die Anmeldung, das Portfolio, das du einträgst, und eine einfache Nutzungsstatistik deines Kontos (wann und welche Bereiche du nutzt). Besuche zählen wir anonym, ohne Cookies. Keine Werbe-Cookies, keine Analyse-Dienste von Dritten. Im Konto kannst du alles löschen": "Giriş için e-posta adresin, girdiğin portföy ve hesabına ait basit bir kullanım istatistiği (ne zaman ve hangi bölümleri kullandığın). Ziyaretleri anonim olarak, çerezsiz sayıyoruz. Reklam çerezi yok, üçüncü taraf analiz hizmeti yok. Hesabında her şeyi silebilirsin",
   "Für dieses Intervall gibt es gerade keine Kursdaten. Versuch es gleich noch einmal oder wähle ein anderes": "Bu aralık için şu anda fiyat verisi yok. Birazdan tekrar dene ya da başka bir aralık seç",
   "nur Kurse, keine Kerzen": "yalnızca fiyatlar, mum yok",
+  "Dieser Bereich konnte nicht vollständig angezeigt werden": "Bu bölüm tam olarak gösterilemedi",
+  "Bitte lade die Seite neu": "Lütfen sayfayı yenile",
+  "Neu laden": "Yenile",
+  "# Bausteine": "# bileşen",
+  "# Kaufsignale": "# alım sinyali",
 };

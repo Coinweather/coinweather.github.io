@@ -131,6 +131,7 @@ export function visitorsPanel(el, { coinName }) {
         ${card('Handy', pct((s.dev ?? {}).handy ?? 0, v), `Tablet ${pct((s.dev ?? {}).tablet ?? 0, v)} · Computer ${pct((s.dev ?? {}).computer ?? 0, v)}`)}
         ${card('Mit Konto', int(s.acc ?? 0), `${pct(s.acc ?? 0, v)} der Besuche angemeldet`)}
         ${card('Neue Konten', int(ev.registriert ?? 0), `aus ${int(v)} Besuchen (${pct(ev.registriert ?? 0, v)})`)}
+        ${card('Programmfehler', int(map(s.err).reduce((a, [, n]) => a + n, 0)), map(s.err).length ? 'Details unten bei „Programmfehler“' : 'keine – alles läuft')}
       </div>
 
       <section class="panel"><div class="label">Besuche je Tag (30 Tage)</div><div id="vis-chart" class="chart"></div></section>
@@ -155,6 +156,7 @@ export function visitorsPanel(el, { coinName }) {
         ${bars('Browser', map(s.br))}
         ${bars('Währung', map(s.cur), (k) => k.toUpperCase())}
         ${bars('Handlungen', map(ev), (k) => EVENTS[k] ?? k, 15, v)}
+        ${map(s.err).length ? bars('Programmfehler (gekürzte Meldung)', map(s.err), (k) => k.replace(/_+/g, ' ').trim(), 15) : ''}
         <div class="vis-box"><div class="label">Weg zum Konto</div><ul class="vis-bars">${funnel.map(([l, n]) => `<li><span class="vis-name">${l}</span>
           <span class="vis-num">${int(n)} <small>${pct(n, v)}</small></span><i style="width:${Math.max(2, (n / Math.max(1, v)) * 100)}%"></i></li>`).join('')}</ul>
           <p class="hint">Als App geöffnet: ${int(s.pwa ?? 0)} Besuche.</p></div>
@@ -167,7 +169,7 @@ export function visitorsPanel(el, { coinName }) {
           ${(visits ?? []).map((x) => `<tr><td>${clock(x.start)}</td><td>${span(x.dur ?? 0)}</td><td class="num">${x.n ?? 0}</td>
             <td>${esc(pageLabel(x.land))}${(x.n ?? 0) > 1 ? ` → ${esc(pageLabel(x.pages?.[x.pages.length - 1]?.p))}` : ''}</td>
             <td>${esc(DEVICES[x.dev] ?? x.dev ?? '–')} · ${esc(x.os ?? '')} · ${esc(x.br ?? '')}${x.pwa ? ' · App' : ''}</td><td>${esc(where(x))}</td><td>${from(x)}</td>
-            <td>${esc(Object.keys(x.ev ?? {}).map((k) => EVENTS[k] ?? k).join(', ')) || '–'}${x.acc ? ' <span class="badge buy">Konto</span>' : ''}${x.ret ? ' <span class="badge none">kennt die Seite</span>' : ''}</td>
+            <td>${esc(Object.keys(x.ev ?? {}).map((k) => EVENTS[k] ?? k).join(', ')) || '–'}${x.acc ? ' <span class="badge buy">Konto</span>' : ''}${x.ret ? ' <span class="badge none">kennt die Seite</span>' : ''}${x.errs ? ` <span class="badge sell">${x.errs} Fehler</span>` : ''}</td>
             <td><button class="btn ghost small" data-vis-open="${esc(x.id)}">${openVisit === x.id ? 'Schließen' : 'Pfad'}</button></td></tr>
             ${openVisit === x.id ? `<tr class="admin-detail"><td colspan="9"><ol class="vis-path">${(x.pages ?? []).map((pg) => `<li><span class="muted">+${span(pg.t)}</span> ${esc(pageLabel(pg.p))}</li>`).join('')}</ol>
               <p class="muted">Sprache ${esc(LANGS[x.lang] ?? x.lang ?? '–')} · Browser-Sprache ${esc(x.loc ?? '–')} · Währung ${esc((x.cur ?? '–').toUpperCase())} · Zeitzone ${esc(x.tz ?? '–')}</p></td></tr>` : ''}`).join('')

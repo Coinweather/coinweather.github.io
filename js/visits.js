@@ -57,7 +57,7 @@ const tz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZon
 const loc = (navigator.language || '').slice(0, 10) || null;
 
 const id = (() => { const a = new Uint8Array(12); crypto.getRandomValues(a); return [...a].map((b) => b.toString(36).padStart(2, '0')).join('').slice(0, 20); })();
-const v = { start: Date.now(), pages: [], ev: {}, n: 0, dur: 0, acc: false, land: null };
+const v = { start: Date.now(), pages: [], ev: {}, n: 0, dur: 0, acc: false, land: null, errs: 0 };
 v.day = dayOf(v.start);
 let lang = null, cur = null;
 
@@ -95,7 +95,7 @@ async function flush() {
   if (secs) { v.dur += secs; add(['secs'], secs); }
   const counts = pending; pending = {};
   const doc = { day: v.day, start: v.start, last: Date.now(), dur: v.dur, n: v.n, pages: v.pages, land: v.land, ev: v.ev, acc: v.acc,
-    dev, os, br, src, ref, tz, loc, lang, cur, ret: returning, pwa };
+    dev, os, br, src, ref, tz, loc, lang, cur, ret: returning, pwa, errs: v.errs };
   try {
     await auth.saveVisit(id, doc, v.day, Object.keys(counts).length ? counts : null);
     failures = 0;
@@ -163,6 +163,19 @@ document.addEventListener('click', (e) => {
   else if (href.startsWith('#/konto') || a.dataset.next !== undefined) event('zum_konto');
   else if (href.startsWith('#/preise')) event('preise');
 }, true);
+
+// Programmfehler der Seite (nicht von Browser-Erweiterungen, keine Netzwerk-Aussetzer) zählen – höchstens 10 je Besuch.
+// Die Meldung wird gekürzt und ohne Zahlen gespeichert; sie enthält nichts, was der Besucher eingegeben hat.
+const NETWORK = /failed to fetch|networkerror|load failed|network request|aborted|timeout|nicht erreichbar|anfrage-limit|quota/i;
+export function error(err) {
+  const msg = String(err?.message ?? err ?? 'Fehler');
+  if (!on || NETWORK.test(msg) || v.errs >= 10) return;
+  v.errs++;
+  add(['err', key(msg.replace(/\d+/g, '#').slice(0, 60))]);
+  soon();
+}
+addEventListener('error', (e) => { if (e.filename?.startsWith(location.origin) && (e.error || e.message)) error(e.error ?? e.message); });
+addEventListener('unhandledrejection', (e) => { if (String(e.reason?.stack ?? '').includes(location.origin)) error(e.reason); });
 
 // Solange sichtbar alle 90 Sekunden „noch da“ (für „online“), beim Verlassen sofort speichern
 setInterval(() => { if (document.visibilityState === 'visible') flush(); }, 90_000);

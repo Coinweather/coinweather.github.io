@@ -1995,4 +1995,9 @@ export default {
   "Deine E-Mail-Adresse für die Anmeldung, das Portfolio, das du einträgst, und eine einfache Nutzungsstatistik deines Kontos (wann und welche Bereiche du nutzt). Besuche zählen wir anonym, ohne Cookies. Keine Werbe-Cookies, keine Analyse-Dienste von Dritten. Im Konto kannst du alles löschen": "Your email address for signing in, the portfolio you enter and simple usage statistics for your account (when and which areas you use). We count visits anonymously, without cookies. No advertising cookies, no third-party analytics. You can delete everything in your account",
   "Für dieses Intervall gibt es gerade keine Kursdaten. Versuch es gleich noch einmal oder wähle ein anderes": "There is no price data for this interval right now. Try again shortly or pick another one",
   "nur Kurse, keine Kerzen": "prices only, no candles",
+  "Dieser Bereich konnte nicht vollständig angezeigt werden": "This section could not be fully displayed",
+  "Bitte lade die Seite neu": "Please reload the page",
+  "Neu laden": "Reload",
+  "# Bausteine": "# components",
+  "# Kaufsignale": "# buy signals",
 };

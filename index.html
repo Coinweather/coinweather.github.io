@@ -88,5 +88,19 @@
   </main>
 
   <script type="module" src="js/app.js"></script>
+  <!-- Start-Wächter: Läuft die App nach 12 Sekunden nicht (Verbindung abgebrochen, sehr alter Browser), statt einer leeren Seite ein Hinweis -->
+  <script>
+    setTimeout(function () {
+      if (window.__cwStarted) return;
+      var de = /^de/i.test(navigator.language || ''), v = document.getElementById('view');
+      document.documentElement.classList.remove('i18n-wait');
+      if (!v) return;
+      v.innerHTML = '<section class="panel"><h2>' + (de ? 'Die Seite lädt nicht' : 'The page is not loading') + '</h2><p>'
+        + (de ? 'Wahrscheinlich ist die Verbindung abgebrochen. Bitte lade die Seite neu. Hilft das nicht, öffne sie in einem aktuellen Browser (Chrome, Safari, Firefox, Edge).'
+              : 'The connection was probably interrupted. Please reload. If that does not help, open it in an up-to-date browser (Chrome, Safari, Firefox, Edge).')
+        + '</p><button type="button" class="btn">' + (de ? 'Neu laden' : 'Reload') + '</button></section>';
+      v.querySelector('button').onclick = function () { location.reload(); };
+    }, 12000);
+  </script>
 </body>
 </html>

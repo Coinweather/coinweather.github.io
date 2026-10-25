@@ -879,6 +879,7 @@ function lockedCoinView(id) {
 }
 
 function marketView(preview = false) {
+  let partsOpen = matchMedia('(min-width: 761px)').matches;   // Bausteine des Kauf-Scores: am Computer offen, auf dem Handy zu
   const th = (key, label, cls = '') => (preview && key === 'score' ? `<th class="${cls}">${label}</th>` : `<th class="${cls} sortable" data-sort="${key}">${label}</th>`);
   if (preview && state.sort.key === 'score') state.sort = { key: 'rank', dir: 1 };
   if (preview) state.filter = 'all';
@@ -1065,9 +1066,12 @@ function marketView(preview = false) {
         </div>`
       : '<div class="label">Jetzt kaufen?</div><p class="muted">Wird berechnet …</p>';
     const b = m?.buy;
-    $('#buy-parts').innerHTML = b ? `<div class="head-row"><div class="label">Das steckt im Kauf-Score</div><a class="link-more" href="#/indikatoren">Zyklus-Kompass →</a></div>
-        ${buyInputs(b)}`
+    // Auf dem Handy eingeklappt (Detailwissen); der Zustand bleibt beim Neuzeichnen mit neuen Kursen erhalten
+    $('#buy-parts').innerHTML = b ? `<details class="parts-fold"${partsOpen ? ' open' : ''}><summary><span class="label">Das steckt im Kauf-Score</span>
+        <span class="muted parts-count">5 Bausteine</span></summary>
+        <div class="head-row"><span></span><a class="link-more" href="#/indikatoren">Zyklus-Kompass →</a></div>${buyInputs(b)}</details>`
       : '<div class="label">Das steckt im Kauf-Score</div><p class="muted">Wird berechnet …</p>';
+    $('#buy-parts details')?.addEventListener('toggle', (e) => { partsOpen = e.target.open; });
     buyHistory();
     const cy = m?.cycle, h = m?.buy ? yearAfterBuy(m.value) : null;
     $('#cycle').hidden = !cy && !h;
@@ -1133,12 +1137,12 @@ function marketView(preview = false) {
       .sort((a, b) => adjusted(b.analysis) - adjusted(a.analysis)).slice(0, 8);
     // Vorschau: Plätze, Signal, Haltedauer und Risiko sind sichtbar, welcher Coin es ist, nicht
     if (preview) {
-      $('#picks').innerHTML = list.length ? list.map((c, i) => `<a class="pick panel locked" href="${depot.user ? '#/preise' : '#/konto'}">
+      $('#picks').innerHTML = list.length ? list.slice(0, 3).map((c, i) => `<a class="pick panel locked" href="${depot.user ? '#/preise' : '#/konto'}">
           <div class="coin-cell"><span class="lock-icon" aria-hidden="true">🔒</span>
             <div><div class="label">Platz ${i + 1}</div><div class="coin-name blur" aria-hidden="true">Coinname</div></div></div>
           <div class="pick-score blur" aria-hidden="true">+00</div>
           <div class="pick-meta">${badge(c.analysis)}<span>Haltedauer: <strong>${c.analysis.horizon}</strong></span><span>Risiko: ${riskTag(c.analysis.risk)}</span></div>
-        </a>`).join('') + `<section class="panel upsell"><div><h3>Welche Coins sind das?</h3>
+        </a>`).join('') + `<section class="panel upsell"><div><h3>Welche Coins sind das?${list.length > 3 ? ` <span class="muted">(${list.length} Kaufsignale)</span>` : ''}</h3>
           <p class="muted">Mit einem kostenlosen Konto siehst du die stärksten Kaufsignale, das Signal jedes Coins und die Detailansicht mit Rückblick.</p></div>
           <div class="btn-row"><a class="btn" href="${depot.user ? '#/preise' : '#/konto'}">${depot.user ? 'Pakete ansehen' : 'Kostenlos starten'}</a></div></section>`
         : noPicks();
@@ -4029,9 +4033,29 @@ function route() {
   else if (name === 'challenge') current = challengeView();
   else if (site.LEGAL_KINDS.includes(name)) current = site.legalView(view, name);
   else current = marketView();
-  current.update();
+  guard(current).update();
+  window.__cwStarted = true;   // für den Start-Wächter in index.html
   window.scrollTo(0, 0);
   navBadge().catch(() => {});
+}
+
+// Ein Fehler in einer Ansicht legt nicht die ganze Seite lahm: Hinweis an ihrer Stelle, anonym gezählt für die Betreiber-Übersicht
+function guard(v) {
+  if (v.guarded) return v;
+  const update = v.update.bind(v);
+  v.update = (...args) => {
+    try { const r = update(...args); r?.catch?.(viewError); return r; } catch (err) { viewError(err); return undefined; }
+  };
+  v.guarded = true;
+  return v;
+}
+function viewError(err) {
+  console.error(err);
+  visits.error(err);
+  if (view.querySelector('.view-error')) return;
+  view.insertAdjacentHTML('afterbegin', `<section class="panel view-error"><p><strong>Dieser Bereich konnte nicht vollständig angezeigt werden.</strong>
+    Bitte lade die Seite neu.</p><button type="button" class="btn small" data-reload-page>Neu laden</button></section>`);
+  view.querySelector('[data-reload-page]').addEventListener('click', () => location.reload());
 }
 
 // Als App installierbar: Service Worker (nur über https) und ein eigener Knopf, sobald der Browser die Installation anbietet
