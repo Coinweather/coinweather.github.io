@@ -70,12 +70,18 @@ export async function history(symbol, from) {
   return data ? { ...data, source: 'Gate.io' } : null;
 }
 
+// Auch ein Fehlschlag (Paar unbekannt, Börse nicht erreichbar) wird gemerkt, statt bei jedem Aufruf neu zu fragen
+const remember = (cache, key, data) => { cache.set(key, { time: Date.now(), data }); return data; };
+
 // Gate.io liefert höchstens 1000 Tage je Anfrage – vier Jahre kommen in zwei Teilen
 const gates = new Map();
 async function gateHistory(symbol) {
   const pair = symbol.toUpperCase() + '_USDT';
   const hit = gates.get(pair);
   if (hit && Date.now() - hit.time < CHART_TTL_MS) return hit.data;
+  try { return remember(gates, pair, await gateRows(pair)); } catch { return remember(gates, pair, null); }
+}
+async function gateRows(pair) {
   const now = Math.floor(Date.now() / 1000), day = 86_400;
   let rows = [];
   for (const [from, to] of [[now - DAYS_4Y * day, now - 731 * day], [now - 730 * day, now]]) {
@@ -87,15 +93,16 @@ async function gateHistory(symbol) {
   // Spalten: 0 = Tagesbeginn (Sekunden), 1 = Handelsvolumen in USDT, 2 = Schlusskurs
   rows = rows && [...new Map(rows.map((r) => [Number(r[0]), r])).values()].sort((a, b) => a[0] - b[0]);
   const fresh = rows && rows.length >= 60 && Date.now() - Number(rows[rows.length - 1][0]) * 1000 < 3 * 86_400_000;
-  const data = fresh ? { t: rows.map((r) => Number(r[0]) * 1000), p: rows.map((r) => Number(r[2])), v: rows.map((r) => Number(r[1])) } : null;
-  gates.set(pair, { time: Date.now(), data });
-  return data;
+  return fresh ? { t: rows.map((r) => Number(r[0]) * 1000), p: rows.map((r) => Number(r[2])), v: rows.map((r) => Number(r[1])) } : null;
 }
 
 async function binanceHistory(symbol) {
   const pair = symbol.toUpperCase() + 'USDT';
   const hit = histories.get(pair);
   if (hit && Date.now() - hit.time < CHART_TTL_MS) return hit.data;
+  try { return remember(histories, pair, await binanceRows(pair)); } catch { return remember(histories, pair, null); }
+}
+async function binanceRows(pair) {
   let rows = [], end = Date.now();
   for (let k = 0; k < 2 && rows.length < DAYS_4Y; k++) {
     const res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${encodeURIComponent(pair)}&interval=1d&limit=1000&endTime=${end}`);
@@ -108,13 +115,10 @@ async function binanceHistory(symbol) {
   }
   // Wird das Paar nicht mehr gehandelt, liefert Binance alte Kerzen – die taugen nicht für eine aktuelle Bewertung
   const fresh = rows && rows.length >= 60 && Date.now() - rows[rows.length - 1][0] < 3 * 86_400_000;
-  const data = fresh ? (() => {
-    const cut = rows.slice(-DAYS_4Y);
-    // Spalten: 0 = Tagesbeginn, 4 = Schlusskurs, 7 = Handelsvolumen in USDT
-    return { t: cut.map((r) => r[0]), p: cut.map((r) => Number(r[4])), v: cut.map((r) => Number(r[7])) };
-  })() : null;
-  histories.set(pair, { time: Date.now(), data });
-  return data;
+  if (!fresh) return null;
+  const cut = rows.slice(-DAYS_4Y);
+  // Spalten: 0 = Tagesbeginn, 4 = Schlusskurs, 7 = Handelsvolumen in USDT
+  return { t: cut.map((r) => r[0]), p: cut.map((r) => Number(r[4])), v: cut.map((r) => Number(r[7])) };
 }
 
 // Kerzen für den Profi-Chart: Eröffnung, Hoch, Tief, Schluss und Volumen (USDT) je Intervall – von Binance, sonst Gate.io.

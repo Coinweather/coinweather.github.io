@@ -1294,6 +1294,7 @@ function marketView(preview = false) {
 const RANGES = { '1T': 1, '7T': 7, '30T': 30, '90T': 90, '1J': 365, '4J': 1461 };
 
 function drawChart(el, opts) {
+  if (!el) return;   // Seite inzwischen gewechselt
   lineChart(el, opts).catch(() => drawSvgChart(el, opts));
 }
 
