@@ -1,5 +1,6 @@
 import { $, esc, settings, sleep, isNum, money, compact, num, signed, tone, pct, fromDisplay, toDisplay, currencyCode, localise } from './util.js';
 import * as i18n from './i18n.js';
+import { lineChart, proChart } from './charts.js';
 import { SITE } from './config.js';
 import * as site from './site.js';
 import * as api from './api.js';
@@ -1289,9 +1290,12 @@ function marketView(preview = false) {
 // ---------- Detailansicht ----------
 
 const RANGES = { '1T': 1, '7T': 7, '30T': 30, '90T': 90, '1J': 365, '4J': 1461 };
-const INTRADAY_REFRESH_MS = 2 * 60_000;
 
-function drawChart(el, { t, p, overlays = [], hourly, intraday, note, marker, plain }) {
+function drawChart(el, opts) {
+  lineChart(el, opts).catch(() => drawSvgChart(el, opts));
+}
+
+function drawSvgChart(el, { t, p, overlays = [], hourly, intraday, note, marker, plain }) {
   // plain: Kennzahlen ohne Währung (Indikatoren)
   const fmtV = plain ? (v) => num(v, Math.abs(v) < 10 ? 2 : 0) : money;
   if (p.length < 2) { el.innerHTML = '<p class="muted">Keine Kursdaten für diesen Zeitraum.</p>'; return; }
@@ -1362,7 +1366,7 @@ function drawChart(el, { t, p, overlays = [], hourly, intraday, note, marker, pl
 function detailView(id) {
   const d = { range: '1J', started: false, data: null, ind: null, source: null, error: null,
     tests: null, testsWithRegime: null, news: null, newsError: null,
-    intra: null, intraNote: null, intraTime: 0, intraLoading: false };
+    pro: null };
   view.innerHTML = `
     <a class="back" href="#/">← Zurück zur Übersicht</a>
     <div id="d-head"></div>
@@ -1382,6 +1386,7 @@ function detailView(id) {
     if (!btn) return;
     d.range = btn.dataset.range;
     for (const b of $('#ranges').children) b.classList.toggle('active', b === btn);
+    d.pro?.setRange(d.range);
     chart();
     update();   // Kopfzeile zeigt die Veränderung über den gewählten Zeitraum
   });
@@ -1409,24 +1414,6 @@ function detailView(id) {
     update(); chart();   // update() übernimmt die geladenen Tageskurse, erst dann kann das Diagramm zeichnen
   }
 
-  // Tagesansicht: 5-Minuten-Kurse von Binance, sonst die letzten 24 Stundenkurse aus der Marktliste
-  async function loadIntraday(c) {
-    d.intraLoading = true;
-    let data = null;
-    try { data = await api.intraday(c.symbol); } catch { /* Binance nicht erreichbar */ }
-    // Gleiches Kürzel, aber ein anderer Coin? Dann weicht der Kurs deutlich ab
-    if (data && Math.abs(data.p[data.p.length - 1] / c.current_price - 1) > 0.1) data = null;
-    if (data) d.intraNote = 'Kurse im 5-Minuten-Takt (Binance)';
-    else {
-      const p = (c.sparkline_in_7d?.price || []).filter(isNum).slice(-25);
-      const now = Date.now();
-      data = { p, t: p.map((_, i) => now - (p.length - 1 - i) * 3_600_000) };
-      d.intraNote = 'Stundenkurse (CoinGecko) – für diesen Coin gibt es keine feineren Daten';
-    }
-    d.intra = data; d.intraTime = Date.now(); d.intraLoading = false;
-    if (current === self && d.range === '1T') { chart(); update(); }
-  }
-
   async function loadNews(c) {
     try {
       state.news.set(id, analyseNews(await api.coinNews(c.name, c.symbol)));
@@ -1435,31 +1422,24 @@ function detailView(id) {
     if (current === self) update();
   }
 
+  // Profi-Chart: Kerzen und Intervalle von Binance oder Gate.io; ohne Börse die Tageskurse als Linie
   function chart() {
-    const el = $('#chart');
     const c = state.byId.get(id);
-    if (d.range === '1T') {
-      if (d.intra) drawChart(el, { t: d.intra.t, p: d.intra.p, hourly: true, intraday: true, note: d.intraNote });
-      else el.innerHTML = `<p class="muted">${c ? 'Lade Tageskurs …' : 'Für diesen Coin gibt es keine Kursdaten.'}</p>`;
-      if (c && !d.intraLoading && Date.now() - d.intraTime > INTRADAY_REFRESH_MS) loadIntraday(c);
-    } else if (d.range === '7T') {
-      const p = (c?.sparkline_in_7d?.price || []).filter(isNum);
-      const now = Date.now();
-      drawChart(el, { p, t: p.map((_, i) => now - (p.length - 1 - i) * 3_600_000), hourly: true });
-    } else if (d.data) {
-      const n = RANGES[d.range];
-      drawChart(el, { t: d.data.t.slice(-n), p: d.data.p.slice(-n), overlays: [
-        { label: '50-Tage-Schnitt', color: 'var(--accent)', values: d.ind.sma50.slice(-n) },
-        { label: '200-Tage-Schnitt', color: 'var(--violet)', values: d.ind.sma200.slice(-n) },
-      ] });
-    } else el.innerHTML = `<p class="muted">${esc(d.error ?? 'Lade Kursverlauf …')}</p>`;
+    if (d.pro) { d.pro.retry(); return; }
+    if (!c) return;
+    const src = histSource(c);
+    if (src === null && !d.data) { $('#chart').innerHTML = `<p class="muted">${esc(d.error ?? 'Lade Kursverlauf …')}</p>`; return; }
+    d.pro = proChart($('#chart'), { coin: { id: c.id, symbol: c.symbol, name: c.name }, source: src,
+      fallback: () => (d.data ? { t: d.data.t, p: d.data.p, v: d.data.v, source: d.source } : null),
+      onRange: (r) => { d.range = r; for (const b of $('#ranges').children) b.classList.toggle('active', b.dataset.range === r); update(); } });
+    d.pro.setRange(d.range);
   }
 
   // Kursveränderung über den im Diagramm gewählten Zeitraum, gemessen bis zum aktuellen Kurs
   function rangeChange(c) {
     if (d.range === '1T') {
       // Die Veränderung über 24 Stunden steht schon darüber – hier die Spanne des Tages
-      const p = d.intra?.p ?? [];
+      const p = [];
       const lo = isNum(c.low_24h) ? c.low_24h : p.length ? Math.min(...p) : null, hi = isNum(c.high_24h) ? c.high_24h : p.length ? Math.max(...p) : null;
       return isNum(lo) && isNum(hi) ? `<div><span class="muted">Tagesspanne</span> ${money(lo)} – ${money(hi)}</div>` : '';
     }
@@ -3542,11 +3522,11 @@ function compassView() {
       <p class="share-row hint">${shareLinks(shareUrl('#/indikatoren'), `${i18n.say('Kauf-Score')}: ${buy}/100 (${i18n.say(buyLabel)}) – Coinweather`)}</p>`;
     if (!full) return;
     const line = (id, hist, opts = {}) => { const box = $(`#${id}`); if (!box || !hist?.length) return; drawChart(box, { t: hist.map((h) => dayMs(h[0])), p: hist.map((h) => h[1]), plain: true, ...opts }); };
-    line('c-risk', r.history.map((h) => [h[0], 100 - h[1]]), { note: 'Kauf-Score' });
-    line('c-season', s?.history, { note: 'Altcoin-Saison-Index' });
-    line('c-pi', x.pi.history.map((h) => [h[0], h[1] * 100]), { note: 'Pi-Cycle: 111-Tage-Schnitt in % des doppelten 350-Tage-Schnitts', marker: null });
-    line('c-mayer', x.mayer.history, { note: 'Mayer-Multiple' });
-    line('c-2y', x.twoYear.history, { note: 'Kurs / 2-Jahres-Schnitt' });
+    line('c-risk', r.history.map((h) => [h[0], 100 - h[1]]), { note: 'Kauf-Score', levels: [{ value: 62, label: 'Eher kaufen', color: 'var(--up)' }, { value: 45, label: 'Halten', color: 'var(--hold)' }] });
+    line('c-season', s?.history, { note: 'Altcoin-Saison-Index', levels: [{ value: 75, label: 'Altcoin-Saison', color: 'var(--up)' }, { value: 25, label: 'Bitcoin-Saison', color: 'var(--accent)' }] });
+    line('c-pi', x.pi.history.map((h) => [h[0], h[1] * 100]), { note: 'Pi-Cycle: 111-Tage-Schnitt in % des doppelten 350-Tage-Schnitts', marker: null, levels: [{ value: 100, label: 'Signal: Hoch', color: 'var(--down)' }] });
+    line('c-mayer', x.mayer.history, { note: 'Mayer-Multiple', levels: [{ value: 2.4, label: 'Überhitzt', color: 'var(--down)' }, { value: 0.8, label: 'Günstig', color: 'var(--up)' }] });
+    line('c-2y', x.twoYear.history, { note: 'Kurs / 2-Jahres-Schnitt', levels: [{ value: 5, label: 'Verkaufszone', color: 'var(--down)' }, { value: 1, label: 'Kaufzone', color: 'var(--up)' }] });
     line('c-vol', x.volatility.history, { note: 'Volatilität in % pro Jahr' });
   }
   let shown = null;

@@ -117,25 +117,46 @@ async function binanceHistory(symbol) {
   return data;
 }
 
-// Kurse der letzten 24 Stunden in 5-Minuten-Schritten von Binance (Tagesansicht). Gibt null zurück, wenn der Coin
-// dort nicht oder nicht mehr gehandelt wird.
-const INTRADAY_TTL_MS = 2 * 60_000;
-const intradays = new Map();
+// Kerzen für den Profi-Chart: Eröffnung, Hoch, Tief, Schluss und Volumen (USDT) je Intervall – von Binance, sonst Gate.io.
+// interval: '15m', '1h', '4h', '1d', '1w' oder '1M'. Gibt { t, o, h, l, c, v, source } zurück oder null.
+const CANDLE_TTL_MS = 60_000;
+const candleCache = new Map();
+const IV_MS = { '15m': 9e5, '1h': 36e5, '4h': 144e5, '1d': 864e5, '1w': 6048e5, '1M': 2592e6 };
+const GATE_IV = { '15m': '15m', '1h': '1h', '4h': '4h', '1d': '1d', '1w': '7d', '1M': '30d' };
 
-export async function intraday(symbol) {
-  const pair = symbol.toUpperCase() + 'USDT';
-  const hit = intradays.get(pair);
-  if (hit && Date.now() - hit.time < INTRADAY_TTL_MS) return hit.data;
+export async function candles(symbol, interval, from) {
+  const key = `${symbol}|${interval}|${from ?? ''}`;
+  const hit = candleCache.get(key);
+  if (hit && Date.now() - hit.time < CANDLE_TTL_MS) return hit.data;
+  // Liegt die letzte Kerze weiter zurück als drei Intervalle, wird das Paar nicht mehr gehandelt
+  const fresh = (rows) => rows.length >= 2 && Date.now() - rows[rows.length - 1][0] < IV_MS[interval] * 3 + 864e5;
   let data = null;
-  const res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${encodeURIComponent(pair)}&interval=5m&limit=288`);
-  if (res.ok) {
-    const rows = await res.json();
-    // Spalten: 0 = Beginn der Kerze, 4 = Schlusskurs. Alte Kerzen heißen: Das Paar wird nicht mehr gehandelt.
-    if (rows.length >= 50 && Date.now() - rows[rows.length - 1][0] < 30 * 60_000) {
-      data = { t: rows.map((r) => r[0]), p: rows.map((r) => Number(r[4])) };
-    }
+  if (from === undefined || from === 'Binance') {
+    try {
+      const pair = symbol.toUpperCase() + 'USDT';
+      let rows = [], end = Date.now();
+      // Tageskerzen: zwei Seiten (gut 5 Jahre), sonst eine Seite mit 1000 Kerzen
+      for (let k = 0; k < (interval === '1d' ? 2 : 1); k++) {
+        const res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${encodeURIComponent(pair)}&interval=${interval}&limit=1000&endTime=${end}`);
+        if (!res.ok) break;
+        const part = await res.json();
+        if (!part.length) break;
+        rows = part.concat(rows);
+        end = part[0][0] - 1;
+        if (part.length < 1000) break;
+      }
+      if (fresh(rows)) data = { source: 'Binance', t: rows.map((r) => r[0]), o: rows.map((r) => +r[1]), h: rows.map((r) => +r[2]), l: rows.map((r) => +r[3]), c: rows.map((r) => +r[4]), v: rows.map((r) => +r[7]) };
+    } catch { /* Binance nicht erreichbar – dann Gate.io */ }
   }
-  intradays.set(pair, { time: Date.now(), data });
+  if (!data && (from === undefined || from === 'Gate.io')) {
+    try {
+      const res = await fetch(`https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair=${encodeURIComponent(symbol.toUpperCase() + '_USDT')}&interval=${GATE_IV[interval]}&limit=1000`);
+      // Spalten: 0 = Beginn (Sekunden), 1 = Volumen in USDT, 2 = Schluss, 3 = Hoch, 4 = Tief, 5 = Eröffnung
+      const rows = res.ok ? (await res.json()).map((r) => [Number(r[0]) * 1000, r]) : [];
+      if (fresh(rows)) data = { source: 'Gate.io', t: rows.map((r) => r[0]), o: rows.map(([, r]) => +r[5]), h: rows.map(([, r]) => +r[3]), l: rows.map(([, r]) => +r[4]), c: rows.map(([, r]) => +r[2]), v: rows.map(([, r]) => +r[1]) };
+    } catch { /* Gate.io nicht erreichbar */ }
+  }
+  candleCache.set(key, { time: Date.now(), data });
   return data;
 }
 

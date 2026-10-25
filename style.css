@@ -911,3 +911,45 @@ details.d-fold > summary { font-size: 15px; letter-spacing: 0; text-transform: n
   .ap-teaser .btn-row { flex-direction: column; align-items: stretch; }
   .ap-teaser .btn-row .btn { text-align: center; flex: none; }
 }
+
+/* ---------- Charts (Lightweight Charts von TradingView) ---------- */
+.lw-wrap { position: relative; }
+.lw-box { height: 320px; }
+.small-chart .lw-box { height: 230px; }
+.lw-tools { display: flex; justify-content: flex-end; gap: 4px; margin-bottom: 4px; }
+.lw-tools .chip, .pro-bar .chip { padding: 5px 10px; font-size: 13px; background: var(--panel-2); border: 1px solid var(--line); }
+.lw-tools .chip.active { color: var(--accent); border-color: var(--accent); }
+.lw-legend { position: absolute; left: 6px; top: 4px; z-index: 3; font-size: 12.5px; display: flex; gap: 8px; flex-wrap: wrap; pointer-events: none; max-width: calc(100% - 200px); }
+.pro-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.pro-bar .chips { padding: 3px; }
+.pro-bar .chips .chip { border: 0; background: none; }
+.pro-bar .chips .chip.active { background: var(--panel-2); }
+.pro-bar .chip:disabled { opacity: .35; cursor: not-allowed; }
+.pro-more { display: flex; flex-wrap: wrap; gap: 6px; }
+.pro-more .chip.active { color: var(--accent); border-color: var(--accent); }
+.pro-more .tv-chip { color: #2962ff; border-color: color-mix(in srgb, #2962ff 50%, var(--line)); }
+.pro-menu { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 10px 12px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-2); font-size: 14px; }
+.pro-menu label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.pro-stage { position: relative; }
+.pro-box { height: 460px; }
+.pro-legend { position: absolute; left: 6px; top: 4px; z-index: 3; display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12.5px; pointer-events: none; max-width: calc(100% - 90px); }
+.pro-legend b { font-weight: 600; }
+.pro-hint { position: absolute; left: 50%; top: 40px; transform: translateX(-50%); z-index: 4; background: var(--accent); color: var(--on-accent); padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+.tv-frame { width: 100%; height: 100%; border: 0; border-radius: 10px; }
+.tv-consent { display: grid; gap: 10px; place-content: center; text-align: center; height: 100%; max-width: 460px; margin: 0 auto; }
+.pro:fullscreen, .lw-wrap:fullscreen { background: var(--bg); padding: 12px; overflow: auto; }
+.pro:fullscreen .pro-box { height: calc(100vh - 150px); }
+.lw-wrap:fullscreen .lw-box { height: calc(100vh - 40px); }
+.chart-max { position: fixed; inset: 0; z-index: 100; background: var(--bg); padding: 12px; overflow: auto; }
+.chart-max .pro-box { height: calc(100vh - 170px); }
+.chart-max .lw-box { height: calc(100vh - 60px); }
+@media (max-width: 600px) {
+  .pro-box { height: 380px; }
+  .lw-box { height: 260px; }
+  .pro-bar .chips { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .pro-bar .chips::-webkit-scrollbar { display: none; }
+  .pro-bar .lbl { display: none; }
+  .pro-bar .chip { padding: 5px 8px; }
+  .lw-legend, .pro-legend { max-width: calc(100% - 60px); font-size: 11.5px; }
+
+}

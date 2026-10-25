@@ -248,6 +248,9 @@ const LEGAL = {
     <h3>Abrufe bei Dritten</h3>
     <p>Kurse, Coin-Bilder, Kursgeschichte, Stimmungsindex und Nachrichten lädt dein Browser direkt bei CoinGecko, Binance, Gate.io, alternative.me, cryptocurrency.cv, GitHub und Google.
       Dabei erfahren diese Anbieter technisch bedingt deine IP-Adresse. Weitere Daten von dir werden dabei nicht übermittelt.</p>
+    <p>Die Diagramme zeichnet die Bibliothek „Lightweight Charts“ von TradingView; sie liegt auf dieser Seite und lädt nichts von TradingView.
+      Nur wenn du in einem Coin-Chart „TradingView laden“ wählst, lädt dein Browser den vollen Chart von tradingview.com (TradingView, Inc., USA).
+      Dabei erhält TradingView deine IP-Adresse und kann Cookies setzen; es gilt die Datenschutzerklärung von TradingView. Deine Wahl wird nur in deinem Browser gespeichert.</p>
     <h3>Zwecke und Rechtsgrundlagen</h3>
     <p>Die Daten werden verarbeitet, um den Dienst bereitzustellen und den Vertrag mit dir zu erfüllen, um gesetzliche Pflichten einzuhalten und auf Grundlage des berechtigten Interesses
       an einem sicheren und funktionierenden Betrieb.</p>
