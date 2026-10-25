@@ -332,7 +332,7 @@ const S = {
     movers: 'Top movers · 24h', moversSub: 'The 100 largest coins by market cap', gainers: 'Gainers', losers: 'Losers',
     obs: 'Observations, not recommendations.', signals: 'Short-term signals', signalsVal: (n, of) => `${n} of ${of} coins`,
     ctaTitle: 'Want the full picture?', bullets: ['Contrarian buy score from the Cycle Compass', 'Signals for 1,000 coins',
-      'Portfolio check with a reserve target', 'Open track record – including the bad calls'],
+      'Portfolio autopilot: it tells you what to buy', 'Open track record – including the bad calls'],
     free: '30 days free', nopay: 'No payment details needed', bio: 'Link in bio', follow: 'Follow for your crypto weather every morning',
   },
   de: {
@@ -342,7 +342,7 @@ const S = {
     movers: 'Größte Bewegungen · 24 h', moversSub: 'Die 100 größten Coins nach Marktwert', gainers: 'Gewinner', losers: 'Verlierer',
     obs: 'Beobachtungen, keine Empfehlungen.', signals: 'Signale (Wochen)', signalsVal: (n, of) => `${n} von ${of} Coins`,
     ctaTitle: 'Alles im Detail?', bullets: ['Antizyklischer Kauf-Score aus dem Zyklus-Kompass', 'Signale für 1000 Coins',
-      'Portfolio-Check mit Reserve-Ziel', 'Offene Erfolgskontrolle – auch die Fehlgriffe'],
+      'Portfolio-Autopilot: sagt dir, was du kaufst', 'Offene Erfolgskontrolle – auch die Fehlgriffe'],
     free: '30 Tage kostenlos', nopay: 'Ohne Zahlungsdaten', bio: 'Link in der Bio', follow: 'Folge uns für dein Krypto-Wetter jeden Morgen',
   },
 }[lang];

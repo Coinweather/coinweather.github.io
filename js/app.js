@@ -2931,7 +2931,7 @@ function portfolioView(arg = '') {
     el.innerHTML = `<section class="panel autopilot">
       <div class="panel-top"><div><div class="label">🤖 Autopilot · Strategie ${esc(label)}</div>
         <h2>${f.moves.length ? `${f.moves.length} ${f.moves.length === 1 ? 'Schritt' : 'Schritte'} zu tun` : due ? 'Sparrate fällig' : 'Alles erledigt'}</h2>
-        <div class="muted">Folgt dem Modell-Portfolio · Stand ${date(t.asOf, { day: 'numeric', month: 'long' })} · nächste Prüfung ${date(t.next)}</div></div>
+        <div class="muted">Folgt dem Modell-Portfolio · Stand ${dateText(new Date(t.asOf))} · nächste Prüfung ${new Date(t.next).toLocaleDateString(settings.locale, { weekday: 'long' })}, ${dateText(new Date(t.next))}</div></div>
         ${infoBtn('autopilot', 'So arbeitet der Autopilot')}</div>
       ${due ? `<div class="deposit-due"><span aria-hidden="true">📅</span><div><strong>Sparrate für ${new Date().toLocaleDateString(settings.locale, { month: 'long' })}: ${money(monthlyUsd(a.monthly))}</strong>
           <div class="muted">Zahl sie bei deiner Börse ein und trag sie hier ein – dann zeigt der Autopilot, was du davon kaufst.</div></div>
