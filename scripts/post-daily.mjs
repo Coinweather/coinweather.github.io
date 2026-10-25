@@ -345,8 +345,8 @@ const S = {
     coin: 'Rain is buying weather – for Bitcoin and Ethereum.', tendency: 'One cycle since 2022 – a tendency, not a guarantee.',
     movers: 'Top movers · 24h', moversSub: 'The 100 largest coins by market cap', gainers: 'Gainers', losers: 'Losers',
     obs: 'Observations, not recommendations.', signals: 'Short-term signals', signalsVal: (n, of) => `${n} of ${of} coins`,
-    ctaTitle: 'Want the full picture?', bullets: ['Contrarian buy score from the Cycle Compass', 'Signals for 1,000 coins',
-      'Portfolio autopilot: it tells you what to buy', 'Open track record – including the bad calls'],
+    ctaTitle: 'Want the full picture?', bullets: ['Autopilot: you say how much, it says what to buy', 'Contrarian buy score from the Cycle Compass',
+      'Signals for 1,000 coins', 'Tracked live – including the bad weeks'],
     free: '30 days free', nopay: 'No payment details needed', bio: 'Link in bio', follow: 'Follow for your crypto weather every morning',
   },
   de: {
@@ -355,8 +355,8 @@ const S = {
     coin: 'Regen ist Kaufwetter – für Bitcoin und Ethereum.', tendency: 'Ein Zyklus seit 2022 – eine Tendenz, keine Garantie.',
     movers: 'Größte Bewegungen · 24 h', moversSub: 'Die 100 größten Coins nach Marktwert', gainers: 'Gewinner', losers: 'Verlierer',
     obs: 'Beobachtungen, keine Empfehlungen.', signals: 'Signale (Wochen)', signalsVal: (n, of) => `${n} von ${of} Coins`,
-    ctaTitle: 'Alles im Detail?', bullets: ['Antizyklischer Kauf-Score aus dem Zyklus-Kompass', 'Signale für 1000 Coins',
-      'Portfolio-Autopilot: sagt dir, was du kaufst', 'Offene Erfolgskontrolle – auch die Fehlgriffe'],
+    ctaTitle: 'Alles im Detail?', bullets: ['Autopilot: Du sagst, wie viel – er sagt, was du kaufst', 'Antizyklischer Kauf-Score aus dem Zyklus-Kompass',
+      'Signale für 1000 Coins', 'Live mitgemessen – auch die schlechten Wochen'],
     free: '30 Tage kostenlos', nopay: 'Ohne Zahlungsdaten', bio: 'Link in der Bio', follow: 'Folge uns für dein Krypto-Wetter jeden Morgen',
   },
 }[lang];
