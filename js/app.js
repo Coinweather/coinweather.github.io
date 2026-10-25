@@ -1177,7 +1177,7 @@ function marketView(preview = false) {
     const d = depot.data;
     const steps = [
       ['☆', 'Coins mit einem Stern als Favoriten markieren', (d.watch ?? []).length > 0, '#rows'],
-      ['💼', 'Startkapital oder Coins im Portfolio eintragen', d.positions.length > 0 || d.cash > 0, '#/portfolio'],
+      ['🤖', 'Den Autopiloten starten oder deine Coins eintragen', d.positions.length > 0 || d.cash > 0 || !!d.mode, '#/portfolio'],
       ['🧭', 'Den Zyklus-Kompass ansehen', seen('compass'), '#/indikatoren'],
       ['🧮', 'Den Sparplan-Rechner ausprobieren', seen('calc'), '#/rechner'],
     ];

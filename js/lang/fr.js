@@ -1898,4 +1898,8 @@ export default {
   "Schau nach, ob der Autopilot Schritte für dein Portfolio hat": "Regarde si le pilote automatique a des étapes pour ton portefeuille",
   "Live seit #": "En direct depuis le #",
   "– mit echten Kursen und Gebühren, ohne Rückrechnung": "– avec de vrais cours et frais, sans backtest",
+  "Den Autopiloten starten oder deine Coins eintragen": "Lance le pilote automatique ou ajoute tes cryptos",
+  "Betrag eingeben – der Autopilot sagt dir, was du kaufst, und zeigt jede Woche, ob etwas zu tun ist. Seine Entwicklung messen wir live mit": "Saisis un montant – le pilote automatique te dit quoi acheter et montre chaque semaine s’il y a quelque chose à faire. Nous suivons sa performance en direct",
+  "Autopilot seit #": "Pilote automatique depuis le #",
+  "mit echten Kursen und Gebühren": "avec de vrais cours et frais",
 };

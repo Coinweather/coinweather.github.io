@@ -36,6 +36,7 @@ function landing(signedIn) {
       <p class="intro-note">Keine Anlageberatung. Kryptowerte können stark fallen – bis zum Totalverlust.</p>
     </div>
     <ul class="intro-points">
+      <li><strong>Autopilot</strong><span>Betrag eingeben – der Autopilot sagt dir, was du kaufst, und zeigt jede Woche, ob etwas zu tun ist. Seine Entwicklung messen wir live mit.</span></li>
       <li><strong>Signale mit Trefferquote</strong><span>Zu jedem Signal steht, wie oft vergleichbare Fälle im Plus endeten.</span></li>
       <li><strong>Großwetterlage</strong><span>Kauf-Score, Fear &amp; Greed und Zyklus – wann das Modell kauft und wann es abwartet.</span></li>
       <li><strong>Portfolio und Daytrading</strong><span>Im Paket ${esc(SITE.plans.full.name)}: dein Portfolio per Autopilot oder selbst gepflegt, mit Wertentwicklung, dazu geprüfte Handelsmuster.</span></li>
@@ -106,7 +107,8 @@ export function pricingView(el, { access, user, record }) {
     const measured = !rec ? '' : `<section class="panel"><div class="label">Erfolgskontrolle – offen nachgemessen</div>
       <p>${rec.d7 ? `Kaufsignale der Seite seit ${new Date(rec.since * 86_400_000).toLocaleDateString(settings.locale)}: nach 7 Tagen im Schnitt <strong>${signed(rec.d7.avg, 1)} %</strong>,
         ${rec.d7.up} von ${rec.d7.n} im Plus (Bitcoin im selben Zeitraum ${signed(rec.d7.btc, 1)} %${Number.isFinite(rec.d7.mkt) ? `, der Durchschnitt der Top 100 ${signed(rec.d7.mkt, 1)} %` : ''}).`
-        : `Jedes Kaufsignal der Seite wird seit ${new Date(rec.since * 86_400_000).toLocaleDateString(settings.locale)} nach 7 und 30 Tagen nachgemessen. Erste Ergebnisse erscheinen 7 Tage nach den ersten Signalen.`}</p></section>`;
+        : `Jedes Kaufsignal der Seite wird seit ${new Date(rec.since * 86_400_000).toLocaleDateString(settings.locale)} nach 7 und 30 Tagen nachgemessen. Erste Ergebnisse erscheinen 7 Tage nach den ersten Signalen.`}</p>
+      ${rec.ap?.days ? `<p>Autopilot seit ${new Date(rec.ap.since * 86_400_000).toLocaleDateString(settings.locale)}: <strong>${signed(rec.ap.nav - 100, 1)} %</strong> (Bitcoin ${signed(rec.ap.btc - 100, 1)} %) – mit echten Kursen und Gebühren.</p>` : ''}</section>`;
     const yes = (t) => `<li class="yes">${t}</li>`;
     const card = (key, featured, hint, list) => `<section class="panel plan${featured ? ' featured' : ''}">
         <div class="label">${esc(SITE.plans[key].name)}</div>

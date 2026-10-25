@@ -1898,4 +1898,8 @@ export default {
   "Schau nach, ob der Autopilot Schritte für dein Portfolio hat": "Otomatik pilotun portföyün için adımları var mı bak",
   "Live seit #": "# tarihinden beri canlı",
   "– mit echten Kursen und Gebühren, ohne Rückrechnung": "– gerçek fiyatlar ve ücretlerle, geriye dönük test olmadan",
+  "Den Autopiloten starten oder deine Coins eintragen": "Otomatik pilotu başlat veya coinlerini ekle",
+  "Betrag eingeben – der Autopilot sagt dir, was du kaufst, und zeigt jede Woche, ob etwas zu tun ist. Seine Entwicklung messen wir live mit": "Bir tutar gir – otomatik pilot ne alacağını söyler ve her hafta yapılacak bir şey olup olmadığını gösterir. Performansını canlı ölçüyoruz",
+  "Autopilot seit #": "# tarihinden beri otomatik pilot",
+  "mit echten Kursen und Gebühren": "gerçek fiyatlar ve ücretlerle",
 };

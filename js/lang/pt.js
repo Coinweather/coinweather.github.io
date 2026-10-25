@@ -1898,4 +1898,8 @@ export default {
   "Schau nach, ob der Autopilot Schritte für dein Portfolio hat": "Veja se o piloto automático tem passos para sua carteira",
   "Live seit #": "Ao vivo desde #",
   "– mit echten Kursen und Gebühren, ohne Rückrechnung": "– com preços reais e taxas, sem backtest",
+  "Den Autopiloten starten oder deine Coins eintragen": "Inicie o piloto automático ou adicione suas moedas",
+  "Betrag eingeben – der Autopilot sagt dir, was du kaufst, und zeigt jede Woche, ob etwas zu tun ist. Seine Entwicklung messen wir live mit": "Informe um valor – o piloto automático diz o que comprar e mostra toda semana se há algo a fazer. Medimos sua evolução ao vivo",
+  "Autopilot seit #": "Piloto automático desde #",
+  "mit echten Kursen und Gebühren": "com preços reais e taxas",
 };
