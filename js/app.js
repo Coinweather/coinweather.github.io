@@ -3375,7 +3375,8 @@ function adminView() {
   function render() {
     if (tab === 'besucher') {
       view.innerHTML = `<div translate="no"><h1 class="page-title">Übersicht</h1>${tabs()}<div id="vis-slot"></div></div>`;
-      if (!vis || vis.dead()) { visEl = document.createElement('div'); vis = visitorsPanel(visEl, { coinName: (id) => state.byId.get(id)?.name ?? id }); }
+      if (!vis || vis.dead()) { visEl = document.createElement('div'); vis = visitorsPanel(visEl, { coinName: (id) => state.byId.get(id)?.name ?? id,
+        data: () => ({ server: state.server, full: !!state.full, time: state.updated?.getTime() ?? null, coins: state.coins.length }) }); }
       view.querySelector('#vis-slot').append(visEl);
       tabEvents();
       return;

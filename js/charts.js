@@ -134,6 +134,21 @@ const INDICATORS = [
 const IND_KEY = 'coinwetter-chart-indikatoren', TV_KEY = 'coinwetter-tradingview-ok';
 const loadInd = () => { try { const x = JSON.parse(localStorage.getItem(IND_KEY)); if (Array.isArray(x)) return new Set(x); } catch { /* Standard */ } return new Set(['ma50', 'ma200', 'vol']); };
 const INTERVALS = [['15m', '15m', '15 Minuten'], ['1h', '1h', '1 Stunde'], ['4h', '4h', '4 Stunden'], ['1d', '1D', '1 Tag'], ['1w', '1W', '1 Woche'], ['1M', '1M', '1 Monat']];
+// Lücken und doppelte Zeitpunkte entfernen (z. B. „heute, jetzt“ neben dem Tageswert) – die Bibliothek bricht sonst beim Zeichnen ab
+function clean(d) {
+  const keep = [];
+  let last = null;
+  d.t.forEach((ms, i) => {
+    if (!isNum(d.c[i]) || (d.o && ![d.o[i], d.h[i], d.l[i]].every(isNum))) return;
+    const t = toTime(ms);
+    if (last !== null && t < last) return;
+    if (t === last) keep[keep.length - 1] = i; else keep.push(i);   // gleicher Zeitpunkt: der neuere Wert gilt
+    last = t;
+  });
+  if (keep.length === d.t.length) return d;
+  const pick = (a) => a && keep.map((i) => a[i]);
+  return { ...d, t: pick(d.t), o: pick(d.o), h: pick(d.h), l: pick(d.l), c: pick(d.c), v: pick(d.v) };
+}
 // Dieselben Intervalle im eingebetteten TradingView-Chart
 const TV_IV = { '15m': '15', '1h': '60', '4h': '240', '1d': 'D', '1w': 'W', '1M': 'M' };
 // Intervalle, für die es ohne Kerzen Kurse von CoinGecko gibt (api.intradayLine)
@@ -204,8 +219,9 @@ export function proChart(el, { coin, source, fallback }) {
     if (mine !== st.run) return;
     const fb = fallback?.();
     if (!data && !LINE_IV.includes(iv) && fb?.p?.length) data = resample({ t: fb.t, c: fb.p, v: fb.v ?? null, source: fb.source ?? 'CoinGecko' }, iv);
-    st.data = data;
-    if (!data) {
+    st.data = data && clean(data);
+    if (st.data && st.data.t.length < 2) st.data = null;
+    if (!st.data) {
       box.innerHTML = `<p class="muted">${esc(i18n.say(fb?.p?.length || LINE_IV.includes(iv) ? 'Für dieses Intervall gibt es gerade keine Kursdaten. Versuch es gleich noch einmal oder wähle ein anderes.' : 'Für diesen Coin gibt es keine Kursdaten.'))}</p>`;
       legend.innerHTML = ''; q('.pro-note').textContent = '';
       syncButtons(); return;

@@ -55,7 +55,7 @@ function sum(into, add) {
   return into;
 }
 
-export function visitorsPanel(el, { coinName }) {
+export function visitorsPanel(el, { coinName, data }) {
   let stats = null, visits = null, live = null, error = null, range = 'heute', loading = false, pruned = false, openVisit = null, dead = false;
   // Nicht mehr auf der Seite (anderer Reiter oder andere Seite): Zeitgeber beenden – beim Zurückkehren entsteht die Übersicht neu
   const destroyed = () => { if (!el.isConnected) dead = true; return dead; };
@@ -119,7 +119,13 @@ export function visitorsPanel(el, { coinName }) {
     const where = (x) => [ZONES[String(x.tz ?? '').replace(/[^A-Za-z0-9_-]/g, '_')] ?? x.tz ?? '–'].join('');
     const from = (x) => `${SOURCES[x.src] ?? x.src ?? '–'}${x.ref && !['direkt'].includes(x.src) ? ` <span class="muted">(${esc(x.ref)})</span>` : ''}`;
 
+    // Datenstand: Die Berechnung auf GitHub läuft alle 15 Minuten – älter als 45 Minuten heißt, sie ist ausgefallen
+    const ds = data?.() ?? {}, age = ds.time ? Date.now() - ds.time : null;
+    const health = !ds.coins ? ['none', 'Daten werden geladen …'] : !ds.server ? ['sell', 'Zentrale Berechnung fehlt – die Seite rechnet im Browser (langsamer). GitHub → Actions → „Daten berechnen“ prüfen.']
+      : age > 45 * MINUTE ? ['sell', `Daten sind ${Math.round(age / MINUTE)} Minuten alt – die Berechnung auf GitHub ist wohl ausgefallen (Actions → „Daten berechnen“).`]
+        : ['buy', `Daten von ${clock(ds.time)} Uhr, ${int(ds.coins)} Coins – alles in Ordnung.`];
     el.innerHTML = `
+      <p class="vis-health"><span class="badge ${health[0]}">${health[0] === 'sell' ? 'Achtung' : 'Datenstand'}</span> ${esc(health[1])}</p>
       <div class="vis-head"><div class="chips" role="group" aria-label="Zeitraum">${RANGES.map(([k, l]) => `<button class="chip ${k === range ? 'active' : ''}" data-vis-range="${k}">${l}</button>`).join('')}</div>
         <button class="btn ghost small" data-vis-reload>${loading ? 'Lädt …' : 'Aktualisieren'}</button></div>
       <div class="summary">

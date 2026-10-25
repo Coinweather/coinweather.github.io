@@ -1037,3 +1037,4 @@ details.d-fold > summary { font-size: 15px; letter-spacing: 0; text-transform: n
   /* Das Markt-Wetter steht schon oben – hier bleibt nur die Herleitung zum Aufklappen */
   #market-parts .mood-row, #market-parts .mood-bar, #market-parts .range-labels, #market-parts .mood-text { display: none; }
 }
+.vis-health { margin: 0 0 12px; font-size: 14px; }

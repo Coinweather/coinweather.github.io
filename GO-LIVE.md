@@ -1,6 +1,30 @@
 # Coinweather verkaufen – was fertig ist und was noch fehlt
 
-Stand: 12. Oktober 2026. Diese Liste ersetzt keine Rechtsberatung. Die Rechtstexte der Seite sind Vorlagen.
+Stand: 26. Oktober 2026. Diese Liste ersetzt keine Rechtsberatung. Die Rechtstexte der Seite sind Vorlagen.
+
+## Kurzfassung: Weg zum Start
+
+Technisch ist die Seite bereit für den Betrieb (siehe „Technik und Betrieb“). Was den Verkauf noch blockiert, kann nur der Betreiber erledigen – in dieser Reihenfolge:
+
+1. **Firestore-Regeln veröffentlichen** (1 Minute): Firebase-Konsole → Firestore Database → Regeln → Inhalt von `firestore.rules` einfügen → Veröffentlichen.
+   Ohne das zählt die Besucher-Statistik nichts.
+2. **Anwalt für Finanzmarktrecht** (Abschnitt 1): Autopilot, Portfolio-Manager und Daytrading – Information oder Beratung? In welchen Ländern?
+3. **Betreiberangaben** in `js/config.js` → `operator` und die Rechtstexte prüfen lassen (Abschnitt 2).
+4. **Datenlizenz**: CoinGecko-Bezahlplan, danach Umbau auf Daten nur über den Schnappschuss (Abschnitt 3).
+5. **Hosting**: Umzug weg von GitHub Pages auf eine eigene Domain (Abschnitt 4).
+6. **Zahlungsanbieter** anfragen, Bezahl-Links eintragen, Freischaltung einrichten (Abschnitt 5).
+
+Bis dahin läuft die Seite kostenlos mit 30 Tagen Testphase für neue Konten; Kauf-Knöpfe erscheinen erst mit Punkt 3 und 6.
+
+## Technik und Betrieb (Stand 26.10.2026)
+
+- **Updates ohne Ausfall:** Jede Veröffentlichung versieht Skripte und Stil mit einer Versionsnummer (`?v=…`). Browser mischen nie alte und neue Dateien.
+- **Start-Wächter:** Startet die App nicht (Verbindung weg, sehr alter Browser), erscheint nach 12 Sekunden ein Hinweis mit „Neu laden“ statt einer leeren Seite.
+- **Fehler einer Ansicht** legen die Seite nicht lahm: Der Bereich zeigt einen Hinweis, alles andere läuft weiter.
+- **Überwachung unter `#/admin` → Besucher:** Datenstand (Warnung, wenn die Berechnung auf GitHub ausfällt oder älter als 45 Minuten ist),
+  Programmfehler der Besucher (anonym, gekürzt), Besuche live. GitHub schickt bei fehlgeschlagenen Actions zusätzlich eine E-Mail.
+- **Ausfallsicher bei Daten:** Fällt die zentrale Berechnung aus, rechnet die Seite im Browser weiter; fehlen Börsenkerzen, zeigen Charts Kurse von CoinGecko.
+- **Offline:** Der Service Worker liefert die zuletzt geladene Seite, wenn kein Netz da ist.
 
 ## Fertig eingebaut
 
