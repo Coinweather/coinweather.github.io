@@ -858,6 +858,7 @@ function marketView(preview = false) {
       <div class="panel buy-parts" id="buy-parts"></div>
     </section>
     <section class="panel todo-box" id="todo"></section>
+    <section class="panel ap-teaser" id="ap-teaser" hidden></section>
     <nav class="jump" aria-label="Auf dieser Seite"><span class="label">Auf dieser Seite</span>
       <a href="#" data-jump="#picks-sec">Kaufsignale</a><a href="#" data-jump="#cycle">12 Monate</a><a href="#" data-jump=".heat-wrap">Heatmap</a><a href="#" data-jump=".controls">Alle Coins</a></nav>
     ${preview ? previewCta('Die Großwetterlage siehst du hier frei. Welche Coins gerade ein Kaufsignal haben, zeigt dein kostenloses Konto.',
@@ -1254,7 +1255,10 @@ function marketView(preview = false) {
     }).join('')}</div>`;
   }
 
-  return { update() { hero(); onboard(); compassTeaser(); favs(); picks(); heatmap(); table(); } };
+  // Autopilot-Vorschau: einmal, sobald Kurse da sind, und wenn sich der Zugang ändert
+  let apKey = null;
+  const apTeaser = () => { const key = `${state.coins.length > 0}|${access().plan}|${depot.data.mode}`; if (key === apKey) return; apKey = key; autopilotTeaser($('#ap-teaser')); };
+  return { update() { hero(); onboard(); compassTeaser(); apTeaser(); favs(); picks(); heatmap(); table(); } };
 }
 
 // ---------- Detailansicht ----------
@@ -2131,6 +2135,80 @@ function accountView(gate = false) {
   return self;
 }
 
+// ---------- Autopilot: gemeinsame Teile für Startseite, Menü und Portfolio ----------
+
+// Kürzel aus dem Modell (Binance) → Coin der Seite: unter gleichem Kürzel der mit dem höchsten Marktwert
+function modelCoin(sym) {
+  const c = state.coins.filter((x) => x.symbol.toUpperCase() === sym && isNum(x.current_price) && (x.market_cap_rank ?? 9999) <= 500)
+    .sort((a, b) => (a.market_cap_rank ?? 9999) - (b.market_cap_rank ?? 9999))[0];
+  return c ? { id: c.id, name: c.name, symbol: c.symbol, price: c.current_price, image: c.image } : null;
+}
+// Bestand und Reserve des Modell-Portfolios einer Strategie
+const modelProfile = (c, key = 'balanced') => c?.profiles?.[key] ?? (key === 'balanced' && c?.holdings ? c : null);
+// Eigener Bestand zu heutigen Kursen; Stablecoins zählen zur Reserve
+const depotHoldings = () => depot.data.positions.map((pos) => {
+  const c = coinOf(pos);
+  return c && isNum(c.current_price) ? { id: c.id, name: c.name, symbol: c.symbol, units: pos.amount, price: c.current_price, stable: !!c.analysis?.stable } : null;
+}).filter(Boolean);
+// Offene Schritte des Autopiloten: Handel plus fällige Sparrate – für den Hinweis im Menü
+function autopilotOpen(curve) {
+  if (depot.data.mode !== 'auto' || !fullAccess() || !state.coins.length) return 0;
+  const t = modelProfile(curve, depot.data.reserveMode);
+  if (!t) return 0;
+  const f = followModel({ target: t, coinOf: modelCoin, holdings: depotHoldings(), cash: depot.data.cash });
+  const a = depot.data.auto;
+  return (f?.moves.length ?? 0) + (a?.monthly && (!a.lastDeposit || a.lastDeposit < monthKey()) ? 1 : 0);
+}
+// Zahl am Menüpunkt „Portfolio“, solange der Autopilot etwas zu tun hat
+let badgeShown = null;
+async function navBadge() {
+  const n = depot.data.mode === 'auto' && fullAccess() ? autopilotOpen(await loadModelCurve()) : 0;
+  if (n === badgeShown) return;
+  badgeShown = n;
+  const a = document.querySelector('nav a[data-nav="portfolio"]');
+  a?.querySelector('.nav-badge')?.remove();
+  if (a && n) a.insertAdjacentHTML('beforeend', `<span class="nav-badge" title="${esc(i18n.say('Schritte des Autopiloten'))}">${n}</span>`);
+}
+setInterval(() => navBadge().catch(() => {}), 60_000);
+
+// Startseite: Was würde der Autopilot mit einem Betrag kaufen? Für alle sichtbar; die ganze Liste mit Konto
+let apAmount = null;
+async function autopilotTeaser(el) {
+  const c = await loadModelCurve();
+  if (!el.isConnected) return;
+  const t = modelProfile(c);
+  if (!t || !state.coins.length) { el.hidden = true; return; }
+  const full = fullAccess(), mine = full && depot.data.mode === 'auto';
+  apAmount ??= Math.round(toDisplay(1000) / 100) * 100 || 1000;
+  const f = followModel({ target: t, coinOf: modelCoin, holdings: [], cash: fromDisplay(apAmount) });
+  if (!f) { el.hidden = true; return; }
+  const buys = [...f.moves].sort((a, b) => b.usd - a.usd);
+  const shown = full ? buys : buys.slice(0, 1);
+  const open = mine ? autopilotOpen(c) : 0;
+  el.hidden = false;
+  el.innerHTML = `<div class="ap-head"><span class="ap-icon" aria-hidden="true">🤖</span><div>
+      <div class="label">Autopilot</div>
+      <h2>Sag, wie viel du anlegen willst – der Autopilot sagt dir, was du kaufst.</h2>
+      <p class="muted">Nach dem Zyklus-Kompass und den besten Kauf-Scores, mit Reserve in schwachen Phasen. Jede Woche geprüft – du siehst, ob etwas zu tun ist.</p></div></div>
+    ${mine ? `<p class="ap-mine"><strong>${open ? `Dein Autopilot: ${open} ${open === 1 ? 'Schritt' : 'Schritte'} zu tun` : 'Dein Autopilot: alles erledigt'}</strong> <a class="btn small" href="#/portfolio">Zum Portfolio</a></p>` : ''}
+    <form class="ap-form" id="ap-form"><label>Betrag <span translate="no">(${currencyCode()})</span><input id="ap-amount" inputmode="decimal" value="${esc(inputText(apAmount))}" autocomplete="off"></label>
+      <button class="btn ghost" type="submit">Zeigen</button></form>
+    <ul class="ap-list">
+      ${shown.map((m) => `<li><span><strong>${esc(m.name)}</strong> <span class="muted">≈ ${m.units.toLocaleString(settings.locale, { maximumSignificantDigits: 3 })} ${esc(m.symbol.toUpperCase())}</span></span><strong>${money(m.usd)}</strong></li>`).join('')}
+      ${full ? '' : buys.length > 1 ? `<li class="ap-locked"><span>🔒 ${buys.length - 1} weitere Coins</span><span class="muted">mit kostenlosem Konto</span></li>` : ''}
+      <li class="ap-reserve"><span>Reserve (Bargeld oder Stablecoins)</span><strong>${money(f.reserve * f.reserveShare)}</strong></li></ul>
+    <div class="btn-row">${full ? `<a class="btn" href="#/portfolio/auto?b=${Math.round(fromDisplay(apAmount) * 100) / 100}&m=once">Mit diesem Betrag starten</a>`
+      : `<a class="btn" href="${depot.user ? '#/preise' : '#/konto'}">${depot.user ? 'Pakete ansehen' : 'Kostenlos starten – 30 Tage alle Funktionen'}</a>`}
+      <a class="btn ghost" href="#/rechner">So wäre es gelaufen</a></div>
+    <p class="hint">Rückrechnung seit 2018: +${RESERVE_BACKTEST.balanced.perYear} % pro Jahr, größter Rückgang −${RESERVE_BACKTEST.balanced.drawdown} % (Bitcoin halten: +${HOLD_BACKTEST.perYear} %, −${HOLD_BACKTEST.drawdown} %).
+      Die Zukunft fällt meist schlechter aus. Keine Anlageberatung – ausführen tust du selbst bei deiner Börse.</p>`;
+  el.querySelector('#ap-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const v = pf.parseInput(el.querySelector('#ap-amount').value);
+    if (v > 0) { apAmount = v; autopilotTeaser(el); }
+  });
+}
+
 // ---------- Portfolio ----------
 
 const ALLOC_COLORS = ['var(--accent)', 'var(--violet)', 'var(--up)', '#38bdf8', 'var(--hold)', '#f472b6'];
@@ -2316,10 +2394,7 @@ function portfolioView(arg = '') {
 
   // ----- Einzahlen und auszahlen (Autopilot) -----
   const flow = { kind: 'in' };
-  const heldNow = () => depot.data.positions.map((pos) => {
-    const c = find(pos);
-    return c && isNum(c.current_price) ? { id: c.id, name: c.name, symbol: c.symbol, units: pos.amount, price: c.current_price, stable: !!c.analysis?.stable } : null;
-  }).filter(Boolean);
+  const heldNow = depotHoldings;
   function renderMoney(showError = false) {
     for (const b of $('#m-kind').children) b.classList.toggle('active', b.dataset.kind === flow.kind);
     const usd = fromDisplay(pf.parseInput($('#m-amount').value));
@@ -2881,11 +2956,7 @@ function portfolioView(arg = '') {
     return model?.profiles?.[key] ?? (key === 'balanced' && model?.holdings ? model : null);
   };
   // Kürzel aus dem Modell (Binance) → Coin der Seite: unter gleichem Kürzel der mit dem höchsten Marktwert
-  const coinBySymbol = (sym) => {
-    const c = state.coins.filter((x) => x.symbol.toUpperCase() === sym && isNum(x.current_price) && (x.market_cap_rank ?? 9999) <= 500)
-      .sort((a, b) => (a.market_cap_rank ?? 9999) - (b.market_cap_rank ?? 9999))[0];
-    return c ? { id: c.id, name: c.name, symbol: c.symbol, price: c.current_price, image: c.image } : null;
-  };
+  const coinBySymbol = modelCoin;
   const follow = () => {
     const t = modelTarget();
     return t && state.coins.length ? followModel({ target: t, coinOf: coinBySymbol, holdings: heldNow(), cash: depot.data.cash }) : null;
@@ -2932,7 +3003,7 @@ function portfolioView(arg = '') {
       <div class="panel-top"><div><div class="label">🤖 Autopilot · Strategie ${esc(label)}</div>
         <h2>${f.moves.length ? `${f.moves.length} ${f.moves.length === 1 ? 'Schritt' : 'Schritte'} zu tun` : due ? 'Sparrate fällig' : 'Alles erledigt'}</h2>
         <div class="muted">Folgt dem Modell-Portfolio · Stand ${dateText(new Date(t.asOf))} · nächste Prüfung ${new Date(t.next).toLocaleDateString(settings.locale, { weekday: 'long' })}, ${dateText(new Date(t.next))}</div></div>
-        ${infoBtn('autopilot', 'So arbeitet der Autopilot')}</div>
+        <div class="btn-row">${infoBtn('autopilot', 'So arbeitet der Autopilot')}<button type="button" class="info-btn" data-ics><span aria-hidden="true">📅</span>Prüftag in den Kalender</button></div></div>
       ${due ? `<div class="deposit-due"><span aria-hidden="true">📅</span><div><strong>Sparrate für ${new Date().toLocaleDateString(settings.locale, { month: 'long' })}: ${money(monthlyUsd(a.monthly))}</strong>
           <div class="muted">Zahl sie bei deiner Börse ein und trag sie hier ein – dann zeigt der Autopilot, was du davon kaufst.</div></div>
           <div class="btn-row"><button class="btn small" type="button" data-deposit="yes">Eingezahlt</button><button class="btn ghost small" type="button" data-deposit="skip">Diesen Monat nicht</button></div></div>` : ''}
@@ -2955,6 +3026,23 @@ function portfolioView(arg = '') {
 
   // Schritte des Autopiloten eintragen: einzeln oder alle (erst Verkäufe, dann Käufe); dazu die Sparrate
   $('#p-auto').addEventListener('click', (e) => {
+    // Wöchentlicher Termin am Prüftag (9 Uhr Ortszeit) als Kalenderdatei – die Erinnerung, ohne dass Coinweather etwas speichert
+    if (e.target.closest('[data-ics]')) {
+      const t = modelTarget();
+      if (!t) return;
+      const d = new Date(t.next), p2 = (n) => String(n).padStart(2, '0');
+      const stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
+      const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Coinweather//Autopilot//DE', 'BEGIN:VEVENT', `UID:autopilot-${Date.now()}@coinweather.github.io`, `DTSTAMP:${stamp}`,
+        `DTSTART:${d.getUTCFullYear()}${p2(d.getUTCMonth() + 1)}${p2(d.getUTCDate())}T090000`, 'DURATION:PT15M', 'RRULE:FREQ=WEEKLY',
+        `SUMMARY:${i18n.say('Coinweather: Autopilot prüfen')}`, `DESCRIPTION:${i18n.say('Schau nach, ob der Autopilot Schritte für dein Portfolio hat.')}`,
+        'URL:https://coinweather.github.io/#/portfolio', 'END:VEVENT', 'END:VCALENDAR'].join(String.fromCharCode(13, 10));
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
+      link.download = 'coinweather-autopilot.ics';
+      link.click();
+      URL.revokeObjectURL(link.href);
+      return;
+    }
     const dep = e.target.closest('[data-deposit]')?.dataset.deposit;
     if (dep) {
       const a = depot.data.auto ?? {}, usd = monthlyUsd(a.monthly);
@@ -3749,6 +3837,7 @@ function route() {
   else current = marketView();
   current.update();
   window.scrollTo(0, 0);
+  navBadge().catch(() => {});
 }
 
 // Als App installierbar: Service Worker (nur über https) und ein eigener Knopf, sobald der Browser die Installation anbietet

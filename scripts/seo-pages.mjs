@@ -4,6 +4,8 @@
 //   /crypto-weather-today/   der Kryptomarkt heute: Kauf-Score, Fear & Greed, Zyklus, Aussicht, größte Bewegungen
 //   /should-i-buy-bitcoin-now/  „Soll ich jetzt Bitcoin kaufen?“: Kauf-Score mit seinen fünf Bausteinen, Jahresrückblick, FAQ (für Google)
 //   /should-i-buy-ethereum-now/ dasselbe für Ethereum (sein Kauf-Score wie in der App)
+//   /best-crypto-to-buy-now/  die 10 stärksten Kauf-Scores des Tages
+//   /crypto-portfolio-autopilot/  der Autopilot: Modell-Portfolio heute (teils verdeckt), Ablauf, Rückrechnung, FAQ
 //   /fear-and-greed-index/   der Fear & Greed Index heute mit dem, was die Rückrechnung über Angst und Gier zeigt
 //   /coin/<id>/              je eine Seite für die 500 größten Coins: Kurs, Entwicklung, Großwetterlage, Signal (verdeckt)
 //   /coins/                  Übersicht mit Links auf alle Coin-Seiten
@@ -21,6 +23,7 @@
 import { cp, mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import * as i18n from '../js/i18n.js';
 import { RISK_ZONES, buyZone, buyHistory } from '../js/model.js';
+import { adjusted, RESERVE_BACKTEST, HOLD_BACKTEST } from '../js/manager.js';
 
 const SITE = 'https://coinweather.github.io';
 const SNAPSHOT = 'https://raw.githubusercontent.com/Coinweather/coinweather.github.io/data/snapshot.json';
@@ -61,6 +64,7 @@ const snap = process.env.SNAPSHOT_FILE ? JSON.parse(await readFile(process.env.S
 const { market, fng, coins, record } = snap;
 
 // Modell-Portfolio des Portfolio-Managers für den Sparplan-Rechner (scripts/model-curve.mjs) – fehlt es, zeigt der Rechner es nicht
+let modelData = null;
 try {
   const { buildCurve, COINS } = await import('./model-curve.mjs');
   // Auswahl: die 84 geprüften Coins plus die heutigen Top 200 mit Kursgeschichte bei Binance – so kann das Modell die Coins
@@ -80,6 +84,7 @@ try {
   }
   await mkdir(`${out}/data`, { recursive: true });
   await writeFile(`${out}/data/model-curve.json`, JSON.stringify(curve));
+  modelData = curve;
   console.log(`Modell-Portfolio: ${curve.stats.cagr} % pro Jahr seit ${new Date(curve.t[0]).toISOString().slice(0, 10)}`);
 } catch (err) { console.log(`Modell-Portfolio nicht berechnet: ${err.message}`); }
 
@@ -843,6 +848,166 @@ const BE = {
       ['Ethereum neden Bitcoin döngüsünü izler?', () => '2022’den beri Ethereum, Bitcoin ile aynı döngüde yükselip düştü – daha büyük dalgalanmalarla ve genel olarak Bitcoin’den daha zayıf. Bu yüzden döngü bileşenleri (Mayer Multiple, 2 yıllık ortalama, Pi Cycle, zirveye uzaklık, Korku ve Açgözlülük) Bitcoin üzerinden hesaplanır ve Ethereum için de geçerlidir.']] },
 };
 
+// „Best crypto to buy now“ – die stärksten Kauf-Scores des Tages (hohe Suchnachfrage), und der Autopilot als eigene Seite
+const BB = {
+  en: { nav: 'Best crypto to buy now', path: '/best-crypto-to-buy-now/',
+    title: (d) => `Best crypto to buy now (${d}): top 10 by buy score`,
+    desc: (n, list) => `Today’s 10 coins with the highest Coinweather buy score among the top 300 with enough trading volume: ${list}. Market buy score ${n}/100. Updated daily, not financial advice.`,
+    h1: 'Best crypto to buy now – today’s top 10 by buy score',
+    intro: (v, l) => `The ranking uses Coinweather’s buy score from 0 to 100: for Bitcoin and Ethereum mainly the Cycle Compass, for altcoins their own trend plus a cycle bonus. Riskier coins are marked down. Today the whole market stands at ${v}/100 (“${l}”).`,
+    rank: '#', coin: 'Coin', score: 'Buy score', d7: '7 days', risk: 'Risk',
+    note: 'A high buy score is not a promise. Since 2022 a typical altcoin was higher one year later in fewer than half of the cases, even after good readings – Bitcoin and Ethereum did clearly better. Spread your purchases and only use money you can afford to lose.',
+    cta: 'Buy score, outlook and look-back for all 1,000 coins – and an autopilot that tells you what to buy', btn: 'Start free',
+    faq: [['What is the best crypto to buy right now?', (top) => `By Coinweather’s buy score, today’s strongest coins are ${top}. The score changes daily; it describes the past and current trend, not a guaranteed future.`],
+      ['Should I buy Bitcoin or altcoins?', () => 'Since 2022 Bitcoin and Ethereum were much more often higher one year after cheap cycle readings than the typical altcoin. That is why Coinweather’s autopilot keeps most of the money in the largest coins and only adds altcoins with strong buy scores.']] },
+  de: { nav: 'Beste Kryptowährung zum Kaufen', path: '/best-crypto-to-buy-now/',
+    title: (d) => `Welche Kryptowährung jetzt kaufen? (${d}): Top 10 nach Kauf-Score`,
+    desc: (n, list) => `Die 10 Coins mit dem höchsten Kauf-Score von Coinweather unter den Top 300 mit genug Handelsvolumen: ${list}. Kauf-Score des Markts ${n}/100. Täglich aktuell, keine Anlageberatung.`,
+    h1: 'Welche Kryptowährung jetzt kaufen? Die Top 10 nach Kauf-Score',
+    intro: (v, l) => `Die Rangliste nutzt den Kauf-Score von Coinweather von 0 bis 100: bei Bitcoin und Ethereum vor allem den Zyklus-Kompass, bei Altcoins ihren eigenen Trend plus einen Zyklus-Bonus. Riskantere Coins werden abgewertet. Der ganze Markt steht heute bei ${v}/100 („${l}“).`,
+    rank: '#', coin: 'Coin', score: 'Kauf-Score', d7: '7 Tage', risk: 'Risiko',
+    note: 'Ein hoher Kauf-Score ist kein Versprechen. Seit 2022 stand der typische Altcoin ein Jahr später in weniger als der Hälfte der Fälle höher, auch nach guten Ständen – Bitcoin und Ethereum schnitten klar besser ab. Kauf in Raten und setz nur Geld ein, dessen Verlust du verkraften kannst.',
+    cta: 'Kauf-Score, Aussicht und Rückblick für alle 1000 Coins – und ein Autopilot, der dir sagt, was du kaufst', btn: 'Kostenlos starten',
+    faq: [['Welche Kryptowährung sollte ich jetzt kaufen?', (top) => `Nach dem Kauf-Score von Coinweather sind heute die stärksten Coins ${top}. Der Score ändert sich täglich; er beschreibt Vergangenheit und aktuellen Trend, keine sichere Zukunft.`],
+      ['Bitcoin oder Altcoins kaufen?', () => 'Seit 2022 standen Bitcoin und Ethereum ein Jahr nach günstigen Zyklus-Ständen deutlich öfter höher als der typische Altcoin. Deshalb hält der Autopilot von Coinweather den Großteil in den größten Coins und nimmt Altcoins nur mit starkem Kauf-Score dazu.']] },
+  es: { nav: 'Mejor cripto para comprar', path: '/best-crypto-to-buy-now/',
+    title: (d) => `¿Qué criptomoneda comprar ahora? (${d}): top 10 por puntuación de compra`,
+    desc: (n, list) => `Las 10 monedas con la mayor puntuación de compra de Coinweather entre las 300 mayores con volumen suficiente: ${list}. Puntuación del mercado ${n}/100. Actualizado a diario, no es asesoramiento financiero.`,
+    h1: '¿Qué criptomoneda comprar ahora? El top 10 por puntuación de compra',
+    intro: (v, l) => `La clasificación usa la puntuación de compra de Coinweather de 0 a 100: para Bitcoin y Ethereum sobre todo la Brújula del ciclo, para las altcoins su propia tendencia más una bonificación de ciclo. Las monedas más arriesgadas se penalizan. Hoy el mercado está en ${v}/100 («${l}»).`,
+    rank: '#', coin: 'Moneda', score: 'Puntuación', d7: '7 días', risk: 'Riesgo',
+    note: 'Una puntuación alta no es una promesa. Desde 2022 la altcoin típica estaba más alta un año después en menos de la mitad de los casos, incluso tras buenos niveles; Bitcoin y Ethereum lo hicieron claramente mejor. Compra por partes y usa solo dinero que puedas permitirte perder.',
+    cta: 'Puntuación, previsión y retrospectiva de las 1000 monedas, y un piloto automático que te dice qué comprar', btn: 'Empezar gratis',
+    faq: [['¿Qué criptomoneda comprar ahora mismo?', (top) => `Según la puntuación de compra de Coinweather, las monedas más fuertes hoy son ${top}. La puntuación cambia a diario; describe el pasado y la tendencia actual, no un futuro seguro.`],
+      ['¿Comprar Bitcoin o altcoins?', () => 'Desde 2022 Bitcoin y Ethereum estaban mucho más a menudo más altos un año después de niveles de ciclo baratos que la altcoin típica. Por eso el piloto automático de Coinweather mantiene la mayor parte en las monedas más grandes y solo añade altcoins con una puntuación fuerte.']] },
+  fr: { nav: 'Meilleure crypto à acheter', path: '/best-crypto-to-buy-now/',
+    title: (d) => `Quelle crypto acheter maintenant ? (${d}) : top 10 par score d’achat`,
+    desc: (n, list) => `Les 10 cryptos avec le meilleur score d’achat Coinweather parmi les 300 premières avec assez de volume : ${list}. Score du marché ${n}/100. Mis à jour chaque jour, pas un conseil en investissement.`,
+    h1: 'Quelle crypto acheter maintenant ? Le top 10 par score d’achat',
+    intro: (v, l) => `Le classement utilise le score d’achat Coinweather de 0 à 100 : pour Bitcoin et Ethereum surtout la Boussole du cycle, pour les altcoins leur propre tendance plus un bonus de cycle. Les cryptos plus risquées sont pénalisées. Aujourd’hui le marché est à ${v}/100 (« ${l} »).`,
+    rank: '#', coin: 'Crypto', score: 'Score d’achat', d7: '7 jours', risk: 'Risque',
+    note: 'Un score élevé n’est pas une promesse. Depuis 2022, l’altcoin typique n’était plus haut un an plus tard que dans moins de la moitié des cas, même après de bons niveaux – Bitcoin et Ethereum ont fait nettement mieux. Achète par étapes et n’investis que de l’argent que tu peux te permettre de perdre.',
+    cta: 'Score d’achat, perspective et rétrospective pour les 1000 cryptos – et un pilote automatique qui te dit quoi acheter', btn: 'Commencer gratuitement',
+    faq: [['Quelle crypto acheter en ce moment ?', (top) => `Selon le score d’achat Coinweather, les cryptos les plus fortes aujourd’hui sont ${top}. Le score change chaque jour ; il décrit le passé et la tendance actuelle, pas un avenir garanti.`],
+      ['Acheter du Bitcoin ou des altcoins ?', () => 'Depuis 2022, Bitcoin et Ethereum étaient bien plus souvent plus hauts un an après des niveaux de cycle bon marché que l’altcoin typique. C’est pourquoi le pilote automatique de Coinweather garde l’essentiel dans les plus grandes cryptos et n’ajoute des altcoins qu’avec un score fort.']] },
+  it: { nav: 'Migliore crypto da comprare', path: '/best-crypto-to-buy-now/',
+    title: (d) => `Quale criptovaluta comprare ora? (${d}): top 10 per punteggio di acquisto`,
+    desc: (n, list) => `I 10 coin con il punteggio di acquisto Coinweather più alto tra i primi 300 con volume sufficiente: ${list}. Punteggio del mercato ${n}/100. Aggiornato ogni giorno, non è una consulenza finanziaria.`,
+    h1: 'Quale criptovaluta comprare ora? La top 10 per punteggio di acquisto',
+    intro: (v, l) => `La classifica usa il punteggio di acquisto Coinweather da 0 a 100: per Bitcoin ed Ethereum soprattutto la Bussola del ciclo, per gli altcoin il loro trend più un bonus di ciclo. I coin più rischiosi vengono penalizzati. Oggi il mercato è a ${v}/100 («${l}»).`,
+    rank: '#', coin: 'Coin', score: 'Punteggio', d7: '7 giorni', risk: 'Rischio',
+    note: 'Un punteggio alto non è una promessa. Dal 2022 l’altcoin tipico era più alto un anno dopo in meno della metà dei casi, anche dopo buoni livelli – Bitcoin ed Ethereum sono andati nettamente meglio. Compra a rate e usa solo denaro che puoi permetterti di perdere.',
+    cta: 'Punteggio, prospettiva e retrospettiva per tutti i 1000 coin – e un pilota automatico che ti dice cosa comprare', btn: 'Inizia gratis',
+    faq: [['Quale criptovaluta comprare adesso?', (top) => `Secondo il punteggio di acquisto Coinweather, i coin più forti oggi sono ${top}. Il punteggio cambia ogni giorno; descrive il passato e il trend attuale, non un futuro sicuro.`],
+      ['Comprare Bitcoin o altcoin?', () => 'Dal 2022 Bitcoin ed Ethereum erano molto più spesso più alti un anno dopo livelli di ciclo convenienti rispetto all’altcoin tipico. Per questo il pilota automatico di Coinweather tiene la maggior parte nei coin più grandi e aggiunge altcoin solo con un punteggio forte.']] },
+  pt: { nav: 'Melhor cripto para comprar', path: '/best-crypto-to-buy-now/',
+    title: (d) => `Qual criptomoeda comprar agora? (${d}): top 10 por pontuação de compra`,
+    desc: (n, list) => `As 10 moedas com a maior pontuação de compra do Coinweather entre as 300 maiores com volume suficiente: ${list}. Pontuação do mercado ${n}/100. Atualizado diariamente, não é recomendação de investimento.`,
+    h1: 'Qual criptomoeda comprar agora? O top 10 por pontuação de compra',
+    intro: (v, l) => `O ranking usa a pontuação de compra do Coinweather de 0 a 100: para Bitcoin e Ethereum sobretudo a Bússola do ciclo, para altcoins a própria tendência mais um bônus de ciclo. Moedas mais arriscadas são penalizadas. Hoje o mercado está em ${v}/100 (“${l}”).`,
+    rank: '#', coin: 'Moeda', score: 'Pontuação', d7: '7 dias', risk: 'Risco',
+    note: 'Uma pontuação alta não é uma promessa. Desde 2022 a altcoin típica estava mais alta um ano depois em menos da metade dos casos, mesmo após bons níveis – Bitcoin e Ethereum foram claramente melhores. Compre em parcelas e use só dinheiro que você pode perder.',
+    cta: 'Pontuação, perspectiva e retrospectiva para as 1000 moedas – e um piloto automático que diz o que comprar', btn: 'Começar grátis',
+    faq: [['Qual criptomoeda comprar agora?', (top) => `Pela pontuação de compra do Coinweather, as moedas mais fortes hoje são ${top}. A pontuação muda diariamente; descreve o passado e a tendência atual, não um futuro garantido.`],
+      ['Comprar Bitcoin ou altcoins?', () => 'Desde 2022 Bitcoin e Ethereum estavam bem mais vezes mais altos um ano após níveis de ciclo baratos do que a altcoin típica. Por isso o piloto automático do Coinweather mantém a maior parte nas maiores moedas e só adiciona altcoins com pontuação forte.']] },
+  tr: { nav: 'Şimdi alınacak en iyi kripto', path: '/best-crypto-to-buy-now/',
+    title: (d) => `Şimdi hangi kripto alınır? (${d}): alım skoruna göre ilk 10`,
+    desc: (n, list) => `Yeterli işlem hacmine sahip ilk 300 içinde Coinweather alım skoru en yüksek 10 coin: ${list}. Piyasa alım skoru ${n}/100. Her gün güncellenir, yatırım tavsiyesi değildir.`,
+    h1: 'Şimdi hangi kripto alınır? Alım skoruna göre ilk 10',
+    intro: (v, l) => `Sıralama, Coinweather’ın 0–100 alım skorunu kullanır: Bitcoin ve Ethereum için çoğunlukla Döngü Pusulası, altcoinler için kendi trendleri artı bir döngü bonusu. Daha riskli coinlerin puanı düşürülür. Bugün tüm piyasa ${v}/100 (“${l}”).`,
+    rank: '#', coin: 'Coin', score: 'Alım skoru', d7: '7 gün', risk: 'Risk',
+    note: 'Yüksek bir alım skoru vaat değildir. 2022’den beri tipik altcoin, iyi seviyelerden sonra bile bir yıl sonra vakaların yarısından azında daha yüksekti – Bitcoin ve Ethereum açıkça daha iyiydi. Kademeli al ve yalnızca kaybetmeyi göze alabileceğin parayı kullan.',
+    cta: '1000 coinin hepsi için alım skoru, görünüm ve geriye bakış – ve sana ne alacağını söyleyen bir otomatik pilot', btn: 'Ücretsiz başla',
+    faq: [['Şu anda hangi kripto alınmalı?', (top) => `Coinweather alım skoruna göre bugünün en güçlü coinleri: ${top}. Skor her gün değişir; geçmişi ve güncel trendi anlatır, kesin bir geleceği değil.`],
+      ['Bitcoin mi altcoin mi almalı?', () => '2022’den beri Bitcoin ve Ethereum, ucuz döngü seviyelerinden bir yıl sonra tipik altcoinden çok daha sık daha yüksekti. Bu yüzden Coinweather otomatik pilotu paranın çoğunu en büyük coinlerde tutar ve altcoinleri yalnızca güçlü alım skoruyla ekler.']] },
+};
+const AP = {
+  en: { nav: 'Crypto portfolio autopilot', path: '/crypto-portfolio-autopilot/',
+    title: 'Crypto portfolio autopilot: tells you what to buy – free for 30 days',
+    desc: (r, n) => `Enter an amount and Coinweather’s autopilot tells you which coins to buy and how much to keep in reserve. Today: ${n} coins, ${r} % reserve. Checked every week. You trade yourself, no access to your money.`,
+    h1: 'The crypto autopilot: you say how much – it says what to buy',
+    intro: 'Most people buy crypto when everyone is euphoric and sell in panic. The autopilot does the opposite, with rules instead of gut feeling: more in when the cycle is cheap, more reserve in a bear market, only coins with strong buy scores. Every week it checks the portfolio and shows you the few steps to take.',
+    today: (r, n, d) => `Today’s model portfolio (${d}): ${n} coins and ${r} % reserve.`, coin: 'Coin', share: 'Share', reserve: 'Reserve (cash or stablecoins)',
+    how: 'How it works', steps: ['Enter a starting amount and an optional monthly savings rate.', 'The autopilot shows exactly what to buy – you do it at your own exchange.', 'Once a week it checks the model. If something changes, you see the steps; otherwise nothing to do.'],
+    btH: 'Backtest', bt: (a, b, c, h) => `Balanced strategy since 2018: +${a} % per year, since 2022 +${b} %, largest drawdown −${c} %. Holding Bitcoin: +${h} % per year. Backtest on past prices – the future usually turns out worse.`,
+    cta: 'Start the autopilot – 30 days free, no payment details', btn: 'Start free', calc: 'Try it in the calculator',
+    faq: [['Does Coinweather have access to my money?', 'No. Coinweather never trades for you and never connects to your exchange. You see the steps and carry them out yourself.'],
+      ['How often does the autopilot trade?', 'It checks once a week. Steps only appear when the model changes its holdings or you add money – small deviations are ignored to save fees.'],
+      ['Is this financial advice?', 'No. The autopilot follows fixed, published rules tested on past prices. Crypto can fall sharply, up to a total loss.']] },
+  de: { nav: 'Krypto-Autopilot', path: '/crypto-portfolio-autopilot/',
+    title: 'Krypto-Autopilot fürs Portfolio: sagt dir, was du kaufst – 30 Tage kostenlos',
+    desc: (r, n) => `Betrag eingeben – der Autopilot von Coinweather sagt dir, welche Coins du kaufst und wie viel Reserve bleibt. Heute: ${n} Coins, ${r} % Reserve. Jede Woche geprüft. Du handelst selbst, kein Zugriff auf dein Geld.`,
+    h1: 'Der Krypto-Autopilot: Du sagst, wie viel – er sagt, was du kaufst',
+    intro: 'Die meisten kaufen Krypto, wenn alle euphorisch sind, und verkaufen in Panik. Der Autopilot macht es umgekehrt – mit Regeln statt Bauchgefühl: mehr investiert, wenn der Zyklus günstig ist, mehr Reserve im Bärenmarkt, nur Coins mit starkem Kauf-Score. Jede Woche prüft er das Portfolio und zeigt dir die wenigen Schritte.',
+    today: (r, n, d) => `Das Modell-Portfolio heute (${d}): ${n} Coins und ${r} % Reserve.`, coin: 'Coin', share: 'Anteil', reserve: 'Reserve (Bargeld oder Stablecoins)',
+    how: 'So funktioniert es', steps: ['Startbetrag und auf Wunsch eine monatliche Sparrate eingeben.', 'Der Autopilot zeigt genau, was du kaufst – du setzt es bei deiner Börse um.', 'Einmal pro Woche prüft er das Modell. Ändert sich etwas, siehst du die Schritte; sonst ist nichts zu tun.'],
+    btH: 'Rückrechnung', bt: (a, b, c, h) => `Strategie Ausgewogen seit 2018: +${a} % pro Jahr, seit 2022 +${b} %, größter Rückgang −${c} %. Bitcoin halten: +${h} % pro Jahr. Rückrechnung an vergangenen Kursen – die Zukunft fällt meist schlechter aus.`,
+    cta: 'Autopilot starten – 30 Tage kostenlos, ohne Zahlungsdaten', btn: 'Kostenlos starten', calc: 'Im Rechner ausprobieren',
+    faq: [['Hat Coinweather Zugriff auf mein Geld?', 'Nein. Coinweather handelt nie für dich und verbindet sich nicht mit deiner Börse. Du siehst die Schritte und führst sie selbst aus.'],
+      ['Wie oft handelt der Autopilot?', 'Er prüft einmal pro Woche. Schritte gibt es nur, wenn das Modell seinen Bestand ändert oder du Geld einzahlst – kleine Abweichungen bleiben liegen, das spart Gebühren.'],
+      ['Ist das eine Anlageberatung?', 'Nein. Der Autopilot folgt festen, offengelegten Regeln, geprüft an vergangenen Kursen. Krypto kann stark fallen, bis zum Totalverlust.']] },
+  es: { nav: 'Piloto automático cripto', path: '/crypto-portfolio-autopilot/',
+    title: 'Piloto automático para tu cartera cripto: te dice qué comprar – 30 días gratis',
+    desc: (r, n) => `Introduce un importe y el piloto automático de Coinweather te dice qué monedas comprar y cuánto dejar en reserva. Hoy: ${n} monedas, ${r} % de reserva. Revisado cada semana. Operas tú, sin acceso a tu dinero.`,
+    h1: 'El piloto automático cripto: tú dices cuánto, él dice qué comprar',
+    intro: 'La mayoría compra cripto cuando todos están eufóricos y vende con pánico. El piloto automático hace lo contrario, con reglas en lugar de intuición: más invertido cuando el ciclo está barato, más reserva en mercado bajista, solo monedas con puntuación de compra fuerte. Cada semana revisa la cartera y te muestra los pocos pasos a dar.',
+    today: (r, n, d) => `La cartera modelo hoy (${d}): ${n} monedas y ${r} % de reserva.`, coin: 'Moneda', share: 'Peso', reserve: 'Reserva (efectivo o stablecoins)',
+    how: 'Cómo funciona', steps: ['Introduce un importe inicial y, si quieres, una aportación mensual.', 'El piloto automático muestra exactamente qué comprar; lo haces en tu exchange.', 'Una vez por semana revisa el modelo. Si algo cambia, ves los pasos; si no, no hay nada que hacer.'],
+    btH: 'Backtest', bt: (a, b, c, h) => `Estrategia Equilibrada desde 2018: +${a} % al año, desde 2022 +${b} %, mayor caída −${c} %. Mantener Bitcoin: +${h} % al año. Backtest con precios pasados: el futuro suele ser peor.`,
+    cta: 'Inicia el piloto automático: 30 días gratis, sin datos de pago', btn: 'Empezar gratis', calc: 'Probar en la calculadora',
+    faq: [['¿Tiene Coinweather acceso a mi dinero?', 'No. Coinweather nunca opera por ti ni se conecta a tu exchange. Ves los pasos y los ejecutas tú.'],
+      ['¿Con qué frecuencia opera el piloto automático?', 'Revisa una vez por semana. Solo hay pasos cuando el modelo cambia sus posiciones o aportas dinero; las pequeñas desviaciones se ignoran para ahorrar comisiones.'],
+      ['¿Es asesoramiento financiero?', 'No. El piloto automático sigue reglas fijas y publicadas, probadas con precios pasados. Las criptos pueden caer con fuerza, hasta la pérdida total.']] },
+  fr: { nav: 'Pilote automatique crypto', path: '/crypto-portfolio-autopilot/',
+    title: 'Pilote automatique pour ton portefeuille crypto : il te dit quoi acheter – 30 jours gratuits',
+    desc: (r, n) => `Saisis un montant et le pilote automatique Coinweather te dit quelles cryptos acheter et combien garder en réserve. Aujourd’hui : ${n} cryptos, ${r} % de réserve. Vérifié chaque semaine. Tu négocies toi-même, aucun accès à ton argent.`,
+    h1: 'Le pilote automatique crypto : tu dis combien – il dit quoi acheter',
+    intro: 'La plupart achètent des cryptos quand tout le monde est euphorique et vendent dans la panique. Le pilote automatique fait l’inverse, avec des règles plutôt que l’instinct : plus investi quand le cycle est bon marché, plus de réserve en marché baissier, seulement des cryptos avec un fort score d’achat. Chaque semaine, il vérifie le portefeuille et te montre les quelques étapes à faire.',
+    today: (r, n, d) => `Le portefeuille modèle aujourd’hui (${d}) : ${n} cryptos et ${r} % de réserve.`, coin: 'Crypto', share: 'Part', reserve: 'Réserve (liquidités ou stablecoins)',
+    how: 'Comment ça marche', steps: ['Saisis un montant de départ et, si tu veux, un versement mensuel.', 'Le pilote automatique montre exactement quoi acheter – tu le fais sur ta plateforme.', 'Une fois par semaine, il vérifie le modèle. Si quelque chose change, tu vois les étapes ; sinon, rien à faire.'],
+    btH: 'Backtest', bt: (a, b, c, h) => `Stratégie Équilibrée depuis 2018 : +${a} % par an, depuis 2022 +${b} %, plus forte baisse −${c} %. Garder du Bitcoin : +${h} % par an. Backtest sur des cours passés – l’avenir est généralement moins bon.`,
+    cta: 'Lance le pilote automatique – 30 jours gratuits, sans données de paiement', btn: 'Commencer gratuitement', calc: 'Essayer dans le calculateur',
+    faq: [['Coinweather a-t-il accès à mon argent ?', 'Non. Coinweather ne négocie jamais pour toi et ne se connecte pas à ta plateforme. Tu vois les étapes et tu les exécutes toi-même.'],
+      ['À quelle fréquence le pilote automatique négocie-t-il ?', 'Il vérifie une fois par semaine. Il n’y a des étapes que si le modèle change ses positions ou si tu ajoutes de l’argent – les petits écarts sont ignorés pour économiser des frais.'],
+      ['Est-ce un conseil en investissement ?', 'Non. Le pilote automatique suit des règles fixes et publiées, testées sur des cours passés. Les cryptos peuvent chuter fortement, jusqu’à la perte totale.']] },
+  it: { nav: 'Pilota automatico crypto', path: '/crypto-portfolio-autopilot/',
+    title: 'Pilota automatico per il tuo portafoglio crypto: ti dice cosa comprare – 30 giorni gratis',
+    desc: (r, n) => `Inserisci un importo e il pilota automatico di Coinweather ti dice quali coin comprare e quanta riserva tenere. Oggi: ${n} coin, ${r} % di riserva. Controllato ogni settimana. Operi tu, nessun accesso al tuo denaro.`,
+    h1: 'Il pilota automatico crypto: tu dici quanto – lui dice cosa comprare',
+    intro: 'La maggior parte compra crypto quando tutti sono euforici e vende nel panico. Il pilota automatico fa il contrario, con regole invece che d’istinto: più investito quando il ciclo è conveniente, più riserva nel mercato ribassista, solo coin con un forte punteggio di acquisto. Ogni settimana controlla il portafoglio e ti mostra i pochi passi da fare.',
+    today: (r, n, d) => `Il portafoglio modello oggi (${d}): ${n} coin e ${r} % di riserva.`, coin: 'Coin', share: 'Quota', reserve: 'Riserva (contanti o stablecoin)',
+    how: 'Come funziona', steps: ['Inserisci un importo iniziale e, se vuoi, una rata mensile.', 'Il pilota automatico mostra esattamente cosa comprare – lo fai sul tuo exchange.', 'Una volta a settimana controlla il modello. Se cambia qualcosa vedi i passi; altrimenti niente da fare.'],
+    btH: 'Backtest', bt: (a, b, c, h) => `Strategia Bilanciata dal 2018: +${a} % all’anno, dal 2022 +${b} %, calo massimo −${c} %. Tenere Bitcoin: +${h} % all’anno. Backtest su prezzi passati – il futuro di solito va peggio.`,
+    cta: 'Avvia il pilota automatico – 30 giorni gratis, senza dati di pagamento', btn: 'Inizia gratis', calc: 'Prova nel calcolatore',
+    faq: [['Coinweather ha accesso al mio denaro?', 'No. Coinweather non opera mai per te e non si collega al tuo exchange. Vedi i passi e li esegui tu.'],
+      ['Quanto spesso opera il pilota automatico?', 'Controlla una volta a settimana. I passi compaiono solo quando il modello cambia le sue posizioni o versi denaro – le piccole differenze vengono ignorate per risparmiare commissioni.'],
+      ['È una consulenza finanziaria?', 'No. Il pilota automatico segue regole fisse e pubbliche, testate su prezzi passati. Le crypto possono crollare, fino alla perdita totale.']] },
+  pt: { nav: 'Piloto automático cripto', path: '/crypto-portfolio-autopilot/',
+    title: 'Piloto automático para sua carteira cripto: diz o que comprar – 30 dias grátis',
+    desc: (r, n) => `Informe um valor e o piloto automático do Coinweather diz quais moedas comprar e quanto manter em reserva. Hoje: ${n} moedas, ${r} % de reserva. Verificado toda semana. Você negocia, sem acesso ao seu dinheiro.`,
+    h1: 'O piloto automático cripto: você diz quanto – ele diz o que comprar',
+    intro: 'A maioria compra cripto quando todos estão eufóricos e vende em pânico. O piloto automático faz o contrário, com regras em vez de intuição: mais investido quando o ciclo está barato, mais reserva em mercado de baixa, só moedas com pontuação de compra forte. Toda semana ele verifica a carteira e mostra os poucos passos a dar.',
+    today: (r, n, d) => `A carteira modelo hoje (${d}): ${n} moedas e ${r} % de reserva.`, coin: 'Moeda', share: 'Peso', reserve: 'Reserva (dinheiro ou stablecoins)',
+    how: 'Como funciona', steps: ['Informe um valor inicial e, se quiser, um aporte mensal.', 'O piloto automático mostra exatamente o que comprar – você faz isso na sua corretora.', 'Uma vez por semana ele verifica o modelo. Se algo mudar, você vê os passos; senão, nada a fazer.'],
+    btH: 'Backtest', bt: (a, b, c, h) => `Estratégia Equilibrada desde 2018: +${a} % ao ano, desde 2022 +${b} %, maior queda −${c} %. Manter Bitcoin: +${h} % ao ano. Backtest com preços passados – o futuro costuma ser pior.`,
+    cta: 'Inicie o piloto automático – 30 dias grátis, sem dados de pagamento', btn: 'Começar grátis', calc: 'Testar na calculadora',
+    faq: [['O Coinweather tem acesso ao meu dinheiro?', 'Não. O Coinweather nunca negocia por você e não se conecta à sua corretora. Você vê os passos e os executa.'],
+      ['Com que frequência o piloto automático negocia?', 'Ele verifica uma vez por semana. Só há passos quando o modelo muda suas posições ou você deposita dinheiro – pequenos desvios são ignorados para economizar taxas.'],
+      ['Isso é recomendação de investimento?', 'Não. O piloto automático segue regras fixas e públicas, testadas com preços passados. Cripto pode cair muito, até a perda total.']] },
+  tr: { nav: 'Kripto otomatik pilot', path: '/crypto-portfolio-autopilot/',
+    title: 'Kripto portföyün için otomatik pilot: ne alacağını söyler – 30 gün ücretsiz',
+    desc: (r, n) => `Bir tutar gir; Coinweather otomatik pilotu hangi coinleri alacağını ve ne kadar rezerv tutacağını söyler. Bugün: ${n} coin, % ${r} rezerv. Her hafta kontrol edilir. İşlemi sen yaparsın, paran üzerinde erişim yok.`,
+    h1: 'Kripto otomatik pilot: sen ne kadar dersin – o ne alacağını söyler',
+    intro: 'Çoğu kişi herkes coşkuluyken kripto alır ve panikle satar. Otomatik pilot tersini yapar, sezgi yerine kurallarla: döngü ucuzken daha fazla yatırım, ayı piyasasında daha fazla rezerv, yalnızca güçlü alım skoruna sahip coinler. Her hafta portföyü kontrol eder ve yapılacak birkaç adımı gösterir.',
+    today: (r, n, d) => `Bugünkü model portföy (${d}): ${n} coin ve % ${r} rezerv.`, coin: 'Coin', share: 'Pay', reserve: 'Rezerv (nakit veya stablecoin)',
+    how: 'Nasıl çalışır', steps: ['Bir başlangıç tutarı ve istersen aylık birikim gir.', 'Otomatik pilot tam olarak ne alacağını gösterir – sen borsanda uygularsın.', 'Haftada bir modeli kontrol eder. Bir şey değişirse adımları görürsün; değişmezse yapılacak bir şey yok.'],
+    btH: 'Geriye dönük test', bt: (a, b, c, h) => `2018’den beri Dengeli strateji: yılda +% ${a}, 2022’den beri +% ${b}, en büyük düşüş −% ${c}. Bitcoin tutmak: yılda +% ${h}. Geçmiş fiyatlarla geriye dönük test – gelecek genellikle daha kötü olur.`,
+    cta: 'Otomatik pilotu başlat – 30 gün ücretsiz, ödeme bilgisi yok', btn: 'Ücretsiz başla', calc: 'Hesaplayıcıda dene',
+    faq: [['Coinweather’ın paramla ilgili erişimi var mı?', 'Hayır. Coinweather asla senin yerine işlem yapmaz ve borsana bağlanmaz. Adımları görür ve kendin uygularsın.'],
+      ['Otomatik pilot ne sıklıkla işlem yapar?', 'Haftada bir kontrol eder. Adımlar yalnızca model varlıklarını değiştirdiğinde veya para eklediğinde çıkar – ücretten tasarruf için küçük sapmalar yok sayılır.'],
+      ['Bu yatırım tavsiyesi mi?', 'Hayır. Otomatik pilot, geçmiş fiyatlarla test edilmiş sabit ve açık kuralları izler. Kripto sert düşebilir, tamamen değer kaybına kadar.']] },
+};
+
 const LANG_ORDER = ['en', 'de', 'es', 'fr', 'it', 'pt', 'tr'];
 const prefix = (lang) => (lang === 'en' ? '' : `/${lang}`);
 
@@ -899,7 +1064,7 @@ for (const lang of LANG_ORDER) {
     <div class="panel"><table><tr><th>${L.gain}</th><th class="n">${L.price}</th><th class="n">${L.h24}</th></tr>${rows(movers.slice(0, 5))}</table></div>
     <div class="panel"><table><tr><th>${L.lose}</th><th class="n">${L.price}</th><th class="n">${L.h24}</th></tr>${rows(movers.slice(-5).reverse())}</table></div>
     ${record?.d7 ? `<h2>${L.recH}</h2><p>${L.recPara(new Date(record.since * 86_400_000).toLocaleDateString(locale), pct(record.d7.avg), record.d7.up, record.d7.n, pct(record.d7.btc), isNum(record.d7.mkt) ? pct(record.d7.mkt) : null)}</p>` : ''}
-    <p><a href="${pre}${BQ[lang].path}">${esc(BQ[lang].nav)} →</a> · <a href="${pre}${BE[lang].path}">${esc(BE[lang].nav)} →</a></p>
+    <p><a href="${pre}${BQ[lang].path}">${esc(BQ[lang].nav)} →</a> · <a href="${pre}${BE[lang].path}">${esc(BE[lang].nav)} →</a> · <a href="${pre}${BB[lang].path}">${esc(BB[lang].nav)} →</a> · <a href="${pre}${AP[lang].path}">${esc(AP[lang].nav)} →</a></p>
     ${offer(L.tOffer)}`);
 
   // „Soll ich jetzt Bitcoin kaufen?“ – Kauf-Score mit Bausteinen, Jahresrückblick und FAQ
@@ -951,6 +1116,53 @@ for (const lang of LANG_ORDER) {
         ${efaq.map(([q, a]) => `<h2>${esc(q)}</h2><p>${esc(a)}</p>`).join('')}
         <p><a href="${pre}${Q.path}">${esc(Q.nav)}</a> · <a href="${pre}/coin/ethereum/">Ethereum</a> · <a href="${pre}/crypto-weather-today/">${L.fullRep}</a></p>`,
         `<script type="application/ld+json">${JSON.stringify(eld).replace(/</g, '\\u003c')}</script>`);
+    }
+  }
+
+  // „Best crypto to buy now“: die 10 stärksten Kauf-Scores (wie „Stärkste Kaufsignale“ in der App, ohne Token auf Aktien und Gold)
+  {
+    const B = BB[lang];
+    const best = coins.filter((c) => (c.market_cap_rank ?? 9999) <= 300 && c.total_volume >= 5e6 && c.analysis?.signal && c.analysis.signal !== 'none'
+      && !c.analysis.stable && isNum(c.analysis.score)).sort((a, b) => adjusted(b.analysis) - adjusted(a.analysis)).slice(0, 10);
+    if (best.length >= 5) {
+      const k = (sc) => Math.round(50 + sc / 2);
+      const names = best.map((c) => c.name);
+      const top3 = names.slice(0, 3).join(', ');
+      const faq = B.faq.map(([q, a]) => [q, a(top3)]);
+      const ld = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) };
+      add('bb', B.path, B.title(day), B.desc(market.value, names.slice(0, 5).join(', ')),
+        `<h1>${esc(B.h1)}</h1><p class="muted">${esc(day)}</p><p>${esc(B.intro(market.value, label))}</p>
+        <div class="panel"><table><tr><th>${B.rank}</th><th>${esc(B.coin)}</th><th class="n">${esc(B.score)}</th><th class="n">${esc(B.d7)}</th><th>${esc(B.risk)}</th></tr>
+        ${best.map((c, i) => `<tr><td>${i + 1}</td><td><a href="${pre}/coin/${slug(c.id)}/">${esc(c.name)}</a> <span class="muted">${esc(c.symbol.toUpperCase())}</span></td>
+          <td class="n"><strong>${k(c.analysis.score)}</strong>/100</td><td class="n ${tone(ch(c, '7d'))}">${pct(ch(c, '7d'))}</td><td>${esc(say(c.analysis.risk?.label ?? '–'))}</td></tr>`).join('')}</table></div>
+        <p class="muted">${esc(B.note)}</p>
+        <section class="panel cta"><strong>${esc(B.cta)}</strong><p><a class="btn" href="${app('#/konto')}">${esc(B.btn)}</a> <a class="btn ghost" href="${pre}${AP[lang].path}">${esc(AP[lang].nav)} →</a></p></section>
+        ${faq.map(([q, a]) => `<h2>${esc(q)}</h2><p>${esc(a)}</p>`).join('')}
+        <p><a href="${pre}${BQ[lang].path}">${esc(BQ[lang].nav)}</a> · <a href="${pre}/crypto-weather-today/">${L.fullRep}</a> · <a href="${pre}/coins/">${L.all}</a></p>`,
+        `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`);
+    }
+  }
+
+  // Der Autopilot als eigene Seite: Modell-Portfolio heute (die ersten zwei Coins offen), Ablauf, Rückrechnung, FAQ
+  {
+    const A = AP[lang], t = modelData?.profiles?.balanced;
+    if (t?.holdings?.length) {
+      const nameOf = (sym) => coins.filter((c) => c.symbol.toUpperCase() === sym).sort((a, b) => (a.market_cap_rank ?? 9999) - (b.market_cap_rank ?? 9999))[0]?.name ?? sym;
+      const r = Math.round(t.cash), n = t.holdings.length, asOf = new Date(t.asOf).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
+      const ld = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: A.faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) };
+      const B2 = RESERVE_BACKTEST.balanced;
+      add('ap', A.path, A.title, A.desc(r, n),
+        `<h1>${esc(A.h1)}</h1><p>${esc(A.intro)}</p>
+        <h2>${esc(A.today(r, n, asOf))}</h2>
+        <div class="panel"><table><tr><th>${esc(A.coin)}</th><th class="n">${esc(A.share)}</th></tr>
+          ${t.holdings.map((h, i) => `<tr><td>${i < 2 ? esc(nameOf(h.symbol)) : '🔒'}</td><td class="n">${i < 2 ? `${num(h.share, 1)} %` : '–'}</td></tr>`).join('')}
+          <tr><td>${esc(A.reserve)}</td><td class="n">${num(t.cash, 1)} %</td></tr></table></div>
+        <h2>${esc(A.how)}</h2><ol>${A.steps.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>
+        <h2>${esc(A.btH)}</h2><p>${esc(A.bt(B2.perYear, B2.recent, B2.drawdown, HOLD_BACKTEST.perYear))}</p>
+        <section class="panel cta"><strong>${esc(A.cta)}</strong><p><a class="btn" href="${app('#/konto')}">${esc(A.btn)}</a> <a class="btn ghost" href="${app('#/rechner')}">${esc(A.calc)}</a></p></section>
+        ${A.faq.map(([q, a]) => `<h2>${esc(q)}</h2><p>${esc(a)}</p>`).join('')}
+        <p><a href="${pre}${BB[lang].path}">${esc(BB[lang].nav)}</a> · <a href="${pre}${BQ[lang].path}">${esc(BQ[lang].nav)}</a> · <a href="${pre}/savings-plan/">${SP[lang].nav}</a></p>`,
+        `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`);
     }
   }
 
@@ -1139,7 +1351,7 @@ for (const p of pages) {
 <body><header><div class="wrap"><a class="brand" href="${app()}">☁️ Coinweather</a><a class="btn" href="${app()}">${L.open}</a></div></header>
 <main class="wrap">${p.body}
 <p class="share muted">↗ <a href="https://wa.me/?text=${shareText}%20${share}" rel="noopener" target="_blank">WhatsApp</a><a href="https://t.me/share/url?url=${share}&text=${shareText}" rel="noopener" target="_blank">Telegram</a><a href="https://twitter.com/intent/tweet?url=${share}&text=${shareText}" rel="noopener" target="_blank">X</a><a href="https://www.facebook.com/sharer/sharer.php?u=${share}" rel="noopener" target="_blank">Facebook</a></p></main>
-<footer><div class="wrap"><p><a href="${pre}/crypto-weather-today/">${L.today}</a> · <a href="${pre}${BQ[lang].path}">${esc(BQ[lang].nav)}</a> · <a href="${pre}/fear-and-greed-index/">${esc(L.fngNav)}</a> · <a href="${pre}/coins/">${L.all}</a> · <a href="${pre}/savings-plan/">${SP[lang].nav}</a> · <a href="${pre}/bitcoin-cycle-risk/">${IX[lang].nav}</a> · <a href="${pre}/embed/">${EMB[lang].nav}</a> ·
+<footer><div class="wrap"><p><a href="${pre}/crypto-weather-today/">${L.today}</a> · <a href="${pre}${BQ[lang].path}">${esc(BQ[lang].nav)}</a> · <a href="${pre}${BB[lang].path}">${esc(BB[lang].nav)}</a> · <a href="${pre}${AP[lang].path}">${esc(AP[lang].nav)}</a> · <a href="${pre}/fear-and-greed-index/">${esc(L.fngNav)}</a> · <a href="${pre}/coins/">${L.all}</a> · <a href="${pre}/savings-plan/">${SP[lang].nav}</a> · <a href="${pre}/bitcoin-cycle-risk/">${IX[lang].nav}</a> · <a href="${pre}/embed/">${EMB[lang].nav}</a> ·
 <a href="/?lang=${lang}#/risiko">${L.risk}</a> · <a href="/?lang=${lang}#/impressum">${L.legal}</a> · <a href="/?lang=${lang}#/datenschutz">${L.privacy}</a></p>
 <p class="langs">${twins.map((t) => `<a href="${t.path}" hreflang="${t.lang}"${t.lang === lang ? ' aria-current="page"' : ''}>${LANG_NAME[t.lang]}</a>`).join('')}</p>
 <p class="muted">${L.foot(esc(p.day))} Data: CoinGecko, Binance, Gate.io, alternative.me.</p></div></footer>

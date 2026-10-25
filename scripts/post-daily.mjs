@@ -159,7 +159,20 @@ const R = {
   cycle: market.cycle ? `${T.cycle}: ${T.zone[market.cycle.zone] ?? market.cycle.label}` : null,
   signals: T.signals(buys, rated),
 };
-const body = [`${T.weather}: ${R.sky}`, R.index, R.fng, R.btc, R.signals].filter(Boolean);
+// Autopilot: Hat das Modell-Portfolio heute gehandelt, sagt der Beitrag es – das ist die Erinnerung für alle, die ihm folgen.
+// Welche Coins, steht nur in der App.
+const autoLine = await (async () => {
+  try {
+    const c = await (await fetch(`${SITE}data/model-curve.json?t=${Date.now()}`)).json();
+    const today = Math.floor(snap.time / 86_400_000) * 86_400_000;
+    const done = (c.profiles?.balanced?.trades ?? c.trades ?? []).filter((x) => x.t >= today);
+    if (!done.length || env.EDITION === 'evening') return null;
+    const buys = done.filter((x) => ['buy', 'add', 'swap-in'].includes(x.type)).length, sells = done.length - buys;
+    return lang === 'de' ? `🤖 Autopilot: Das Modell hat heute umgeschichtet (${buys} Käufe, ${sells} Verkäufe) – deine Schritte stehen in der App.`
+      : `🤖 Autopilot: the model rebalanced today (${buys} buys, ${sells} sells) – your steps are waiting in the app.`;
+  } catch { return null; }
+})();
+const body = [`${T.weather}: ${R.sky}`, R.index, R.fng, R.btc, R.signals, autoLine].filter(Boolean);
 
 // Größte Bewegungen der 100 größten Coins in 24 Stunden – Beobachtungen, keine Empfehlungen; Stablecoins zählen nicht
 const movers = coins.filter((c) => c.market_cap_rank <= 100 && c.analysis?.signal !== 'none' && !c.analysis?.stable
@@ -212,7 +225,7 @@ const fngShort = fng ? `${T.fng}: ${fng.value} – ${mood(fng.value)}` : null;
 // noLink: X verlangt für Beiträge mit Link ein Vielfaches – dort steht der Link im Profil
 const short = (channel, limit, noLink = false) => {
   const nfa = lang === 'de' ? 'Keine Anlageberatung.' : 'Not financial advice.';
-  const make = (withAsk, withTags) => [`${R.icon} ${hook}`, '', R.index, fngShort, R.btc, ...(withAsk ? ['', ask] : []), '',
+  const make = (withAsk, withTags) => [`${R.icon} ${hook}`, '', R.index, fngShort, R.btc, autoLine, ...(withAsk ? ['', ask] : []), '',
     noLink ? `${T.cta} – ${T.bio} 🔗` : `${T.cta}: ${link(channel)}`, withTags ? `${nfa} ${H.tagsShort}` : nfa].filter((l) => l !== null).join('\n');
   // Bluesky zählt Schriftzeichen (Grapheme), den Link in voller Länge
   const size = (t) => [...new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(t)].length;
@@ -301,6 +314,7 @@ function rich(channel, reel = false) {
     btcLine,
     `🎯 ${M.signals(buys, rated)}`,
     compassLine,
+    ...(autoLine ? ['', autoLine] : []),
     ...(evening ? ['', ...moves] : moves),
     ...(odds ? ['', odds] : []),
     ...(reel ? [] : ['', M.more[channel]]),

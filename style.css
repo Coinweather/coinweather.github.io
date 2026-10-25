@@ -128,7 +128,7 @@ nav #nav-account:not(.signed-in) { background: linear-gradient(135deg, var(--acc
 .card .muted { font-size: 12.5px; min-height: 1.2em; }
 
 .controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 36px 0 14px; }
-#search, .form input, .form select, .start-row input, .admin-tools input, .admin-tools select {
+#search, .form input, .form select, .start-row input, .ap-form input, .setup-card input[inputmode], .admin-tools input, .admin-tools select {
   background: var(--panel); color: var(--text);
   border: 1px solid var(--line-strong); border-radius: 12px;
   padding: 11px 14px; font: inherit; min-width: 0; width: 100%; transition: border-color .15s, box-shadow .15s;
@@ -870,3 +870,19 @@ details.d-fold > summary { font-size: 15px; letter-spacing: 0; text-transform: n
   .mode-switch { display: flex; }
   .mode-switch button { flex: 1; padding: 9px 8px; }
 }
+
+/* ---------- Autopilot auf der Startseite und im Menü ---------- */
+.ap-teaser { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+.ap-head { display: flex; gap: 14px; align-items: flex-start; }
+.ap-head h2 { margin: 2px 0 6px; font-size: clamp(19px, 2.6vw, 24px); }
+.ap-head p { margin: 0; }
+.ap-icon { font-size: 34px; line-height: 1; }
+.ap-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin: 14px 0 8px; }
+.ap-form label { display: grid; gap: 4px; font-size: 14px; font-weight: 600; }
+.ap-form input { width: 160px; }
+.ap-list { list-style: none; padding: 0; margin: 8px 0 12px; display: grid; gap: 6px; max-width: 560px; }
+.ap-list li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 12px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); }
+.ap-list .ap-locked { color: var(--muted); border-style: dashed; }
+.ap-list .ap-reserve { background: none; }
+.ap-mine { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0 0; }
+.nav-badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: var(--accent); color: #111; font-size: 11px; font-weight: 800; vertical-align: 1px; }
