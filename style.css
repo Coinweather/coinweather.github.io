@@ -902,3 +902,12 @@ details.d-fold > summary { font-size: 15px; letter-spacing: 0; text-transform: n
 .coin-ap { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .coin-ap > div { flex: 1 1 260px; }
 .coin-ap p { margin: 4px 0; }
+
+@media (max-width: 560px) {
+  .ap-head p.muted { display: none; }
+  .ap-icon { font-size: 26px; }
+  .ap-list li { padding: 6px 10px; }
+  .ap-teaser .share-row { display: none; }
+  .ap-teaser .btn-row { flex-direction: column; align-items: stretch; }
+  .ap-teaser .btn-row .btn { text-align: center; flex: none; }
+}

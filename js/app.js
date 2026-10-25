@@ -878,12 +878,12 @@ function marketView(preview = false) {
   view.innerHTML = `
     <section class="panel weather" id="weather"></section>
     <section class="panel onboard" id="onboard" hidden></section>
+    <section class="panel ap-teaser" id="ap-teaser" hidden></section>
     <section class="buy-hero">
       <div class="panel buy-card" id="g-market"></div>
       <div class="panel buy-parts" id="buy-parts"></div>
     </section>
     <section class="panel todo-box" id="todo"></section>
-    <section class="panel ap-teaser" id="ap-teaser" hidden></section>
     <nav class="jump" aria-label="Auf dieser Seite"><span class="label">Auf dieser Seite</span>
       <a href="#" data-jump="#picks-sec">Kaufsignale</a><a href="#" data-jump="#cycle">12 Monate</a><a href="#" data-jump=".heat-wrap">Heatmap</a><a href="#" data-jump=".controls">Alle Coins</a></nav>
     ${preview ? previewCta('Die Großwetterlage siehst du hier frei. Welche Coins gerade ein Kaufsignal haben, zeigt dein kostenloses Konto.',
