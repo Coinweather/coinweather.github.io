@@ -1,10 +1,11 @@
 // Prüft die Wörterbücher in js/lang/: Jede Sprache braucht dieselben Einträge wie die englische Datei,
 // und eine Übersetzung darf nicht mehr Zahlen oder Namen einsetzen, als der deutsche Text hergibt.
+// Außerdem muss jeder Schlüssel schon in der Grundform stehen (Zahlen als #, ohne Satzzeichen am Rand) – sonst passt er nie.
 //
 // Aufruf: node scripts/lang-check.mjs
 
 import { readdir } from 'node:fs/promises';
-import { LANGS } from '../js/i18n.js';
+import { LANGS, NUMBER, shape, tidy } from '../js/i18n.js';
 
 const dir = new URL('../js/lang/', import.meta.url);
 const files = (await readdir(dir)).filter((f) => f.endsWith('.js'));
@@ -27,6 +28,12 @@ for (const [lang, dict] of Object.entries(dicts)) {
     if (count(value, /\{\*\d?\}/g) !== count(key, /\{\*\}/g)) report(`${lang}: Namen ({*}) passen nicht – „${key}“`);
   }
   console.log(`${lang}: ${Object.keys(dict).length} Einträge`);
+}
+for (const key of base) {
+  const [lead, , trail] = shape(key);
+  const why = tidy(key) !== key ? 'Leerraum' : key.replace(NUMBER, '#') !== key ? 'Zahl statt #'
+    : lead || (trail && !trail.includes('{*}')) ? `Satzzeichen am Rand („${lead}“ / „${trail}“)` : null;
+  if (why) report(`Schlüssel passt nie (${why}): „${key}“`);
 }
 console.log(problems ? `${problems} Auffälligkeiten` : 'Alles vollständig.');
 process.exitCode = problems ? 1 : 0;
