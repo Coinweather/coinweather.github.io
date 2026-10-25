@@ -1136,7 +1136,7 @@ for (const lang of LANG_ORDER) {
         ${best.map((c, i) => `<tr><td>${i + 1}</td><td><a href="${pre}/coin/${slug(c.id)}/">${esc(c.name)}</a> <span class="muted">${esc(c.symbol.toUpperCase())}</span></td>
           <td class="n"><strong>${k(c.analysis.score)}</strong>/100</td><td class="n ${tone(ch(c, '7d'))}">${pct(ch(c, '7d'))}</td><td>${esc(say(c.analysis.risk?.label ?? '–'))}</td></tr>`).join('')}</table></div>
         <p class="muted">${esc(B.note)}</p>
-        <section class="panel cta"><strong>${esc(B.cta)}</strong><p><a class="btn" href="${app('#/konto')}">${esc(B.btn)}</a> <a class="btn ghost" href="${pre}${AP[lang].path}">${esc(AP[lang].nav)} →</a></p></section>
+        <section class="panel cta"><strong>${esc(B.cta)}</strong><p><a class="btn" href="${app('#/konto?next=portfolio')}">${esc(B.btn)}</a> <a class="btn ghost" href="${pre}${AP[lang].path}">${esc(AP[lang].nav)} →</a></p></section>
         ${faq.map(([q, a]) => `<h2>${esc(q)}</h2><p>${esc(a)}</p>`).join('')}
         <p><a href="${pre}${BQ[lang].path}">${esc(BQ[lang].nav)}</a> · <a href="${pre}/crypto-weather-today/">${L.fullRep}</a> · <a href="${pre}/coins/">${L.all}</a></p>`,
         `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`);
@@ -1160,7 +1160,7 @@ for (const lang of LANG_ORDER) {
         ${record?.ap?.days ? `<p><strong>${esc(A.live(new Date(record.ap.since * 86_400_000).toLocaleDateString(locale), pct(record.ap.nav - 100), pct(record.ap.btc - 100)))}</strong></p>` : ''}
         <h2>${esc(A.how)}</h2><ol>${A.steps.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>
         <h2>${esc(A.btH)}</h2><p>${esc(A.bt(B2.perYear, B2.recent, B2.drawdown, HOLD_BACKTEST.perYear))}</p>
-        <section class="panel cta"><strong>${esc(A.cta)}</strong><p><a class="btn" href="${app('#/konto')}">${esc(A.btn)}</a> <a class="btn ghost" href="${app('#/rechner')}">${esc(A.calc)}</a></p></section>
+        <section class="panel cta"><strong>${esc(A.cta)}</strong><p><a class="btn" href="${app('#/konto?next=portfolio')}">${esc(A.btn)}</a> <a class="btn ghost" href="${app('#/rechner')}">${esc(A.calc)}</a></p></section>
         ${A.faq.map(([q, a]) => `<h2>${esc(q)}</h2><p>${esc(a)}</p>`).join('')}
         <p><a href="${pre}${BB[lang].path}">${esc(BB[lang].nav)}</a> · <a href="${pre}${BQ[lang].path}">${esc(BQ[lang].nav)}</a> · <a href="${pre}/savings-plan/">${SP[lang].nav}</a></p>`,
         `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`);

@@ -831,6 +831,29 @@ function coinCompass(c) {
   </section>`;
 }
 
+// Coin und Autopilot: Rang nach Kauf-Score unter den großen Coins und ob das Modell-Portfolio ihn hält (Bestand nur mit Paket)
+async function coinAutopilot(c, el) {
+  if (!el || !c || c.analysis?.signal === 'none' || c.analysis?.stable) { if (el) el.innerHTML = ''; return; }
+  const pool = state.coins.filter((x) => (x.market_cap_rank ?? 9999) <= 300 && x.total_volume >= 5e6 && x.analysis?.signal && x.analysis.signal !== 'none'
+    && !x.analysis.stable && !DERIVATIVE.test(x.name) && isNum(x.analysis.score)).sort((a, b) => adjusted(b.analysis) - adjusted(a.analysis));
+  const rank = pool.findIndex((x) => x.id === c.id) + 1;
+  const curve = await loadModelCurve();
+  if (!el.isConnected) return;
+  const t = modelProfile(curve);
+  const full = fullAccess();
+  const h = t?.holdings?.find((x) => modelCoin(x.symbol)?.id === c.id);
+  // Ganze Sätze ohne Auszeichnung darin – so übersetzt die Seite sie in einem Stück
+  const name = esc(c.name);
+  const status = !t ? '' : !full ? `Ob der Autopilot ${name} gerade hält, siehst du mit einem kostenlosen Konto.`
+    : h ? `Der Autopilot hält gerade ${num(h.share, 1)} % in ${name} (Strategie Ausgewogen, Stand ${dateText(new Date(t.asOf))}).`
+      : `Der Autopilot hält ${name} gerade nicht. Er kauft nur die stärksten Kauf-Scores unter den Top 200 und höchstens 8 Coins.`;
+  el.innerHTML = `<section class="panel coin-ap"><span class="ap-icon" aria-hidden="true">🤖</span><div>
+      <div class="label">Autopilot</div>
+      ${rank ? `<p><strong>Rang ${rank}</strong> von ${pool.length} nach Kauf-Score (große Coins mit genug Handelsvolumen, riskantere abgewertet).</p>` : ''}
+      ${status ? `<p>${status}</p>` : ''}</div>
+      <a class="btn ghost small" href="${full ? '#/portfolio' : depot.user ? '#/preise' : '#/konto'}" ${full ? '' : 'data-next="#/portfolio"'}>${full ? 'Zum Autopiloten' : 'Autopilot ansehen'}</a></section>`;
+}
+
 // Detailansicht eines Coins ohne Konto: Hinweis auf das kostenlose Konto, darunter das Angebot
 function lockedCoinView(id) {
   view.innerHTML = '<div id="locked-head"></div><div id="locked-compass"></div><div id="locked-sales"></div>';
@@ -1342,6 +1365,7 @@ function detailView(id) {
     <a class="back" href="#/">← Zurück zur Übersicht</a>
     <div id="d-head"></div>
     <div id="d-compass"></div>
+    <div id="d-auto"></div>
     <section class="panel">
       <div class="panel-top"><h2>Kursverlauf</h2>
         <div class="chips" id="ranges">${Object.keys(RANGES).map((r) => `<button class="chip ${r === d.range ? 'active' : ''}" data-range="${r}">${i18n.span(r)}</button>`).join('')}</div></div>
@@ -1635,7 +1659,7 @@ function detailView(id) {
     head(c, a);
     // Kompass nur neu zeichnen, wenn sich der Kauf-Score ändert – sonst klappt die Aufschlüsselung bei jedem Kurs-Update zu
     const ck = `${state.market?.value}|${a.signal}`;
-    if (d.compassKey !== ck) { d.compassKey = ck; $('#d-compass').innerHTML = coinCompass(c); }
+    if (d.compassKey !== ck) { d.compassKey = ck; $('#d-compass').innerHTML = coinCompass(c); coinAutopilot(c, $('#d-auto')); }
     forecast(c, a); news(a); stats(c);
   }
 
@@ -2023,6 +2047,7 @@ function accountView(gate = false) {
   const key = () => (!depot.ready ? 'wait' : depot.user?.uid ?? (auth.available ? 'out' : 'off'));
   const BENEFITS = `<ul class="benefits">
       <li><div><strong>Dein Portfolio, überall</strong><span>Im Konto gespeichert und auf jedem Gerät abrufbar.</span></div></li>
+      <li><div><strong>Autopilot</strong><span>Betrag eingeben – er sagt dir, was du kaufst, und zeigt jede Woche, ob etwas zu tun ist. Live mitgemessen.</span></div></li>
       <li><div><strong>Modell-Schritte für deinen Bestand</strong><span>Der Portfolio-Manager rechnet nach festen, geprüften Regeln aus, was das Modell für deinen Bestand vorsieht – mit Begründung, Gebühr und Zeitrahmen. Die Entscheidung triffst du.</span></div></li>
       <li><div><strong>Warnung bei fallenden Kursen</strong><span>Verkaufssignal, sobald ein Coin deutlich unter sein Hoch fällt oder der Markt dreht.</span></div></li>
       <li><div><strong>Wertentwicklung im Blick</strong><span>Diagramm deines Portfolios mit Gewinn, Einzahlungen und Vergleich zu Bitcoin.</span></div></li>
@@ -2116,7 +2141,10 @@ function accountView(gate = false) {
     update();
     try {
       await fn();
-      if (toPortfolio) location.hash = gate ? '#/portfolio' : '#/';
+      if (toPortfolio) {
+        const next = nextAfterLogin();
+        location.hash = next ?? (gate ? '#/portfolio' : '#/');
+      }
     } catch (err) { message = err.message; }
     busy = false;
     if (current === self) update();
@@ -2134,6 +2162,19 @@ function accountView(gate = false) {
   const self = { update };
   return self;
 }
+
+// Ziel nach der Anmeldung: aus der Adresse (#/konto?next=portfolio/auto) oder vom zuletzt geklickten Knopf mit data-next
+const NEXT_KEY = 'coinwetter-weiter';
+function nextAfterLogin() {
+  const fromHash = new URLSearchParams(location.hash.split('?')[1] ?? '').get('next');
+  let stored = null; try { stored = sessionStorage.getItem(NEXT_KEY); sessionStorage.removeItem(NEXT_KEY); } catch { /* ohne Speicher */ }
+  const next = fromHash ? `#/${fromHash.replace(/^#?\/?/, '')}` : stored;
+  return next && /^#\/[\w/?=&.,@%-]*$/.test(next) ? next : null;
+}
+document.addEventListener('click', (e) => {
+  const next = e.target.closest('[data-next]')?.dataset.next;
+  if (next) try { sessionStorage.setItem(NEXT_KEY, next); } catch { /* dann eben zur Startseite */ }
+});
 
 // ---------- Autopilot: gemeinsame Teile für Startseite, Menü und Portfolio ----------
 
@@ -2208,7 +2249,7 @@ async function autopilotTeaser(el) {
       ${full ? '' : buys.length > 1 ? `<li class="ap-locked"><span>🔒 ${buys.length - 1} weitere Coins</span><span class="muted">mit kostenlosem Konto</span></li>` : ''}
       <li class="ap-reserve"><span>Reserve (Bargeld oder Stablecoins)</span><strong>${money(f.reserve * f.reserveShare)}</strong></li></ul>
     <div class="btn-row">${full ? `<a class="btn" href="#/portfolio/auto?b=${Math.round(fromDisplay(apAmount) * 100) / 100}&m=once">Mit diesem Betrag starten</a>`
-      : `<a class="btn" href="${depot.user ? '#/preise' : '#/konto'}">${depot.user ? 'Pakete ansehen' : 'Kostenlos starten – 30 Tage alle Funktionen'}</a>`}
+      : `<a class="btn" href="${depot.user ? '#/preise' : '#/konto'}" data-next="#/portfolio/auto?b=${Math.round(fromDisplay(apAmount) * 100) / 100}&m=once">${depot.user ? 'Pakete ansehen' : 'Kostenlos starten – 30 Tage alle Funktionen'}</a>`}
       <a class="btn ghost" href="#/rechner">So wäre es gelaufen</a></div>
     <p class="share-row hint">${shareLinks(`${location.origin}${i18n.prefs.lang === 'en' ? '' : `/${i18n.prefs.lang}`}/crypto-portfolio-autopilot/?von=share-ap`,
       i18n.say('Sag, wie viel du anlegen willst – der Autopilot sagt dir, was du kaufst.'), 'Teilen')}</p>
@@ -2237,6 +2278,8 @@ const ADVICE_STALE_MS = 30 * 60_000;
 
 const PERF_RANGES = { '30T': 30, '90T': 90, '1J': 365, 'Seit Beginn': null };
 // Autopilot: Monat als „2026-10“ und die Sparrate in US-Dollar zum heutigen Wechselkurs
+const NOTIFY_KEY = 'coinwetter-autopilot-melden';
+const notifyOn = () => { try { return localStorage.getItem(NOTIFY_KEY) === '1' && 'Notification' in window && Notification.permission === 'granted'; } catch { return false; } };
 const monthKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 const monthlyUsd = (m) => (m ? m.amount / (i18n.rateOf(m.currency) || 1) : 0);
 
@@ -2965,6 +3008,27 @@ function portfolioView(arg = '') {
     logPanel();
   }
 
+  // ----- Benachrichtigung, wenn der Autopilot handelt (sw.js prüft im Hintergrund, sofern der Browser das kann) -----
+  async function rememberSeen(t) {
+    const cache = await caches.open('coinweather-state');
+    await cache.put('/__autopilot-seen', new Response(JSON.stringify({ profile: depot.data.reserveMode, last: t?.trades?.[0]?.t ?? 0,
+      title: i18n.say('Coinweather Autopilot'), body: i18n.say('Das Modell hat gehandelt – deine Schritte stehen in der App.') })));
+  }
+  async function enableNotify() {
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('caches' in window)) return say('Dein Browser kann keine Benachrichtigungen zeigen. Trag dir den Prüftag in den Kalender ein.');
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return say('Benachrichtigungen sind nicht erlaubt. Du kannst sie in den Einstellungen deines Browsers freigeben – oder den Prüftag in den Kalender eintragen.');
+    await rememberSeen(modelTarget());
+    try { localStorage.setItem(NOTIFY_KEY, '1'); } catch { /* nur für jetzt */ }
+    let periodic = false;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg.periodicSync) { await reg.periodicSync.register('autopilot', { minInterval: 12 * 3_600_000 }); periodic = true; }
+    } catch { /* nur in installierten Apps erlaubt */ }
+    say(periodic ? 'Eingeschaltet. Hat der Autopilot gehandelt, meldet sich Coinweather – solange die App auf diesem Gerät installiert ist.'
+      : 'Erlaubt – aber dein Browser prüft nicht selbst im Hintergrund. Installiere Coinweather als App (Chrome, Android) oder trag dir den Prüftag in den Kalender ein.');
+  }
+
   // ----- Autopilot: dem Modell-Portfolio der gewählten Strategie folgen -----
   const modelTarget = () => {
     const key = depot.data.reserveMode;
@@ -3018,7 +3082,8 @@ function portfolioView(arg = '') {
       <div class="panel-top"><div><div class="label">🤖 Autopilot · Strategie ${esc(label)}</div>
         <h2>${f.moves.length ? `${f.moves.length} ${f.moves.length === 1 ? 'Schritt' : 'Schritte'} zu tun` : due ? 'Sparrate fällig' : 'Alles erledigt'}</h2>
         <div class="muted">Folgt dem Modell-Portfolio · Stand ${dateText(new Date(t.asOf))} · nächste Prüfung ${new Date(t.next).toLocaleDateString(settings.locale, { weekday: 'long' })}, ${dateText(new Date(t.next))}</div></div>
-        <div class="btn-row">${infoBtn('autopilot', 'So arbeitet der Autopilot')}<button type="button" class="info-btn" data-ics><span aria-hidden="true">📅</span>Prüftag in den Kalender</button></div></div>
+        <div class="btn-row">${infoBtn('autopilot', 'So arbeitet der Autopilot')}<button type="button" class="info-btn" data-ics><span aria-hidden="true">📅</span>Prüftag in den Kalender</button>
+          <button type="button" class="info-btn" data-notify><span aria-hidden="true">🔔</span>${notifyOn() ? 'Benachrichtigung ist an' : 'Benachrichtigen, wenn er handelt'}</button></div></div>
       ${due ? `<div class="deposit-due"><span aria-hidden="true">📅</span><div><strong>Sparrate für ${new Date().toLocaleDateString(settings.locale, { month: 'long' })}: ${money(monthlyUsd(a.monthly))}</strong>
           <div class="muted">Zahl sie bei deiner Börse ein und trag sie hier ein – dann zeigt der Autopilot, was du davon kaufst.</div></div>
           <div class="btn-row"><button class="btn small" type="button" data-deposit="yes">Eingezahlt</button><button class="btn ghost small" type="button" data-deposit="skip">Diesen Monat nicht</button></div></div>` : ''}
@@ -3040,10 +3105,12 @@ function portfolioView(arg = '') {
     </section>`;
     // Die Übersicht oben braucht es hier nicht – der Autopilot steht selbst ganz oben
     $('#p-next').hidden = true;
+    if (notifyOn()) rememberSeen(t).catch(() => {});
   }
 
   // Schritte des Autopiloten eintragen: einzeln oder alle (erst Verkäufe, dann Käufe); dazu die Sparrate
   $('#p-auto').addEventListener('click', (e) => {
+    if (e.target.closest('[data-notify]')) { enableNotify().catch((err) => say(err.message)); return; }
     // Wöchentlicher Termin am Prüftag (9 Uhr Ortszeit) als Kalenderdatei – die Erinnerung, ohne dass Coinweather etwas speichert
     if (e.target.closest('[data-ics]')) {
       const t = modelTarget();
@@ -3629,7 +3696,7 @@ function challengeView() {
       </section>
       <section class="panel upsell"><div><h3>Lieber gleich mit dem Autopiloten?</h3>
         <p class="muted">Du sagst, wie viel du anlegen willst – der Autopilot sagt dir, was du kaufst. 30 Tage kostenlos, ohne Zahlungsdaten.</p></div>
-        <div class="btn-row"><a class="btn" href="${depot.user ? '#/portfolio' : '#/konto'}">${depot.user ? 'Autopilot starten' : 'Kostenlos starten'}</a></div></section>`;
+        <div class="btn-row"><a class="btn" href="${depot.user ? '#/portfolio' : '#/konto'}" data-next="#/portfolio">${depot.user ? 'Autopilot starten' : 'Kostenlos starten'}</a></div></section>`;
   }
   let filled = false;
   return { update() {
