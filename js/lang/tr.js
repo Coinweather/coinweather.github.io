@@ -1974,4 +1974,6 @@ export default {
   "Kompass": "Pusula",
   "Die Aufzeichnung beginnt heute – ab morgen siehst du hier, wie sich dein Portfolio entwickelt": "Kayıt bugün başlıyor – yarından itibaren portföyünün gelişimini burada görürsün",
   "Ein- und auszahlen": "Yatır ve çek",
+  "Lade alle Kurse und prüfe die Muster …": "Tüm fiyatlar yükleniyor ve kalıplar kontrol ediliyor …",
+  "Lade alle Kurse …": "Tüm fiyatlar yükleniyor …",
 };

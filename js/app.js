@@ -45,6 +45,8 @@ const state = {
   showNone: false,      // Stablecoins und Token auf Aktien, Gold & Co. (ohne Signal) in der Liste zeigen
   gen: 0, nextPage: 1, pagesLoaded: 0, updated: null,
 };
+// Alle Coins da? Die schnelle erste Datei vom Server enthält nur die 150 größten – pagesLoaded zählt sie schon als vollständig.
+const allLoaded = () => state.pagesLoaded >= api.PAGES && (state.server ? !!state.full : state.refineDone);
 
 // Wörterbuch der gewählten Sprache laden; ab hier wird alles übersetzt, was auf der Seite erscheint
 await i18n.ready;
@@ -1610,7 +1612,7 @@ function detailView(id) {
   function update() {
     const c = state.byId.get(id);
     if (!c) {
-      $('#d-head').innerHTML = `<section class="panel"><p class="muted">${state.pagesLoaded >= api.PAGES
+      $('#d-head').innerHTML = `<section class="panel"><p class="muted">${allLoaded()
         ? 'Dieser Coin gehört aktuell nicht zu den Top 1000.' : 'Lade Kurse …'}</p></section>`;
       return;
     }
@@ -1965,8 +1967,8 @@ function tradingView() {
     const list = state.coins.filter((c) => c.analysis.trade?.kind && liquid(c))
       .sort((a, b) => (a.analysis.trade.kind === b.analysis.trade.kind ? (b.analysis.trendScore ?? b.analysis.score) - (a.analysis.trendScore ?? a.analysis.score) : a.analysis.trade.kind === 'selloff' ? -1 : 1));
     const regime = state.market?.regime;
-    const why = !state.coins.length ? 'Lade Kurse …'
-      : regime?.bear ? 'Im Bärenmarkt entfallen beide Muster: Ausverkäufe gingen dort öfter weiter, und der Score erreicht die Schwelle nicht.'
+    const loading = !allLoaded();
+    const why = regime?.bear ? 'Im Bärenmarkt entfallen beide Muster: Ausverkäufe gingen dort öfter weiter, und der Score erreicht die Schwelle nicht.'
         : greedZone(regime) ? 'Die Gier-Bremse ist aktiv (Fear & Greed im 7-Tage-Schnitt über 75) – der Trend-Score der Altcoins ist gedeckelt und erreicht die Schwelle nicht.'
           : 'Kein Coin erfüllt im Moment eines der beiden geprüften Muster. Lieber kein Handel als ein unbegründeter.';
     $('#t-long').innerHTML = '<h2>Long – auf steigende Kurse</h2>' + (list.length ? `<div class="trades">${list.map((c) => {
@@ -1987,7 +1989,8 @@ function tradingView() {
         <p class="trade-size">${sizeText(t, lev)}</p>
         <p class="hint">Rückblick: ${s.hit} % der Handel im Plus, im Mittel ${signed(s.avg, 1)} % nach Gebühren. ${esc(s.caveat)}</p>
       </div>`; }).join('')}</div>`
-      : `<div class="panel"><p><strong>Heute kein Long-Vorschlag.</strong></p><p class="muted">${why}</p></div>`);
+      : loading ? '<div class="panel"><p class="muted">Lade alle Kurse und prüfe die Muster …</p></div>'
+        : `<div class="panel"><p><strong>Heute kein Long-Vorschlag.</strong></p><p class="muted">${why}</p></div>`);
 
     $('#t-short').innerHTML = `<h2>Short – auf fallende Kurse</h2><div class="panel"><p><strong>Kein Short-Vorschlag.</strong>
       Über 20 Short-Muster geprüft – keines lag in allen vier Zeitabschnitten seit 2018 im Plus.</p>${infoBtn('short', 'Geprüfte Muster und Ergebnisse')}</div>`;
@@ -2003,9 +2006,11 @@ function tradingView() {
       const best = [blocked, drop, strong].filter(Boolean).sort((x, y) => x.gap - y.gap)[0];
       return best ? { c, ...best } : null;
     }).filter(Boolean).sort((x, y) => x.gap - y.gap).slice(0, 8);
-    $('#t-watch').innerHTML = '<h2>Beobachtungsliste</h2><p class="hint">Noch kein Signal – diese Coins sind einem Muster am nächsten.</p>' + (near.length
+    $('#t-watch').innerHTML = '<h2>Beobachtungsliste</h2><p class="hint">Noch kein Signal – diese Coins sind einem Muster am nächsten.</p>' + (loading && !near.length
+      ? '<div class="panel"><p class="muted">Lade alle Kurse …</p></div>'
+      : near.length
       ? `<div class="table-wrap"><table><thead><tr><th class="col-coin">Coin</th><th class="num">Kurs</th><th class="num">24 h</th><th>Stand</th></tr></thead>
-          <tbody>${near.map(({ c, text }) => `<tr><td class="col-coin">${coinCell(c)}</td><td class="num">${money(c.current_price)}</td>
+          <tbody>${near.map(({ c, text }) => `<tr><td class="col-coin">${coinCell(c)}<div class="watch-note">${esc(text)}</div></td><td class="num">${money(c.current_price)}</td>
             <td class="num">${pct(c.price_change_percentage_24h_in_currency)}</td><td>${esc(text)}</td></tr>`).join('')}</tbody></table></div>`
       : '<div class="panel"><p class="muted">Im Moment ist kein Coin in der Nähe eines Musters.</p></div>');
 
@@ -2944,7 +2949,7 @@ function portfolioView(arg = '') {
     const cash = depot.data.cash;
     const total = rows.reduce((s, r) => s + (r.value ?? 0), 0) + cash;
     // Bestehende Portfolios: Die Aufzeichnung für die Wertentwicklung beginnt mit dem heutigen Bestand
-    if (!depot.data.track.states.length && total > 0 && state.pagesLoaded >= api.PAGES && !trackStarted) { trackStarted = true; return saveDepot(depot.data); }
+    if (!depot.data.track.states.length && total > 0 && allLoaded() && !trackStarted) { trackStarted = true; return saveDepot(depot.data); }
     const stableValue = rows.filter((r) => r.c?.analysis.stable).reduce((s, r) => s + r.value, 0);
     const priced = rows.filter((r) => r.gain !== null);
     const paid = priced.reduce((s, r) => s + r.paid, 0);
@@ -2963,7 +2968,7 @@ function portfolioView(arg = '') {
       const a = c?.analysis;
       const name = c ? `<a class="coin-cell" href="#/coin/${encodeURIComponent(c.id)}"><img src="${esc(c.image)}" alt="" loading="lazy">
           <div><div class="coin-name">${esc(c.name)}</div><div class="coin-sym">${esc(c.symbol)}</div></div></a>`
-        : `<div><div class="coin-name">${esc(pos.name || pos.symbol)}</div><div class="coin-sym">${state.pagesLoaded < api.PAGES ? 'wird geladen …' : 'nicht in den Top 1000'}</div></div>`;
+        : `<div><div class="coin-name">${esc(pos.name || pos.symbol)}</div><div class="coin-sym">${allLoaded() ? 'nicht in den Top 1000' : 'wird geladen …'}</div></div>`;
       return `<tr>
         <td class="col-coin">${name}</td>
         <td class="num">${pos.amount.toLocaleString(settings.locale, { maximumFractionDigits: pos.amount >= 1000 ? 2 : pos.amount >= 1 ? 4 : 8 })}</td>
@@ -3197,7 +3202,7 @@ function portfolioView(arg = '') {
     const el = $('#p-manager');
     if (!(total > 0)) { advice = null; el.innerHTML = ''; return; }
     // Vorschläge erst zeigen, wenn alle Kurse und Bewertungen geladen sind – vorher würden sie sich ständig ändern
-    const ready = state.pagesLoaded >= api.PAGES && state.refineDone && !!state.market;
+    const ready = allLoaded() && state.refineDone && !!state.market;
     const key = JSON.stringify([depot.data.positions.map((p) => [pf.keyOf(p), p.amount, p.cost]), depot.data.cash, depot.data.reservePct, depot.data.reserveMode, modelCash()]);
     const mc = modelCash(), label = RESERVE_MODES[depot.data.reserveMode].label;
 

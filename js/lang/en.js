@@ -1964,4 +1964,6 @@ export default {
   "Kompass": "Compass",
   "Die Aufzeichnung beginnt heute – ab morgen siehst du hier, wie sich dein Portfolio entwickelt": "Tracking starts today – from tomorrow you’ll see here how your portfolio develops",
   "Ein- und auszahlen": "Deposit and withdraw",
+  "Lade alle Kurse und prüfe die Muster …": "Loading all prices and checking the patterns …",
+  "Lade alle Kurse …": "Loading all prices …",
 };

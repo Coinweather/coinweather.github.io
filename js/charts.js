@@ -30,7 +30,7 @@ function baseOptions(L, th, { hourly = false } = {}) {
       panes: { separatorColor: th.line, separatorHoverColor: alpha(th.accent, 0.3) } },
     grid: { vertLines: { color: alpha(th.line, 0.55) }, horzLines: { color: alpha(th.line, 0.55) } },
     rightPriceScale: { borderColor: th.line },
-    timeScale: { borderColor: th.line, timeVisible: hourly, secondsVisible: false, rightOffset: 4 },
+    timeScale: { borderColor: th.line, timeVisible: hourly, secondsVisible: false, rightOffset: 4, minBarSpacing: 0.05 },   // damit „Alles zeigen“ auch Jahre auf schmale Handys bringt
     crosshair: { mode: L.CrosshairMode.Normal, vertLine: { color: th.text, labelBackgroundColor: th.line }, horzLine: { color: th.text, labelBackgroundColor: th.line } },
     localization: { locale: settings.locale },
     handleScroll: { vertTouchDrag: false },
@@ -56,7 +56,7 @@ export async function lineChart(el, { t, p, overlays = [], note, marker, plain, 
   const pts = t.map((ms, i) => [toTime(ms), p[i]]).filter(([, v]) => isNum(v));
   if (pts.length < 2) { el.innerHTML = `<p class="muted">${esc(i18n.say('Keine Kursdaten für diesen Zeitraum.'))}</p>`; return; }
   const th = theme();
-  const fmt = plain ? (v) => num(v, Math.abs(v) < 10 ? 2 : 0) : money;
+  const fmt = plain ? (v) => num(v, Math.abs(v) < 10 && Math.round(v * 100) % 100 !== 0 ? 2 : 0) : money;
   const positive = p.every((v) => !isNum(v) || v > 0);
   el.innerHTML = `<div class="lw-wrap">
       <div class="lw-tools">${positive ? '<button type="button" class="chip" data-lw="log">Log</button>' : ''}

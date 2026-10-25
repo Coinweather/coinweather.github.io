@@ -1974,4 +1974,6 @@ export default {
   "Kompass": "Bussola",
   "Die Aufzeichnung beginnt heute – ab morgen siehst du hier, wie sich dein Portfolio entwickelt": "La registrazione inizia oggi – da domani vedrai qui come si sviluppa il tuo portafoglio",
   "Ein- und auszahlen": "Versare e prelevare",
+  "Lade alle Kurse und prüfe die Muster …": "Carico tutti i prezzi e controllo gli schemi …",
+  "Lade alle Kurse …": "Carico tutti i prezzi …",
 };
