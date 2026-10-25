@@ -55,15 +55,26 @@ await mkdir(`${out}/werbung`, { recursive: true });
 for (const f of await readdir(new URL('werbung', root))) if (f.endsWith('.jpg')) await cp(new URL(`werbung/${f}`, root), `${out}/werbung/${f}`);
 await writeFile(`${out}/${INDEXNOW_KEY}.txt`, INDEXNOW_KEY);
 
+// ---------- Tagesstand ----------
+// SNAPSHOT_FILE=<datei>: lokaler Stand zum Testen statt des veröffentlichten
+const snap = process.env.SNAPSHOT_FILE ? JSON.parse(await readFile(process.env.SNAPSHOT_FILE, 'utf8')) : await (await fetch(`${SNAPSHOT}?t=${Date.now()}`)).json();
+const { market, fng, coins, record } = snap;
+
 // Modell-Portfolio des Portfolio-Managers für den Sparplan-Rechner (scripts/model-curve.mjs) – fehlt es, zeigt der Rechner es nicht
 try {
-  const { buildCurve } = await import('./model-curve.mjs');
-  const curve = await buildCurve();
+  const { buildCurve, COINS } = await import('./model-curve.mjs');
+  // Auswahl: die 84 geprüften Coins plus die heutigen Top 200 mit Kursgeschichte bei Binance – so kann das Modell die Coins
+  // mit den besten Kauf-Scores unter den großen Coins kaufen. Rückrechnung (7 Starttage, Oktober 2026): 82 % statt 81 % pro Jahr,
+  // seit 2022 46 % statt 43 %, größter Rückgang gleich. Vorsicht: Die heutigen Top 200 sind im Nachhinein gewählt.
+  const wide = [...new Set([...COINS, ...coins.filter((c) => (c.market_cap_rank ?? 9999) <= 200 && c.hist === 'Binance' && !c.analysis?.stable
+    && c.analysis?.signal !== 'none').map((c) => c.symbol.toUpperCase()).filter((s) => /^[A-Z0-9]+$/.test(s))])];
+  const curve = await buildCurve({ coins: wide });
   // Der Autopilot im Portfolio folgt dem Modell der gewählten Strategie: Bestand, Reserve und Prüftag je Strategie
   const { RESERVE_MODES } = await import('../js/manager.js');
   const target = (c) => ({ cash: c.cash, holdings: c.holdings, asOf: c.asOf, next: c.next, trades: c.trades.slice(0, 20) });
   curve.profiles = { balanced: target(curve) };
   for (const key of Object.keys(RESERVE_MODES).filter((k) => k !== 'balanced')) {
+    // Vorsichtig bleibt bei den 84 geprüften Coins – mit der breiten Auswahl war die Rückrechnung dort schlechter
     const c = await buildCurve({ options: RESERVE_MODES[key].options });
     curve.profiles[key] = { ...target(c), stats: c.stats };
   }
@@ -72,10 +83,6 @@ try {
   console.log(`Modell-Portfolio: ${curve.stats.cagr} % pro Jahr seit ${new Date(curve.t[0]).toISOString().slice(0, 10)}`);
 } catch (err) { console.log(`Modell-Portfolio nicht berechnet: ${err.message}`); }
 
-// ---------- Tagesstand ----------
-// SNAPSHOT_FILE=<datei>: lokaler Stand zum Testen statt des veröffentlichten
-const snap = process.env.SNAPSHOT_FILE ? JSON.parse(await readFile(process.env.SNAPSHOT_FILE, 'utf8')) : await (await fetch(`${SNAPSHOT}?t=${Date.now()}`)).json();
-const { market, fng, coins, record } = snap;
 
 // Zyklus-Kompass (scripts/indices.mjs) für die App und die Indikator-Seiten
 let indices = null;

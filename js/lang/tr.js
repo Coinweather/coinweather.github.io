@@ -1875,4 +1875,6 @@ export default {
   "Dein Portfolio per Autopilot, der dem Modell-Portfolio folgt, oder selbst gepflegt mit Vorschlägen des Managers gehört zum Paket Komplett": "Model portföyü izleyen otomatik pilotla veya yöneticinin önerileriyle kendin yönettiğin portföyün Tam paketine dahildir",
   "Autopilot: Der Manager sagt dir, was du kaufst": "Otomatik pilot: yönetici ne alacağını söyler",
   "z. B. 200": "örn. 200",
+  "Wählt die Coins mit den besten Kauf-Scores unter den Top 200. Die Reserve folgt dem Zyklus-Kompass und der Marktphase: weniger, wenn der Zyklus günstig ist, mehr im Bärenmarkt": "İlk 200 içinde en iyi alım skoruna sahip coinleri seçer. Rezerv, Döngü Pusulası’nı ve piyasa evresini izler: döngü ucuzken daha az, ayı piyasasında daha fazla",
+  "Hält deutlich mehr Reserve, kauft nur unter den 84 seit Jahren geprüften Coins und investiert erst bei sehr starker Marktphase voll – weniger Rendite, dafür kleinere Rückgänge": "Belirgin şekilde daha fazla rezerv tutar, yalnızca yıllardır test edilen 84 coin arasından alır ve ancak çok güçlü bir piyasa evresinde tamamen yatırım yapar – daha az getiri, ama daha küçük düşüşler",
 };

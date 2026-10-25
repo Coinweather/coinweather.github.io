@@ -1865,4 +1865,6 @@ export default {
   "Dein Portfolio per Autopilot, der dem Modell-Portfolio folgt, oder selbst gepflegt mit Vorschlägen des Managers gehört zum Paket Komplett": "Your portfolio on an autopilot that follows the model portfolio, or managed yourself with the manager’s suggestions, is part of the Complete plan",
   "Autopilot: Der Manager sagt dir, was du kaufst": "Autopilot: the manager tells you what to buy",
   "z. B. 200": "e.g. 200",
+  "Wählt die Coins mit den besten Kauf-Scores unter den Top 200. Die Reserve folgt dem Zyklus-Kompass und der Marktphase: weniger, wenn der Zyklus günstig ist, mehr im Bärenmarkt": "Picks the coins with the best buy scores among the top 200. The reserve follows the Cycle Compass and the market phase: less when the cycle is cheap, more in a bear market",
+  "Hält deutlich mehr Reserve, kauft nur unter den 84 seit Jahren geprüften Coins und investiert erst bei sehr starker Marktphase voll – weniger Rendite, dafür kleinere Rückgänge": "Holds significantly more reserve, buys only among the 84 coins tested for years and only invests fully in a very strong market phase – less return, but smaller drawdowns",
 };

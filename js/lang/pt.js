@@ -1875,4 +1875,6 @@ export default {
   "Dein Portfolio per Autopilot, der dem Modell-Portfolio folgt, oder selbst gepflegt mit Vorschlägen des Managers gehört zum Paket Komplett": "Sua carteira com um piloto automático que segue a carteira modelo, ou gerida por você com sugestões do gestor, faz parte do plano Completo",
   "Autopilot: Der Manager sagt dir, was du kaufst": "Piloto automático: o gestor diz o que comprar",
   "z. B. 200": "ex.: 200",
+  "Wählt die Coins mit den besten Kauf-Scores unter den Top 200. Die Reserve folgt dem Zyklus-Kompass und der Marktphase: weniger, wenn der Zyklus günstig ist, mehr im Bärenmarkt": "Escolhe as moedas com as melhores pontuações de compra entre as 200 maiores. A reserva segue a Bússola do ciclo e a fase de mercado: menos quando o ciclo está barato, mais em mercado de baixa",
+  "Hält deutlich mehr Reserve, kauft nur unter den 84 seit Jahren geprüften Coins und investiert erst bei sehr starker Marktphase voll – weniger Rendite, dafür kleinere Rückgänge": "Mantém bem mais reserva, compra só entre as 84 moedas testadas há anos e só investe tudo numa fase de mercado muito forte – menos retorno, mas quedas menores",
 };

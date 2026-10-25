@@ -18,6 +18,7 @@ export const DEFAULTS = {
   fee: 0.0025,            // Gebühr je Kauf oder Verkauf
   maxPositions: 8,
   maxPositionsHard: 12,   // äußerste Grenze, wenn sonst Reserve übrig bliebe
+  minEntryShare: 0.08,    // eine neue Position muss mindestens so groß werden können (Anteil am Portfolio)
   maxWeight: 0.2,         // Obergrenze je Coin, Anteil am Gesamtportfolio
   maxWeightCore: 0.4,     // Obergrenze für Bitcoin und Ethereum
   minTradeShare: 0.04,    // kleinere Abweichungen vom Ziel werden nicht gehandelt
@@ -93,14 +94,16 @@ export const EXPOSURE_CURVE = EXPOSURE_CURVES.balanced;
 // (seit 2022 27 %) bei −38 % – ebenfalls schlechter.
 export const RESERVE_MODES = {
   balanced: { label: 'Ausgewogen', options: {},
-    text: 'Folgt dem Zyklus-Kompass und der Marktphase: weniger Reserve, wenn der Zyklus günstig ist, mehr im Bärenmarkt. Nach langer Angst werden Bitcoin und Ethereum nachgekauft.' },
+    text: 'Wählt die Coins mit den besten Kauf-Scores unter den Top 200. Die Reserve folgt dem Zyklus-Kompass und der Marktphase: weniger, wenn der Zyklus günstig ist, mehr im Bärenmarkt.' },
   cautious: { label: 'Vorsichtig', options: { exposureCurve: EXPOSURE_CURVES.cautious, fearTilt: 0.3 },
-    text: 'Hält deutlich mehr Reserve und investiert erst bei sehr starker Marktphase voll – weniger Rendite, dafür kleinere Rückgänge.' },
+    text: 'Hält deutlich mehr Reserve, kauft nur unter den 84 seit Jahren geprüften Coins und investiert erst bei sehr starker Marktphase voll – weniger Rendite, dafür kleinere Rückgänge.' },
 };
-// Rückrechnung mit scripts/model-curve.mjs (84 Coins, wöchentlich, 0,25 % Gebühr), Mittel aus 7 Starttagen, Oktober 2026.
+// Rückrechnung mit scripts/model-curve.mjs (wöchentlich, 0,25 % Gebühr), Mittel aus 7 Starttagen, Oktober 2026. Ausgewogen wählt aus den
+// 84 geprüften Coins plus den heutigen Top 200 mit Binance-Kursen (rund 125), Vorsichtig nur aus den 84 – mit der breiten Auswahl kam
+// Vorsichtig auf 57 % statt 60 % pro Jahr (seit 2022 27 % statt 31 %), Ausgewogen auf 82 % statt 81 % (46 % statt 43 %).
 // perYear/drawdown: März 2018 bis heute; recent: seit Januar 2022. HOLD_BACKTEST: Bitcoin im selben Zeitraum gehalten.
 export const RESERVE_BACKTEST = {
-  balanced: { perYear: 81, recent: 43, drawdown: 46 },
+  balanced: { perYear: 82, recent: 46, drawdown: 46 },
   cautious: { perYear: 60, recent: 31, drawdown: 30 },
 };
 export const HOLD_BACKTEST = { perYear: 25, recent: 12, drawdown: 77 };
@@ -293,7 +296,7 @@ export function plan({ holdings, cash = 0, candidates = [], core = [], regime, o
   const kept = coins.filter((c) => c.target > 0);
   // Neue Positionen nur, wenn jede mindestens rund 8 % des Portfolios groß werden kann – sonst fressen Gebühren den Nutzen
   const freeNow = budget - coins.reduce((s, c) => s + c.target, 0);
-  const slots = Math.min(Math.max(0, o.maxPositions - kept.length), Math.floor(freeNow / (total * 0.08)));
+  const slots = Math.min(Math.max(0, o.maxPositions - kept.length), Math.floor(freeNow / (total * o.minEntryShare)));
   const entries = fresh.slice(0, Math.max(0, slots));
 
   // Tauschen: Kein Platz mehr, aber ein Kandidat ist deutlich besser als die schwächste gehaltene Position

@@ -42,20 +42,22 @@ export async function fearGreed() {
   return new Map(json.data.map((x) => [Math.floor(Number(x.timestamp) / 86400), Number(x.value)]));
 }
 
-// Kurse und Fear & Greed werden einmal geladen und für alle Profile verwendet
-let loaded = null;
-async function loadData() {
-  const data = {};
-  for (let i = 0; i < COINS.length; i += 6) {
-    await Promise.all(COINS.slice(i, i + 6).map(async (s) => { try { const d = await klines(s); if (d) data[s] = d; } catch { /* Coin fehlt dann */ } }));
+// Kurse und Fear & Greed werden je Coin einmal geladen und für alle Profile verwendet
+const cache = new Map();
+let fng = null;
+async function loadData(list) {
+  const want = list.filter((s) => !cache.has(s));
+  for (let i = 0; i < want.length; i += 6) {
+    await Promise.all(want.slice(i, i + 6).map(async (s) => { let d = null; try { d = await klines(s); } catch { /* Coin fehlt dann */ } cache.set(s, d); }));
   }
+  const data = Object.fromEntries(list.filter((s) => cache.get(s)).map((s) => [s, cache.get(s)]));
   if (!data.BTC) throw new Error('Bitcoin-Kurse fehlen');
-  return { all: data, F: await fearGreed() };
+  return { all: data, F: await (fng ??= fearGreed()) };
 }
 
-// only: nur diese Coins (Binance-Kürzel), z. B. ['BTC', 'ETH']
-export async function buildCurve({ offset = 0, options = {}, coinScore = null, only = null } = {}) {
-  const { all, F } = await (loaded ??= loadData());
+// coins: Auswahl der Coins (Binance-Kürzel), Standard die 84 geprüften; only: davon nur diese, z. B. ['BTC', 'ETH']
+export async function buildCurve({ offset = 0, options = {}, coinScore = null, only = null, coins = COINS } = {}) {
+  const { all, F } = await loadData(coins);
   const data = only ? Object.fromEntries(Object.entries(all).filter(([s]) => only.includes(s))) : all;
   const syms = Object.keys(data);
   const I = {}, IDX = {};

@@ -691,7 +691,7 @@ const INFO = {
     <div class="table-wrap"><table class="fc-table"><thead><tr><th>Strategie</th><th class="num">pro Jahr</th><th class="num">seit 2022</th><th class="num">größter Rückgang</th></tr></thead>
       <tbody>${Object.entries(RESERVE_MODES).map(([k, m]) => `<tr><td>${m.label}</td><td class="num up">+${RESERVE_BACKTEST[k].perYear} %</td><td class="num up">+${RESERVE_BACKTEST[k].recent} %</td><td class="num down">−${RESERVE_BACKTEST[k].drawdown} %</td></tr>`).join('')}
         <tr><td>Bitcoin halten</td><td class="num up">+${HOLD_BACKTEST.perYear} %</td><td class="num up">+${HOLD_BACKTEST.recent} %</td><td class="num down">−${HOLD_BACKTEST.drawdown} %</td></tr></tbody></table></div>
-    <p>Rückrechnung März 2018 bis heute an 84 Coins, wöchentlich, 0,25 % Gebühr je Handel, Mittel aus 7 Starttagen.</p>
+    <p>Rückrechnung März 2018 bis heute an 125 Coins, wöchentlich, 0,25 % Gebühr je Handel, Mittel aus 7 Starttagen.</p>
     <p>Geprüft und nicht mehr angeboten: „Antizyklisch“ (Reserve stärker nach dem Kauf-Score) brachte 78 % pro Jahr bei −51 % Rückgang, „Nur Bitcoin und Ethereum“
       36 % pro Jahr bei −38 % – beide schlechter als „Ausgewogen“. Eine Reserve nur nach dem Kauf-Score kam auf 59 % pro Jahr bei −60 %.</p>${LIMITS}` },
 
@@ -2942,9 +2942,10 @@ function portfolioView(arg = '') {
         : f.total ? `<p class="all-done">✓ Dein Portfolio entspricht dem Modell. Bis zur nächsten Prüfung ist nichts zu tun.</p>` : ''}
       ${f.missing.length ? `<p class="notice">Nicht gefunden und deshalb in Reserve gelassen: ${f.missing.map(esc).join(', ')}.</p>` : ''}
       <details class="fold target-fold"${f.moves.length ? '' : ' open'}><summary>Ziel und Stand</summary>
-        <table class="m-table target-table"><thead><tr><th>Coin</th><th class="num">Ziel</th><th class="num">Jetzt</th><th></th></tr></thead><tbody>
-        ${f.weights.map((w) => `<tr><td><strong>${esc(w.name)}</strong></td><td class="num">${num(w.share * 100, 1)} %</td><td class="num">${num(f.total ? w.have / f.total * 100 : 0, 1)} %</td><td class="m-bar">${bar(w.share, 'var(--accent)')}</td></tr>`).join('')}
-        <tr><td>Reserve</td><td class="num">${num(f.reserveShare * 100, 1)} %</td><td class="num">${num(reserveNow * 100, 1)} %</td><td class="m-bar">${bar(f.reserveShare, 'var(--muted)')}</td></tr></tbody></table>
+        <table class="m-table target-table"><thead><tr><th>Coin</th><th class="num">Kauf-Score</th><th class="num">Ziel</th><th class="num">Jetzt</th><th></th></tr></thead><tbody>
+        ${f.weights.map((w) => { const sc = state.byId.get(w.id)?.analysis?.score; return `<tr><td><a href="#/coin/${encodeURIComponent(w.id)}"><strong>${esc(w.name)}</strong></a></td>
+          <td class="num"><span class="${tone(sc)}">${isNum(sc) ? to100(sc) : '–'}</span></td><td class="num">${num(w.share * 100, 1)} %</td><td class="num">${num(f.total ? w.have / f.total * 100 : 0, 1)} %</td><td class="m-bar">${bar(w.share, 'var(--accent)')}</td></tr>`; }).join('')}
+        <tr><td>Reserve</td><td></td><td class="num">${num(f.reserveShare * 100, 1)} %</td><td class="num">${num(reserveNow * 100, 1)} %</td><td class="m-bar">${bar(f.reserveShare, 'var(--muted)')}</td></tr></tbody></table>
         <p class="hint">Die Reserve folgt der Strategie: mehr in schwachen Marktphasen und im Bärenmarkt, weniger, wenn der Zyklus-Kompass günstig steht. Gibt es zu wenige Kaufsignale, bleibt mehr in Reserve.</p>
       </details>
     </section>`;
