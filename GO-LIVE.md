@@ -34,6 +34,11 @@ Das ist der wichtigste Punkt, und ein Haftungsausschluss löst ihn nicht.
   Anlage-Token und gehebelte Produkte (Derivate) schon.
 - Zu klären: In welchen Ländern wird verkauft? Dürfen Portfolio-Manager und Daytrading-Bereich im bezahlten Angebot bleiben,
   oder nur die allgemeinen Signale? Braucht es eine Registrierung oder Bewilligung?
+- **Neu seit 25.10.2026 – der Autopilot:** Er sagt einem Nutzer für seinen Betrag, welche Coins er in welcher Menge kauft. Das ist für
+  alle Nutzer derselbe Modellbestand (wie ein veröffentlichtes Musterdepot), die Mengen werden aber auf den Betrag und den Bestand des
+  Nutzers umgerechnet. Ob das als allgemeine Information oder als persönliche Anlageempfehlung / Vermögensverwaltung gilt, muss der
+  Anwalt ausdrücklich beurteilen – bevor der Autopilot Teil eines bezahlten Pakets wird. Mögliche Ausweichwege, falls nötig:
+  nur das Musterdepot in Prozent zeigen (ohne Umrechnung auf den Nutzer), oder den Autopiloten nur in Ländern anbieten, in denen das zulässig ist.
 
 ### 2. Betreiber eintragen und Texte prüfen lassen
 
