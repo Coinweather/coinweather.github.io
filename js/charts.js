@@ -134,6 +134,19 @@ const INDICATORS = [
 const IND_KEY = 'coinwetter-chart-indikatoren', TV_KEY = 'coinwetter-tradingview-ok';
 const loadInd = () => { try { const x = JSON.parse(localStorage.getItem(IND_KEY)); if (Array.isArray(x)) return new Set(x); } catch { /* Standard */ } return new Set(['ma50', 'ma200', 'vol']); };
 const INTERVALS = [['15m', '15m', '15 Minuten'], ['1h', '1h', '1 Stunde'], ['4h', '4h', '4 Stunden'], ['1d', '1D', '1 Tag'], ['1w', '1W', '1 Woche'], ['1M', '1M', '1 Monat']];
+// Dieselben Intervalle im eingebetteten TradingView-Chart
+const TV_IV = { '15m': '15', '1h': '60', '4h': '240', '1d': 'D', '1w': 'W', '1M': 'M' };
+// Intervalle, für die es ohne Kerzen Kurse von CoinGecko gibt (api.intradayLine)
+const LINE_IV = ['15m', '1h', '4h'];
+// Tageskurse ohne Kerzen auf Wochen- oder Monatsschritte bringen: letzter Kurs je Woche bzw. Kalendermonat
+function resample(d, iv) {
+  if (iv !== '1w' && iv !== '1M') return d;
+  const keyOf = (ms) => { const x = new Date(ms); return iv === '1M' ? `${x.getUTCFullYear()}-${x.getUTCMonth()}` : Math.floor((ms / 864e5 + 3) / 7); };
+  const at = new Map();
+  d.t.forEach((ms, i) => { if (isNum(d.c[i])) at.set(keyOf(ms), i); });
+  const idx = [...at.values()];
+  return { ...d, t: idx.map((i) => d.t[i]), c: idx.map((i) => d.c[i]), v: null };
+}
 // Sichtbarer Ausschnitt je Intervall: 15m = 1 Tag, 1h = 1 Woche, 4h = 1 Monat, 1D = 1 Jahr, 1W = 4 Jahre, 1M = alles
 const BARS = { '15m': 96, '1h': 168, '4h': 180, '1d': 365, '1w': 209, '1M': null };
 
@@ -168,8 +181,9 @@ export function proChart(el, { coin, source, fallback }) {
   const saveDrawings = (list) => { try { localStorage.setItem(drawKey(), JSON.stringify(list)); } catch { /* nur jetzt */ } };
 
   function syncButtons() {
-    for (const b of el.querySelectorAll('[data-type]')) { b.classList.toggle('active', b.dataset.type === st.type); b.disabled = !st.data?.o; }
-    for (const b of el.querySelectorAll('[data-iv]')) { b.classList.toggle('active', b.dataset.iv === st.iv); b.disabled = !st.data?.o && b.dataset.iv !== '1d'; }
+    // Ohne Kerzen (nur Kurse) gibt es nur die Linie; die Intervalle bleiben immer wählbar
+    for (const b of el.querySelectorAll('[data-type]')) { b.classList.toggle('active', b.dataset.type === (st.data?.o ? st.type : 'line')); b.disabled = !st.data?.o; }
+    for (const b of el.querySelectorAll('[data-iv]')) b.classList.toggle('active', b.dataset.iv === st.iv);
     for (const b of el.querySelectorAll('input[data-ind]')) b.checked = st.ind.has(b.dataset.ind);
     q('[data-act="log"]').classList.toggle('active', st.log);
     q('[data-act="trend"]').classList.toggle('active', st.draw === 'trend');
@@ -183,12 +197,19 @@ export function proChart(el, { coin, source, fallback }) {
     const mine = ++st.run;
     st.tv = false;
     box.innerHTML = `<p class="loading"><span class="spinner" aria-hidden="true"></span> ${esc(i18n.say('Lade Kursverlauf …'))}</p>`;
-    let data = source === null ? null : await api.candles(coin.symbol, st.iv, source ?? undefined).catch(() => null);
+    const iv = st.iv;
+    let data = source === null ? null : await api.candles(coin.symbol, iv, source ?? undefined).catch(() => null);
+    // Keine Kerzen (Coin an keiner der beiden Börsen): kurzfristig Kurse von CoinGecko, ab einem Tag die Tageskurse der Seite
+    if (!data && LINE_IV.includes(iv)) data = await api.intradayLine(coin.id, iv).catch(() => null);
     if (mine !== st.run) return;
     const fb = fallback?.();
-    if (!data && fb?.p?.length) { st.iv = '1d'; st.type = 'line'; data = { t: fb.t, c: fb.p, v: fb.v ?? null, source: fb.source ?? 'CoinGecko' }; }
+    if (!data && !LINE_IV.includes(iv) && fb?.p?.length) data = resample({ t: fb.t, c: fb.p, v: fb.v ?? null, source: fb.source ?? 'CoinGecko' }, iv);
     st.data = data;
-    if (!data) { box.innerHTML = `<p class="muted">${esc(i18n.say('Für diesen Coin gibt es keine Kursdaten.'))}</p>`; syncButtons(); return; }
+    if (!data) {
+      box.innerHTML = `<p class="muted">${esc(i18n.say(fb?.p?.length || LINE_IV.includes(iv) ? 'Für dieses Intervall gibt es gerade keine Kursdaten. Versuch es gleich noch einmal oder wähle ein anderes.' : 'Für diesen Coin gibt es keine Kursdaten.'))}</p>`;
+      legend.innerHTML = ''; q('.pro-note').textContent = '';
+      syncButtons(); return;
+    }
     await render();
   }
 
@@ -260,7 +281,7 @@ export function proChart(el, { coin, source, fallback }) {
     chart.subscribeCrosshairMove((param) => showLegend(param));
     chart.subscribeClick(onClick);
     const src = d.source;
-    q('.pro-note').innerHTML = `${esc(i18n.say('Daten'))}: ${esc(src)} · ${esc(i18n.say('Mausrad oder zwei Finger zum Zoomen, ziehen zum Verschieben.'))} · <a href="https://www.tradingview.com/" target="_blank" rel="noopener">Charts by TradingView</a>`;
+    q('.pro-note').innerHTML = `${esc(i18n.say('Daten'))}: ${esc(src)}${d.o ? '' : ` (${esc(i18n.say('nur Kurse, keine Kerzen'))})`} · ${esc(i18n.say('Mausrad oder zwei Finger zum Zoomen, ziehen zum Verschieben.'))} · <a href="https://www.tradingview.com/" target="_blank" rel="noopener">Charts by TradingView</a>`;
     syncButtons();
 
     function showLegend(param) {
@@ -299,11 +320,14 @@ export function proChart(el, { coin, source, fallback }) {
   function tradingView() {
     st.tv = true; st.run++;
     chart?.remove(); chart = null; main = null;
+    // TradingView bringt eigene Werkzeugleisten mit – dafür mehr Höhe als der eigene Chart (außer im Vollbild)
+    const big = document.fullscreenElement === q('.pro') || q('.pro').classList.contains('chart-max');
+    box.style.height = big ? '' : `${innerWidth < 600 ? 520 : 600}px`;
     const ok = (() => { try { return localStorage.getItem(TV_KEY) === '1'; } catch { return false; } })();
     const sym = source === 'Binance' ? `BINANCE:${coin.symbol.toUpperCase()}USDT` : source === 'Gate.io' ? `GATEIO:${coin.symbol.toUpperCase()}USDT` : `CRYPTO:${coin.symbol.toUpperCase()}USD`;
     const lang = { de: 'de_DE', en: 'en', es: 'es', fr: 'fr', it: 'it', pt: 'br', tr: 'tr' }[i18n.prefs.lang] ?? 'en';
     const dark = !matchMedia('(prefers-color-scheme: light)').matches;
-    const frame = () => { box.innerHTML = `<iframe class="tv-frame" title="TradingView" loading="lazy" src="https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(sym)}&interval=60&theme=${dark ? 'dark' : 'light'}&style=1&locale=${lang}&timezone=exchange&withdateranges=1&hide_side_toolbar=0&allow_symbol_change=1&saveimage=0&studies=%5B%5D"></iframe>`; };
+    const frame = () => { box.innerHTML = `<iframe class="tv-frame" title="TradingView" loading="lazy" src="https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(sym)}&interval=${TV_IV[st.iv] ?? 'D'}&theme=${dark ? 'dark' : 'light'}&style=1&locale=${lang}&timezone=exchange&withdateranges=1&hide_side_toolbar=0&allow_symbol_change=1&saveimage=0&studies=%5B%5D"></iframe>`; };
     if (ok) frame();
     else {
       box.innerHTML = `<div class="tv-consent"><strong>${esc(i18n.say('Voller TradingView-Chart'))}</strong>
@@ -315,16 +339,20 @@ export function proChart(el, { coin, source, fallback }) {
     syncButtons();
   }
 
+  // Größe geändert (Vollbild an oder aus): neu zeichnen – den TradingView-Chart mit passender Höhe neu laden
+  function resized() { if (st.tv) { if (box.querySelector('iframe')) tradingView(); } else if (st.data) render(); }
+
   el.addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b || b.disabled) return;
     if (b.dataset.type) { st.type = b.dataset.type; render(); }
-    if (b.dataset.iv) { st.iv = b.dataset.iv; st.bars = BARS[st.iv]; load(); }
+    // Im TradingView-Chart wechselt das Intervall dort, sonst im eigenen Chart
+    if (b.dataset.iv) { st.iv = b.dataset.iv; st.bars = BARS[st.iv]; if (st.tv) tradingView(); else load(); }
     const act = b.dataset.act;
     if (act === 'ind') q('.pro-menu').hidden = !q('.pro-menu').hidden;
     if (act === 'log') { st.log = !st.log; main?.priceScale().applyOptions({ mode: st.log ? L.PriceScaleMode.Logarithmic : L.PriceScaleMode.Normal }); syncButtons(); }
     if (act === 'fit') chart?.timeScale().fitContent();
-    if (act === 'full') { toggleFull(q('.pro')); setTimeout(() => { if (st.data && !st.tv) render(); }, 200); }
+    if (act === 'full') { toggleFull(q('.pro')); setTimeout(resized, 200); }
     if (act === 'trend' || act === 'hline') { st.draw = st.draw === act ? null : act; st.pending = null; syncButtons(); }
     if (act === 'clear') { saveDrawings([]); render(); }
     if (act === 'tv') { if (st.tv) load(); else tradingView(); }
@@ -337,12 +365,12 @@ export function proChart(el, { coin, source, fallback }) {
     if (st.data && !st.tv) render();
   });
   // Nach dem Vollbild die Größe neu messen
-  document.addEventListener('fullscreenchange', () => { if (el.isConnected && st.data && !st.tv) render(); });
+  document.addEventListener('fullscreenchange', () => { if (el.isConnected) resized(); });
 
   load();
   return {
     // Tageskurse sind nachträglich da: neu laden, falls bisher nichts zu zeigen war
-    retry() { if (!st.data && !st.tv && st.run && fallback?.()?.p?.length) load(); },
+    retry() { if (!st.data && !st.tv && st.run && !LINE_IV.includes(st.iv) && fallback?.()?.p?.length) load(); },
     remove() { st.run++; chart?.remove(); },
   };
 }

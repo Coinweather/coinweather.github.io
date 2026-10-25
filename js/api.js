@@ -164,6 +164,25 @@ export async function candles(symbol, interval, from) {
   return data;
 }
 
+// Kurzfristiger Verlauf von CoinGecko für Coins ohne Kerzen bei Binance oder Gate.io: 15 Minuten aus den 5-Minuten-Kursen
+// des letzten Tages, 1 und 4 Stunden aus Stundenkursen (7 bzw. 30 Tage). Es gibt nur Kurse, keine Kerzen – der Chart zeigt eine Linie.
+const LINE_DAYS = { '15m': 1, '1h': 7, '4h': 30 };
+export async function intradayLine(id, interval) {
+  const days = LINE_DAYS[interval];
+  if (!days || !id) return null;
+  const key = `cg|${id}|${interval}`;
+  const hit = candleCache.get(key);
+  if (hit && Date.now() - hit.time < 5 * CANDLE_TTL_MS) return hit.data;
+  const raw = await cg(`/coins/${encodeURIComponent(id)}/market_chart?vs_currency=usd&days=${days}`);
+  // Letzter Kurs je Intervall
+  const step = IV_MS[interval], last = new Map();
+  for (const [t, p] of raw.prices ?? []) if (Number.isFinite(p)) last.set(Math.floor(t / step) * step, p);
+  const t = [...last.keys()].sort((a, b) => a - b);
+  const data = t.length >= 3 ? { source: 'CoinGecko', t, c: t.map((k) => last.get(k)), v: null } : null;
+  candleCache.set(key, { time: Date.now(), data });
+  return data;
+}
+
 // Aktuelle Kurse aller Binance-Handelspaare – zeigt, welche Coins dort eine Kursgeschichte haben
 export async function binancePrices() {
   const res = await fetch('https://data-api.binance.vision/api/v3/ticker/price');

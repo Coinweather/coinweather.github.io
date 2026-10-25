@@ -499,6 +499,15 @@ const changes = (c) => ({
 
 const sparkline = (c) => (c.sparkline_in_7d?.price || []).filter(isNum);
 
+// Name oder Kürzel deuten auf einen festen Gegenwert hin: Währung, Fonds, Anleihe, Aktie oder Metall
+const PEGGED = /usd|eur|gbp|chf|jpy|sgd|brl|try|cad|aud|krw|idr|mxn|stable|dollar|franc|yen|peso|lira|rupiah|\bdai\b|frax|gho|fund|treasury|t-?bill|\bclo\b|vault|yield|income|bond|note|warrant|stock|\betf\b|gold|silver|palladium|platinum/i;
+// Ein ruhiger Coin mit echter Kursgeschichte ist kein Stablecoin (z. B. TRON, LEO): weit vom Hoch, über Monate deutlich bewegt
+function movedBefore(c) {
+  const big = (x) => isNum(x) && Math.abs(x) > 8, ath = c.ath_change_percentage;
+  return Math.abs(c.current_price - 1) >= 0.03 && !PEGGED.test(`${c.name ?? ''} ${c.symbol ?? ''}`) && isNum(ath) && ath < -10
+    && (big(c.price_change_percentage_1y_in_currency) || big(c.price_change_percentage_200d_in_currency) || ath < -20);
+}
+
 export function isStable(c) {
   const p = sparkline(c);
   const d30 = c.price_change_percentage_30d_in_currency;
@@ -507,7 +516,7 @@ export function isStable(c) {
     const d7 = c.price_change_percentage_7d_in_currency;
     return Math.abs(c.current_price - 1) < 0.02 && isNum(d7) && Math.abs(d7) < 1 && isNum(d30) && Math.abs(d30) < 2;
   }
-  return (Math.max(...p) - Math.min(...p)) / p[p.length - 1] < 0.02 && (!isNum(d30) || Math.abs(d30) < 3);
+  return (Math.max(...p) - Math.min(...p)) / p[p.length - 1] < 0.02 && (!isNum(d30) || Math.abs(d30) < 3) && !movedBefore(c);
 }
 
 // Token, die den Kurs von Aktien, Fonds, Edelmetallen oder Währungen abbilden. Marktphase und Zyklus des

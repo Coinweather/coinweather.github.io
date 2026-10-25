@@ -131,9 +131,14 @@ const queue = [...coins];
 async function worker() {
   for (let c = queue.shift(); c; c = queue.shift()) {
     c.analysis = quickAnalyse(c, regime);
-    if (c.analysis.signal === 'none') continue;
     const sym = c.symbol.toUpperCase();
     const near = (p) => p && Math.abs(p / c.current_price - 1) < 0.1;   // gleiches Kürzel mit anderem Kurs ist ein anderer Coin
+    // Ohne Signal (Stablecoins, Token auf Aktien …) keine Bewertung – aber die Börse für die Kerzen im Chart
+    if (c.analysis.signal === 'none') {
+      const at = near(prices?.get(sym + 'USDT')) ? 'Binance' : near(gatePrices?.get(sym + '_USDT')) ? 'Gate.io' : null;
+      if (at) c.hist = at;
+      continue;
+    }
     let daily = null, source = null;
     if (c.id === 'bitcoin') { daily = btcData; source = 'Binance'; }
     else if (near(prices?.get(sym + 'USDT'))) { daily = await optional(c.symbol, () => history(sym)); source = 'Binance'; }
