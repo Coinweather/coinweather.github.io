@@ -1916,7 +1916,7 @@ function tradingView() {
     <section class="panel">
       <div class="head-row"><div class="label">Einsatz berechnen</div>${infoBtn('sizing', 'Einsatz und Hebel')}</div>
       <form id="t-sizing" class="sizing">
-        <label>Kontogröße (${currencyCode()})<input id="t-account" inputmode="decimal" placeholder="z. B. 5000" value="${sizing.account ? inputText(toDisplay(sizing.account)) : ''}"></label>
+        <label>Kontogröße (${currencyCode()})<input id="t-account" inputmode="decimal" placeholder="zum Beispiel 5000" value="${sizing.account ? inputText(toDisplay(sizing.account)) : ''}"></label>
         <label>Risiko je Handel (% des Kontos)<input id="t-risk" inputmode="decimal" value="${inputText(sizing.risk)}"></label>
       </form>
       <p class="notice" id="t-risk-note" hidden>Gerechnet wird mit höchstens 5 % Risiko je Handel.</p>
@@ -2212,6 +2212,8 @@ async function autopilotTeaser(el) {
       <a class="btn ghost" href="#/rechner">So wäre es gelaufen</a></div>
     <p class="share-row hint">${shareLinks(`${location.origin}${i18n.prefs.lang === 'en' ? '' : `/${i18n.prefs.lang}`}/crypto-portfolio-autopilot/?von=share-ap`,
       i18n.say('Sag, wie viel du anlegen willst – der Autopilot sagt dir, was du kaufst.'), 'Teilen')}</p>
+    <p class="ap-challenge"><span>🏁 <strong>Glaubst du, du bist besser?</strong> Wähle drei Coins und tritt gegen den Autopiloten an.</span>
+      <a class="btn ghost small" href="#/challenge">Schlag den Autopiloten</a></p>
     ${autopilotLive()}
     <p class="hint">Rückrechnung seit 2018: +${RESERVE_BACKTEST.balanced.perYear} % pro Jahr, größter Rückgang −${RESERVE_BACKTEST.balanced.drawdown} % (Bitcoin halten: +${HOLD_BACKTEST.perYear} %, −${HOLD_BACKTEST.drawdown} %).
       Die Zukunft fällt meist schlechter aus. Keine Anlageberatung – ausführen tust du selbst bei deiner Börse.</p>`;
@@ -2327,7 +2329,7 @@ function portfolioView(arg = '') {
         <p id="r-actual"></p>
         <form id="p-monthly" class="inline-form" data-for="auto">
           <label for="p-monthly-value">Monatliche Sparrate (<span translate="no">${currencyCode()}</span>, leer = keine)</label>
-          <input id="p-monthly-value" inputmode="decimal" placeholder="z. B. 200">
+          <input id="p-monthly-value" inputmode="decimal" placeholder="zum Beispiel 200">
           <button class="btn ghost small" type="submit">Speichern</button>
         </form>
         <details class="fold" id="r-custom" data-for="manual"><summary>Eigene Reserve festlegen</summary>
@@ -2353,7 +2355,7 @@ function portfolioView(arg = '') {
         <div class="chips" id="m-kind" role="group" aria-label="Einzahlen oder auszahlen">
           <button type="button" class="chip active" data-kind="in">Einzahlen</button><button type="button" class="chip" data-kind="out">Auszahlen</button>
         </div>
-        <label>Betrag (<span translate="no">${currencyCode()}</span>) <input id="m-amount" inputmode="decimal" placeholder="z. B. 500" required autocomplete="off"></label>
+        <label>Betrag (<span translate="no">${currencyCode()}</span>) <input id="m-amount" inputmode="decimal" placeholder="zum Beispiel 500" required autocomplete="off"></label>
         <p class="hint" id="m-help"></p>
         <div id="m-preview" class="preview"></div>
         <p id="m-msg" class="notice" hidden></p>
@@ -2863,8 +2865,8 @@ function portfolioView(arg = '') {
             <div class="setup-top"><span class="setup-icon" aria-hidden="true">🤖</span><div><h3>Autopilot</h3><span class="badge buy">Empfohlen für den Einstieg</span></div></div>
             <p>Du sagst, wie viel du anlegst – der Manager sagt dir genau, was du kaufst. Dein Portfolio folgt dem Modell-Portfolio aus dem Rechner,
               und jede Woche siehst du, ob etwas zu tun ist.</p>
-            <label>Startbetrag <span translate="no">(${currencyCode()})</span><input id="p-start-value" inputmode="decimal" placeholder="z. B. 5000" autocomplete="off"></label>
-            <label>Monatliche Sparrate, optional <span translate="no">(${currencyCode()})</span><input id="p-start-monthly" inputmode="decimal" placeholder="z. B. 200" autocomplete="off"></label>
+            <label>Startbetrag <span translate="no">(${currencyCode()})</span><input id="p-start-value" inputmode="decimal" placeholder="zum Beispiel 5000" autocomplete="off"></label>
+            <label>Monatliche Sparrate, optional <span translate="no">(${currencyCode()})</span><input id="p-start-monthly" inputmode="decimal" placeholder="zum Beispiel 200" autocomplete="off"></label>
             <fieldset class="setup-modes"><legend>Strategie</legend>
               ${Object.entries(RESERVE_MODES).map(([k, m]) => `<label class="setup-mode"><input type="radio" name="p-start-mode" value="${k}" ${k === 'balanced' ? 'checked' : ''}>
                 <span><strong>${m.label}</strong><small>${bt(k)} (Rückrechnung)</small></span></label>`).join('')}
@@ -3552,6 +3554,95 @@ async function modelSection(el) {
   });
 }
 
+// ---------- Challenge: Schlag den Autopiloten (#/challenge?c=bitcoin@80728,solana@190&d=20751&n=Name) ----------
+// Für alle offen, ohne Konto und ohne Server: Auswahl, Startkurse und Starttag stehen in der Adresse. Verglichen wird mit echten
+// Kursen gegen die Live-Messung des Autopiloten (state.record.ap) und Bitcoin. Wer den Link teilt, lädt andere zum Mitmachen ein.
+const CHALLENGE_KEY = 'coinwetter-challenge';
+function challengeView() {
+  const params = new URLSearchParams(location.hash.split('?')[1] ?? '');
+  const picks = (params.get('c') ?? '').split(',').map((x) => x.split('@')).filter(([id, p]) => id && Number(p) > 0).slice(0, 3).map(([id, p]) => ({ id, p0: Number(p) }));
+  const day0 = Number(params.get('d')) || null, who = (params.get('n') ?? '').slice(0, 24);
+  let mine = null; try { mine = localStorage.getItem(CHALLENGE_KEY); } catch { /* ohne Speicher */ }
+  view.innerHTML = `
+    <section class="panel challenge-head">
+      <div class="label">🏁 Challenge</div>
+      <h1 class="page-title">Schlag den Autopiloten</h1>
+      <p class="muted">Wähle bis zu drei Coins. Ab heute vergleichen wir mit echten Kursen: deine Auswahl gegen den Autopiloten und gegen Bitcoin.
+        Teile den Link – wer schlägt euch beide?</p>
+      <form id="ch-form" class="calc-form ch-form">
+        ${[1, 2, 3].map((i) => `<label>Coin ${i}<input id="ch-c${i}" list="ch-coins" autocomplete="off" ${i === 1 ? 'required' : ''} placeholder="${i === 1 ? 'z. B. Solana' : 'optional'}"></label>`).join('')}
+        <label>Dein Name (optional)<input id="ch-name" maxlength="24" autocomplete="off"></label>
+        <datalist id="ch-coins"></datalist>
+        <button class="btn" type="submit">Antreten</button>
+      </form>
+      ${mine && !picks.length ? `<p><a class="btn ghost small" href="${esc(mine)}">Meine Challenge ansehen</a></p>` : ''}
+    </section>
+    <div id="ch-out"></div>`;
+  const find = (text) => {
+    const q = text.trim().toLowerCase();
+    if (!q) return null;
+    return state.byId.get(q) ?? state.coins.find((c) => c.name.toLowerCase() === q || c.symbol.toLowerCase() === q)
+      ?? state.coins.find((c) => (c.market_cap_rank ?? 9999) <= 500 && (c.name.toLowerCase().startsWith(q) || c.symbol.toLowerCase().startsWith(q)));
+  };
+  $('#ch-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const chosen = [1, 2, 3].map((i) => find($(`#ch-c${i}`).value)).filter((c) => c && isNum(c.current_price) && !c.analysis?.stable);
+    const uniq = [...new Map(chosen.map((c) => [c.id, c])).values()];
+    if (!uniq.length) return;
+    const today = Math.floor(Date.now() / 86_400_000);
+    const name = $('#ch-name').value.trim().slice(0, 24);
+    const hash = `#/challenge?c=${uniq.map((c) => `${encodeURIComponent(c.id)}@${Number(c.current_price.toPrecision(6))}`).join(',')}&d=${today}${name ? `&n=${encodeURIComponent(name)}` : ''}`;
+    try { localStorage.setItem(CHALLENGE_KEY, hash); } catch { /* nur jetzt */ }
+    location.hash = hash;
+  });
+
+  function render() {
+    const out = $('#ch-out');
+    if (!out || !picks.length || !state.coins.length) return;
+    const ap = state.record?.ap;
+    // Wert an einem Tag aus der Live-Messung; vor ihrem Start gilt ihr erster Tag
+    const at = (d) => { const s = ap?.series ?? []; return s.filter(([x]) => x <= d).pop() ?? s[0] ?? null; };
+    // Autopilot und Bitcoin erst ab dem Start der Live-Messung – davor gibt es keine echten Werte
+    const start = day0 && ap && day0 >= ap.since ? at(day0) : null, now = ap?.series?.at(-1) ?? null;
+    const apRet = start && now ? (now[1] / start[1] - 1) * 100 : null;
+    const btcRet = start && now ? (now[2] / start[2] - 1) * 100 : null;
+    const rows = picks.map((p) => { const c = state.byId.get(p.id); return { c, p, r: c && isNum(c.current_price) ? (c.current_price / p.p0 - 1) * 100 : null }; });
+    const valid = rows.filter((x) => isNum(x.r));
+    const myRet = valid.length ? valid.reduce((a, x) => a + x.r, 0) / valid.length : null;
+    const days = day0 ? Math.max(0, Math.floor(Date.now() / 86_400_000) - day0) : 0;
+    const label = who ? who : i18n.say('Deine Auswahl');
+    const all = [[label, myRet, 'var(--accent)'], ['🤖 Autopilot', apRet, 'var(--up)'], ['₿ Bitcoin', btcRet, 'var(--accent-2)']].filter(([, v]) => isNum(v));
+    const max = Math.max(1, ...all.map(([, v]) => Math.abs(v)));
+    const best = all.length ? all.reduce((a, b) => (b[1] > a[1] ? b : a)) : null;
+    const url = `${location.origin}/${location.hash}`;
+    out.innerHTML = `<section class="panel challenge">
+        <div class="label">${who ? `${esc(who)} – ` : ''}seit ${new Date((day0 ?? 0) * 86_400_000).toLocaleDateString(settings.locale)} · ${days} ${days === 1 ? 'Tag' : 'Tage'}</div>
+        <h2>${best && days >= 1 ? `🏆 ${esc(best[0])} liegt vorne` : 'Die Challenge läuft – morgen gibt es die ersten Ergebnisse'}</h2>
+        <div class="ch-bars">${all.map(([n, v, color]) => `<div class="ch-bar"><span class="ch-name">${esc(n)}</span>
+          <span class="ch-track"><i style="width:${Math.max(2, Math.abs(v) / max * 100)}%;background:${color}"></i></span><strong class="${tone(v)}">${signed(v, 1)} %</strong></div>`).join('')}</div>
+        <table class="m-table ch-table"><thead><tr><th>Coin</th><th class="num">Start</th><th class="num">Jetzt</th><th class="num">Veränderung</th></tr></thead><tbody>
+          ${rows.map(({ c, p, r }) => `<tr><td>${c ? `<a href="#/coin/${encodeURIComponent(c.id)}">${esc(c.name)}</a>` : esc(p.id)}</td><td class="num">${money(p.p0)}</td>
+            <td class="num">${c ? money(c.current_price) : '–'}</td><td class="num ${tone(r)}">${isNum(r) ? `${signed(r, 1)} %` : '–'}</td></tr>`).join('')}</tbody></table>
+        ${!isNum(apRet) ? '<p class="hint">Der Vergleich mit dem Autopiloten erscheint, sobald seine Live-Messung für diesen Zeitraum vorliegt.</p>' : ''}
+        <p class="hint">Gleich gewichtet, ohne Gebühren. Der Autopilot mit 0,25 % Gebühr je Handel und Reserve. Keine Anlageberatung.</p>
+        <p class="share-row hint">${shareLinks(url, i18n.say('Ich trete gegen den Krypto-Autopiloten an – schlägst du uns beide?'), 'Herausfordern')}</p>
+      </section>
+      <section class="panel upsell"><div><h3>Lieber gleich mit dem Autopiloten?</h3>
+        <p class="muted">Du sagst, wie viel du anlegen willst – der Autopilot sagt dir, was du kaufst. 30 Tage kostenlos, ohne Zahlungsdaten.</p></div>
+        <div class="btn-row"><a class="btn" href="${depot.user ? '#/portfolio' : '#/konto'}">${depot.user ? 'Autopilot starten' : 'Kostenlos starten'}</a></div></section>`;
+  }
+  let filled = false;
+  return { update() {
+    if (!filled && state.coins.length) {
+      filled = true;
+      $('#ch-coins').innerHTML = state.coins.filter((c) => (c.market_cap_rank ?? 9999) <= 300 && !c.analysis?.stable && !DERIVATIVE.test(c.name))
+        .map((c) => `<option value="${esc(c.name)}">${esc(c.symbol.toUpperCase())}</option>`).join('');
+      picks.forEach((p, i) => { const c = state.byId.get(p.id); if (c && $(`#ch-c${i + 1}`)) $(`#ch-c${i + 1}`).value = c.name; });
+    }
+    render();
+  } };
+}
+
 // ---------- Coin-Vergleich: zwei Coins nebeneinander (#/vergleich/bitcoin,ethereum) ----------
 // Kurse und Kennzahlen sind für alle sichtbar; das Signal nur, wo es auch sonst sichtbar ist (Paket oder Beispiel-Coin).
 function compareView(arg) {
@@ -3823,14 +3914,15 @@ function calculatorView(arg, { focus } = {}) {
 let routedFor = null;   // für wen die Ansicht zuletzt aufgebaut wurde: 'wait', 'guest' oder die Konto-Kennung
 function route() {
   routedFor = !depot.ready && maybeSignedIn() ? 'wait' : (depot.user?.uid ?? 'guest');
-  const [name, arg] = location.hash.replace(/^#\/?/, '').split('/');
+  const [rawName, arg] = location.hash.replace(/^#\/?/, '').split('/');
+  const name = (rawName ?? '').split('?')[0];
   const pages = ['preise', ...site.LEGAL_KINDS];
   const section = name === 'portfolio' ? 'portfolio' : name === 'konto' ? 'account' : name === 'daytrading' ? 'trading' : name === 'admin' ? 'admin' : name === 'rechner' || name === 'modell' ? 'tools' : name === 'indikatoren' ? 'compass' : name === 'vergleich' ? 'market'
     : pages.includes(name) ? null : 'market';
   for (const a of document.querySelectorAll('nav a')) a.classList.toggle('active', a.dataset.nav === section);
   let id = arg;
   try { id = decodeURIComponent(arg ?? ''); } catch { /* fehlerhafte Adresse – unverändert verwenden */ }
-  const open = ['konto', 'rechner', 'indikatoren', 'modell', 'vergleich'].includes(name) || pages.includes(name);
+  const open = ['konto', 'rechner', 'indikatoren', 'modell', 'vergleich', 'challenge'].includes(name) || pages.includes(name);
   const sales = () => site.pricingView(view, { access, user: () => depot.user, record: () => state.record });
   // Mit Bezahlschranke erst abwarten, wer angemeldet ist und ob ein Abo läuft – sonst blitzt die Verkaufsseite kurz auf
   usagePage(name || 'markt', arg);
@@ -3850,6 +3942,7 @@ function route() {
   else if (name === 'indikatoren') current = compassView();
   else if (name === 'modell') current = calculatorView('', { focus: 'model' });
   else if (name === 'vergleich') current = compareView(arg);
+  else if (name === 'challenge') current = challengeView();
   else if (site.LEGAL_KINDS.includes(name)) current = site.legalView(view, name);
   else current = marketView();
   current.update();
