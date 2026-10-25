@@ -1661,7 +1661,10 @@ function detailView(id) {
     head(c, a);
     // Kompass nur neu zeichnen, wenn sich der Kauf-Score ändert – sonst klappt die Aufschlüsselung bei jedem Kurs-Update zu
     const ck = `${state.market?.value}|${a.signal}`;
-    if (d.compassKey !== ck) { d.compassKey = ck; $('#d-compass').innerHTML = coinCompass(c); coinAutopilot(c, $('#d-auto')); }
+    if (d.compassKey !== ck) { d.compassKey = ck; $('#d-compass').innerHTML = coinCompass(c); }
+    // Rang erst neu rechnen, wenn alle Coins geladen sind – sonst zählt er nur die ersten 150
+    const ak = `${state.pagesLoaded >= api.PAGES}|${a.score}|${access().plan}`;
+    if (d.autoKey !== ak) { d.autoKey = ak; coinAutopilot(c, $('#d-auto')); }
     forecast(c, a); news(a); stats(c);
   }
 
