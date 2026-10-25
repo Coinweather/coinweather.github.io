@@ -1892,4 +1892,6 @@ export default {
   "Betrag eingeben – der Autopilot sagt dir, was du kaufst, und zeigt jede Woche, ob etwas zu tun ist. Seine Entwicklung messen wir live mit": "Enter an amount – the autopilot tells you what to buy and shows every week whether there is anything to do. We track its performance live",
   "Autopilot seit #": "Autopilot since #",
   "mit echten Kursen und Gebühren": "with real prices and fees",
+  "Mein Krypto-Portfolio läuft mit dem Autopiloten von Coinweather – er sagt mir jede Woche, was ich kaufe": "My crypto portfolio runs on Coinweather’s autopilot – every week it tells me what to buy",
+  "Autopilot empfehlen": "Recommend the autopilot",
 };

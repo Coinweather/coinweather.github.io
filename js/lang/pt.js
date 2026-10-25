@@ -1902,4 +1902,6 @@ export default {
   "Betrag eingeben – der Autopilot sagt dir, was du kaufst, und zeigt jede Woche, ob etwas zu tun ist. Seine Entwicklung messen wir live mit": "Informe um valor – o piloto automático diz o que comprar e mostra toda semana se há algo a fazer. Medimos sua evolução ao vivo",
   "Autopilot seit #": "Piloto automático desde #",
   "mit echten Kursen und Gebühren": "com preços reais e taxas",
+  "Mein Krypto-Portfolio läuft mit dem Autopiloten von Coinweather – er sagt mir jede Woche, was ich kaufe": "Minha carteira cripto roda com o piloto automático do Coinweather – toda semana ele me diz o que comprar",
+  "Autopilot empfehlen": "Recomendar o piloto automático",
 };

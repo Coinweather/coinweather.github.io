@@ -2210,6 +2210,8 @@ async function autopilotTeaser(el) {
     <div class="btn-row">${full ? `<a class="btn" href="#/portfolio/auto?b=${Math.round(fromDisplay(apAmount) * 100) / 100}&m=once">Mit diesem Betrag starten</a>`
       : `<a class="btn" href="${depot.user ? '#/preise' : '#/konto'}">${depot.user ? 'Pakete ansehen' : 'Kostenlos starten – 30 Tage alle Funktionen'}</a>`}
       <a class="btn ghost" href="#/rechner">So wäre es gelaufen</a></div>
+    <p class="share-row hint">${shareLinks(`${location.origin}${i18n.prefs.lang === 'en' ? '' : `/${i18n.prefs.lang}`}/crypto-portfolio-autopilot/?von=share-ap`,
+      i18n.say('Sag, wie viel du anlegen willst – der Autopilot sagt dir, was du kaufst.'), 'Teilen')}</p>
     ${autopilotLive()}
     <p class="hint">Rückrechnung seit 2018: +${RESERVE_BACKTEST.balanced.perYear} % pro Jahr, größter Rückgang −${RESERVE_BACKTEST.balanced.drawdown} % (Bitcoin halten: +${HOLD_BACKTEST.perYear} %, −${HOLD_BACKTEST.drawdown} %).
       Die Zukunft fällt meist schlechter aus. Keine Anlageberatung – ausführen tust du selbst bei deiner Börse.</p>`;
@@ -3024,6 +3026,8 @@ function portfolioView(arg = '') {
         : f.total ? `<p class="all-done">✓ Dein Portfolio entspricht dem Modell. Bis zur nächsten Prüfung ist nichts zu tun.</p>` : ''}
       ${f.missing.length ? `<p class="notice">Nicht gefunden und deshalb in Reserve gelassen: ${f.missing.map(esc).join(', ')}.</p>` : ''}
       ${depot.data.reserveMode === 'balanced' ? autopilotLive() : ''}
+      <p class="share-row hint">${shareLinks(`${location.origin}${i18n.prefs.lang === 'en' ? '' : `/${i18n.prefs.lang}`}/crypto-portfolio-autopilot/?von=share-ap`,
+        i18n.say('Mein Krypto-Portfolio läuft mit dem Autopiloten von Coinweather – er sagt mir jede Woche, was ich kaufe.'), 'Autopilot empfehlen')}</p>
       <details class="fold target-fold"${f.moves.length ? '' : ' open'}><summary>Ziel und Stand</summary>
         <table class="m-table target-table"><thead><tr><th>Coin</th><th class="num">Kauf-Score</th><th class="num">Ziel</th><th class="num">Jetzt</th><th></th></tr></thead><tbody>
         ${f.weights.map((w) => { const sc = state.byId.get(w.id)?.analysis?.score; return `<tr><td><a href="#/coin/${encodeURIComponent(w.id)}"><strong>${esc(w.name)}</strong></a></td>

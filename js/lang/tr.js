@@ -1902,4 +1902,6 @@ export default {
   "Betrag eingeben – der Autopilot sagt dir, was du kaufst, und zeigt jede Woche, ob etwas zu tun ist. Seine Entwicklung messen wir live mit": "Bir tutar gir – otomatik pilot ne alacağını söyler ve her hafta yapılacak bir şey olup olmadığını gösterir. Performansını canlı ölçüyoruz",
   "Autopilot seit #": "# tarihinden beri otomatik pilot",
   "mit echten Kursen und Gebühren": "gerçek fiyatlar ve ücretlerle",
+  "Mein Krypto-Portfolio läuft mit dem Autopiloten von Coinweather – er sagt mir jede Woche, was ich kaufe": "Kripto portföyüm Coinweather otomatik pilotuyla çalışıyor – her hafta bana ne alacağımı söylüyor",
+  "Autopilot empfehlen": "Otomatik pilotu öner",
 };
