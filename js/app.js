@@ -467,7 +467,7 @@ const BUY_INPUTS = [
   ['twoYear', '2-Jahres-Schnitt', 'Kurs zum Schnitt der letzten 2 Jahre', (r) => `${num(r.twoYear, 2)}×`],
   ['pi', 'Pi-Cycle', '111-Tage-Schnitt zum doppelten 350-Tage-Schnitt', (r) => `${num(r.pi * 100, 0)} %`],
   ['ath', 'Abstand zum Allzeithoch', 'je tiefer, desto günstiger', (r) => `${num(r.dd, 0)} %`],
-  ['fng', 'Angst am Markt', 'Fear & Greed, Schnitt 30 Tage', (r) => num(r.fng30, 0)],
+  ['fng', 'Stimmung am Markt', 'Fear & Greed, Schnitt 30 Tage – Angst ist günstig', (r) => num(r.fng30, 0)],
 ];
 // Welche Bausteine den Kauf-Score gerade heben und welche ihn drücken – in einem Satz
 function buyDrivers(b) {
@@ -534,7 +534,7 @@ const INFO = {
       <li><strong>2-Jahres-Schnitt:</strong> Kurs zum Schnitt der letzten 730 Tage. Am Schnitt ganz günstig, beim Fünffachen überhitzt.</li>
       <li><strong>Pi-Cycle:</strong> 111-Tage-Schnitt zum doppelten 350-Tage-Schnitt. 40 % ganz günstig, das Kreuzen bei 100 % überhitzt.</li>
       <li><strong>Abstand zum Allzeithoch:</strong> 80 % darunter ganz günstig, am Hoch teuer.</li>
-      <li><strong>Angst am Markt:</strong> Fear &amp; Greed im Schnitt der letzten 30 Tage – Angst macht den Score höher.</li></ul>
+      <li><strong>Stimmung am Markt:</strong> Fear &amp; Greed im Schnitt der letzten 30 Tage – Angst macht den Score höher.</li></ul>
     <p>Alle fünf zählen gleich. Der Kauf-Score ist 100 minus das Zyklus-Risiko aus dem Zyklus-Kompass – beide zeigen dasselbe, nur andersherum.</p>
     <h3>Stufen</h3>
     <ul><li><strong>ab 75:</strong> Kaufen</li><li><strong>62–74:</strong> Eher kaufen</li><li><strong>45–61:</strong> Halten</li>

@@ -1981,4 +1981,6 @@ export default {
   "Das Kaufsignal kommt vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "Le signal d’achat vient surtout du cycle bon marché – il vaut pour des achats échelonnés sur au moins # mois",
   "Ein schwaches Kaufsignal, vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "Un signal d’achat faible, surtout dû au cycle bon marché – il vaut pour des achats échelonnés sur au moins # mois",
   "Für Altcoins war ein solcher Stand bisher kein klarer Vorteil": "Pour les altcoins, un tel niveau n’a pas été jusqu’ici un avantage net",
+  "Stimmung am Markt": "Humeur du marché",
+  "Fear & Greed, Schnitt # Tage – Angst ist günstig": "Fear & Greed, moyenne sur # jours – la peur est bon marché",
 };

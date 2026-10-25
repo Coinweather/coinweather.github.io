@@ -1971,4 +1971,6 @@ export default {
   "Das Kaufsignal kommt vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "The buy signal comes mainly from the cheap cycle – it applies to buying in instalments over at least # months",
   "Ein schwaches Kaufsignal, vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "A weak buy signal, mainly from the cheap cycle – it applies to buying in instalments over at least # months",
   "Für Altcoins war ein solcher Stand bisher kein klarer Vorteil": "For altcoins, such a level has not been a clear advantage so far",
+  "Stimmung am Markt": "Market mood",
+  "Fear & Greed, Schnitt # Tage – Angst ist günstig": "Fear & Greed, #-day average – fear is cheap",
 };

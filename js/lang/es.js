@@ -1981,4 +1981,6 @@ export default {
   "Das Kaufsignal kommt vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "La señal de compra viene sobre todo del ciclo barato – vale para compras escalonadas durante al menos # meses",
   "Ein schwaches Kaufsignal, vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "Una señal de compra débil, sobre todo por el ciclo barato – vale para compras escalonadas durante al menos # meses",
   "Für Altcoins war ein solcher Stand bisher kein klarer Vorteil": "Para las altcoins, un nivel así no ha sido hasta ahora una ventaja clara",
+  "Stimmung am Markt": "Ánimo del mercado",
+  "Fear & Greed, Schnitt # Tage – Angst ist günstig": "Fear & Greed, media de # días – el miedo es barato",
 };

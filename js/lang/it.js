@@ -1981,4 +1981,6 @@ export default {
   "Das Kaufsignal kommt vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "Il segnale di acquisto viene soprattutto dal ciclo conveniente – vale per acquisti a rate per almeno # mesi",
   "Ein schwaches Kaufsignal, vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "Un segnale di acquisto debole, soprattutto per il ciclo conveniente – vale per acquisti a rate per almeno # mesi",
   "Für Altcoins war ein solcher Stand bisher kein klarer Vorteil": "Per le altcoin un livello simile finora non è stato un vantaggio chiaro",
+  "Stimmung am Markt": "Umore del mercato",
+  "Fear & Greed, Schnitt # Tage – Angst ist günstig": "Fear & Greed, media di # giorni – la paura è conveniente",
 };

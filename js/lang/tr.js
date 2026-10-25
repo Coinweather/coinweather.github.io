@@ -1981,4 +1981,6 @@ export default {
   "Das Kaufsignal kommt vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "Alım sinyali çoğunlukla ucuz döngüden geliyor – en az # ay boyunca taksitli alımlar için geçerli",
   "Ein schwaches Kaufsignal, vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "Zayıf bir alım sinyali, çoğunlukla ucuz döngüden – en az # ay boyunca taksitli alımlar için geçerli",
   "Für Altcoins war ein solcher Stand bisher kein klarer Vorteil": "Altcoinler için böyle bir seviye şimdiye kadar net bir avantaj olmadı",
+  "Stimmung am Markt": "Piyasa havası",
+  "Fear & Greed, Schnitt # Tage – Angst ist günstig": "Fear & Greed, # günlük ortalama – korku ucuzdur",
 };

@@ -969,6 +969,8 @@ details.d-fold > summary { font-size: 15px; letter-spacing: 0; text-transform: n
   .tabbar a.active span[aria-hidden] { filter: none; }
   .tabbar .nav-badge { position: absolute; top: 0; left: calc(50% + 6px); margin: 0; }
   body { padding-bottom: calc(66px + env(safe-area-inset-bottom)); }
+  .brand { font-size: 17px; gap: 8px; }   /* das Menü ist unten – oben ist wieder Platz für den Namen */
+  .brand::before { width: 28px; height: 28px; }
   .chart-max { bottom: 0; z-index: 100; }
 }
 
