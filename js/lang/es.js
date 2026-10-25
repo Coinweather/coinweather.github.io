@@ -1978,4 +1978,7 @@ export default {
   "Lade alle Kurse …": "Cargando todos los precios …",
   "Reserve wie im Modell-Portfolio der Strategie „{*}“": "Reserva como en la cartera modelo de la estrategia «{*}»",
   "ab morgen wächst hier dein tatsächlicher Verlauf": "a partir de mañana aquí crece tu historial real",
+  "Das Kaufsignal kommt vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "La señal de compra viene sobre todo del ciclo barato – vale para compras escalonadas durante al menos # meses",
+  "Ein schwaches Kaufsignal, vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "Una señal de compra débil, sobre todo por el ciclo barato – vale para compras escalonadas durante al menos # meses",
+  "Für Altcoins war ein solcher Stand bisher kein klarer Vorteil": "Para las altcoins, un nivel así no ha sido hasta ahora una ventaja clara",
 };

@@ -1447,7 +1447,9 @@ function detailView(id) {
   }
 
   function head(c, a) {
-    const strength = { Kaufen: 'deutlich', 'Eher kaufen': 'schwach – leichter Vorteil', Verkaufen: 'deutlich', 'Eher verkaufen': 'schwach' }[a.label];
+    // „Leichter Vorteil“ nur, wenn vergleichbare Fälle auch öfter höher standen – sonst bleibt es bei „schwach“
+    const edge = a.byCycle || a.cycleLed ? a.forecast?.long?.up : a.forecast?.medium?.up;
+    const strength = { Kaufen: 'deutlich', 'Eher kaufen': isNum(edge) && edge > 50 ? 'schwach – leichter Vorteil' : 'schwach', Verkaufen: 'deutlich', 'Eher verkaufen': 'schwach' }[a.label];
     $('#d-head').innerHTML = `<section class="panel d-head">
       <div class="d-coin"><img src="${esc(c.image)}" alt="">
         <div><h1 class="d-name">${esc(c.name)} <span class="coin-sym">${esc(c.symbol)}</span> ${a.signal === 'none' ? '' : star(c.id)}</h1>
@@ -1462,7 +1464,7 @@ function detailView(id) {
           ${a.scope ? `<div><dt>Signal gilt für</dt><dd>${a.scope === 'weeks' ? 'die nächsten Wochen – nicht zum langen Halten' : a.scope === 'year' ? '12 Monate und länger (Zyklus-Kompass)' : 'Wochen bis Monate'}</dd></div>` : ''}
           <div><dt>Risiko</dt><dd>${riskTag(a.risk)}</dd></div>
           ${a.mood ? `<div><dt>Stimmung des Coins</dt><dd>${a.mood.value} / 100 · ${moodLabel(a.mood.value)}</dd></div>` : ''}
-          <div><dt>Übereinstimmung</dt><dd>${a.agreement ? `${a.agreement.agreeing} von ${a.agreement.of} Zeiträumen` : '–'}</dd></div></dl></div>
+          ${a.agreement?.of > 1 ? `<div><dt>Übereinstimmung</dt><dd>${a.agreement.agreeing} von ${a.agreement.of} Zeiträumen</dd></div>` : ''}</dl></div>
       ${summary(a)}
       <p class="share-row hint d-share">${shareLinks(shareUrl(`#/coin/${encodeURIComponent(c.id)}`), `${c.name}: ${i18n.say(a.label)} – Coinweather`)}
         <a href="#/vergleich/${encodeURIComponent(c.id)},${c.id === 'bitcoin' ? 'ethereum' : 'bitcoin'}">⇄ ${c.id === 'bitcoin' ? 'Mit Ethereum vergleichen' : 'Mit Bitcoin vergleichen'}</a>
@@ -1476,6 +1478,8 @@ function detailView(id) {
     const say = a.byCycle ? { Kaufen: 'Der Zyklus ist günstig – ein guter Stand für Käufe in Raten über mindestens 12 Monate.', 'Eher kaufen': 'Der Zyklus ist eher günstig – Käufe in Raten über mindestens 12 Monate.',
       Halten: 'Weder billig noch teuer – ein Sparplan kann normal weiterlaufen.', 'Eher verkaufen': 'Der Zyklus ist teuer – nicht nachkaufen.', Verkaufen: 'Der Zyklus ist überhitzt – Gewinne sichern.' }[a.label] ?? ''
       : a.anticyclical ? 'Antizyklischer Einstieg für mindestens 12 Monate – kurzfristig kann der Kurs weiter fallen.'
+      : a.cycleLed && a.signal === 'buy' ? (a.label === 'Kaufen' ? 'Das Kaufsignal kommt vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens 12 Monate.'
+        : 'Ein schwaches Kaufsignal, vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens 12 Monate.')
       : { Kaufen: 'Die Daten sprechen für einen Kauf.', 'Eher kaufen': 'Die Daten sprechen leicht für einen Kauf – ein schwaches Signal.',
         Halten: 'Im Moment kein klarer Vorteil – abwarten.', 'Eher verkaufen': 'Die Daten sprechen eher gegen einen Kauf.',
         Verkaufen: 'Die Daten sprechen gegen einen Kauf.' }[a.label] ?? '';
@@ -1483,6 +1487,7 @@ function detailView(id) {
     return `<p class="d-summary"><strong>Kurz gesagt:</strong> <span>${say}</span>
       ${isNum(up) && !a.byCycle && !a.cycleLed ? `<span>In vergleichbaren Fällen stand der Kurs 30 Tage später in ${up} von 100 Fällen höher.</span>` : ''}
       ${year?.byBuy && isNum(year.up) ? `<span>Auf 12 Monate (nach dem Kauf-Score): in ${year.up} von 100 vergleichbaren Fällen höher.</span>` : ''}
+      ${a.cycleLed && !a.byCycle && a.signal === 'buy' && year?.byBuy && isNum(year.up) && year.up <= 50 ? '<span>Für Altcoins war ein solcher Stand bisher kein klarer Vorteil.</span>' : ''}
       <span class="muted">Eine Wahrscheinlichkeit, keine Garantie.</span></p>`;
   }
 

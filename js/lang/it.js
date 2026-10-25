@@ -1978,4 +1978,7 @@ export default {
   "Lade alle Kurse …": "Carico tutti i prezzi …",
   "Reserve wie im Modell-Portfolio der Strategie „{*}“": "Riserva come nel portafoglio modello della strategia «{*}»",
   "ab morgen wächst hier dein tatsächlicher Verlauf": "da domani qui cresce il tuo andamento reale",
+  "Das Kaufsignal kommt vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "Il segnale di acquisto viene soprattutto dal ciclo conveniente – vale per acquisti a rate per almeno # mesi",
+  "Ein schwaches Kaufsignal, vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "Un segnale di acquisto debole, soprattutto per il ciclo conveniente – vale per acquisti a rate per almeno # mesi",
+  "Für Altcoins war ein solcher Stand bisher kein klarer Vorteil": "Per le altcoin un livello simile finora non è stato un vantaggio chiaro",
 };

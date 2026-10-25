@@ -1978,4 +1978,7 @@ export default {
   "Lade alle Kurse …": "Chargement de tous les cours …",
   "Reserve wie im Modell-Portfolio der Strategie „{*}“": "Réserve comme dans le portefeuille modèle de la stratégie « {*} »",
   "ab morgen wächst hier dein tatsächlicher Verlauf": "à partir de demain, ton historique réel s’affiche ici",
+  "Das Kaufsignal kommt vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "Le signal d’achat vient surtout du cycle bon marché – il vaut pour des achats échelonnés sur au moins # mois",
+  "Ein schwaches Kaufsignal, vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "Un signal d’achat faible, surtout dû au cycle bon marché – il vaut pour des achats échelonnés sur au moins # mois",
+  "Für Altcoins war ein solcher Stand bisher kein klarer Vorteil": "Pour les altcoins, un tel niveau n’a pas été jusqu’ici un avantage net",
 };

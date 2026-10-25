@@ -1978,4 +1978,7 @@ export default {
   "Lade alle Kurse …": "Tüm fiyatlar yükleniyor …",
   "Reserve wie im Modell-Portfolio der Strategie „{*}“": "“{*}” stratejisinin model portföyündeki gibi rezerv",
   "ab morgen wächst hier dein tatsächlicher Verlauf": "yarından itibaren gerçek geçmişin burada büyür",
+  "Das Kaufsignal kommt vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "Alım sinyali çoğunlukla ucuz döngüden geliyor – en az # ay boyunca taksitli alımlar için geçerli",
+  "Ein schwaches Kaufsignal, vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "Zayıf bir alım sinyali, çoğunlukla ucuz döngüden – en az # ay boyunca taksitli alımlar için geçerli",
+  "Für Altcoins war ein solcher Stand bisher kein klarer Vorteil": "Altcoinler için böyle bir seviye şimdiye kadar net bir avantaj olmadı",
 };

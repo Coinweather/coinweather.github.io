@@ -1968,4 +1968,7 @@ export default {
   "Lade alle Kurse …": "Loading all prices …",
   "Reserve wie im Modell-Portfolio der Strategie „{*}“": "Reserve as in the model portfolio of the “{*}” strategy",
   "ab morgen wächst hier dein tatsächlicher Verlauf": "from tomorrow your actual history grows here",
+  "Das Kaufsignal kommt vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "The buy signal comes mainly from the cheap cycle – it applies to buying in instalments over at least # months",
+  "Ein schwaches Kaufsignal, vor allem vom günstigen Zyklus – es gilt für Käufe in Raten über mindestens # Monate": "A weak buy signal, mainly from the cheap cycle – it applies to buying in instalments over at least # months",
+  "Für Altcoins war ein solcher Stand bisher kein klarer Vorteil": "For altcoins, such a level has not been a clear advantage so far",
 };
