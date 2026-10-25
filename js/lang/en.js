@@ -1886,4 +1886,6 @@ export default {
   "Prüftag in den Kalender": "Add check day to calendar",
   "Coinweather: Autopilot prüfen": "Coinweather: check autopilot",
   "Schau nach, ob der Autopilot Schritte für dein Portfolio hat": "Check whether the autopilot has steps for your portfolio",
+  "Live seit #": "Live since #",
+  "– mit echten Kursen und Gebühren, ohne Rückrechnung": "– with real prices and fees, no backtest",
 };

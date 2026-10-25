@@ -1257,7 +1257,7 @@ function marketView(preview = false) {
 
   // Autopilot-Vorschau: einmal, sobald Kurse da sind, und wenn sich der Zugang ändert
   let apKey = null;
-  const apTeaser = () => { const key = `${state.coins.length > 0}|${access().plan}|${depot.data.mode}`; if (key === apKey) return; apKey = key; autopilotTeaser($('#ap-teaser')); };
+  const apTeaser = () => { const key = `${state.coins.length > 0}|${access().plan}|${depot.data.mode}|${state.record?.ap?.nav}`; if (key === apKey) return; apKey = key; autopilotTeaser($('#ap-teaser')); };
   return { update() { hero(); onboard(); compassTeaser(); apTeaser(); favs(); picks(); heatmap(); table(); } };
 }
 
@@ -2171,6 +2171,16 @@ async function navBadge() {
 }
 setInterval(() => navBadge().catch(() => {}), 60_000);
 
+// Live-Messung des Autopiloten (scripts/snapshot.mjs): das Modell-Portfolio seit dem Start mit echten Kursen, Bitcoin daneben
+function autopilotLive(cls = 'hint') {
+  const a = state.record?.ap;
+  if (!a?.days) return '';
+  const since = new Date(a.since * 86_400_000).toLocaleDateString(settings.locale);
+  const r = a.nav - 100, b = a.btc - 100;
+  return `<p class="${cls} ap-live"><span class="live-dot" aria-hidden="true"></span><strong>Live seit ${since}:</strong> Autopilot <span class="${tone(r)}">${signed(r, 1)} %</span>,
+    Bitcoin <span class="${tone(b)}">${signed(b, 1)} %</span> – mit echten Kursen und Gebühren, ohne Rückrechnung.</p>`;
+}
+
 // Startseite: Was würde der Autopilot mit einem Betrag kaufen? Für alle sichtbar; die ganze Liste mit Konto
 let apAmount = null;
 async function autopilotTeaser(el) {
@@ -2200,6 +2210,7 @@ async function autopilotTeaser(el) {
     <div class="btn-row">${full ? `<a class="btn" href="#/portfolio/auto?b=${Math.round(fromDisplay(apAmount) * 100) / 100}&m=once">Mit diesem Betrag starten</a>`
       : `<a class="btn" href="${depot.user ? '#/preise' : '#/konto'}">${depot.user ? 'Pakete ansehen' : 'Kostenlos starten – 30 Tage alle Funktionen'}</a>`}
       <a class="btn ghost" href="#/rechner">So wäre es gelaufen</a></div>
+    ${autopilotLive()}
     <p class="hint">Rückrechnung seit 2018: +${RESERVE_BACKTEST.balanced.perYear} % pro Jahr, größter Rückgang −${RESERVE_BACKTEST.balanced.drawdown} % (Bitcoin halten: +${HOLD_BACKTEST.perYear} %, −${HOLD_BACKTEST.drawdown} %).
       Die Zukunft fällt meist schlechter aus. Keine Anlageberatung – ausführen tust du selbst bei deiner Börse.</p>`;
   el.querySelector('#ap-form').addEventListener('submit', (e) => {
@@ -3012,6 +3023,7 @@ function portfolioView(arg = '') {
           <span class="muted">Gebühren zusammen rund ${money(f.fees)} (0,25 % je Handel)</span></div>`
         : f.total ? `<p class="all-done">✓ Dein Portfolio entspricht dem Modell. Bis zur nächsten Prüfung ist nichts zu tun.</p>` : ''}
       ${f.missing.length ? `<p class="notice">Nicht gefunden und deshalb in Reserve gelassen: ${f.missing.map(esc).join(', ')}.</p>` : ''}
+      ${depot.data.reserveMode === 'balanced' ? autopilotLive() : ''}
       <details class="fold target-fold"${f.moves.length ? '' : ' open'}><summary>Ziel und Stand</summary>
         <table class="m-table target-table"><thead><tr><th>Coin</th><th class="num">Kauf-Score</th><th class="num">Ziel</th><th class="num">Jetzt</th><th></th></tr></thead><tbody>
         ${f.weights.map((w) => { const sc = state.byId.get(w.id)?.analysis?.score; return `<tr><td><a href="#/coin/${encodeURIComponent(w.id)}"><strong>${esc(w.name)}</strong></a></td>
@@ -3499,6 +3511,7 @@ async function modelSection(el) {
       <div id="m-chart" class="chart"></div>
       <p class="hint">Diese Kurve beginnt an einem bestimmten Wochentag. Je nach Starttag schwankt das Ergebnis um rund ±10 Punkte pro Jahr – im Mittel aus 7 Starttagen:
         +${RESERVE_BACKTEST.balanced.perYear} % pro Jahr, seit 2022 +${RESERVE_BACKTEST.balanced.recent} %, größter Rückgang −${RESERVE_BACKTEST.balanced.drawdown} %.</p>
+      ${autopilotLive()}
       <p class="hint"><strong>Wichtig:</strong> Das ist eine Rückrechnung an den Kursen, an denen die Regeln entwickelt wurden. Die Zukunft fällt meist schlechter aus;
         Coins, die es nicht mehr gibt, fehlen; Steuern sind nicht berücksichtigt. Keine Anlageberatung.</p>
     </section>

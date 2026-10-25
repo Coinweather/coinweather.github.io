@@ -1896,4 +1896,6 @@ export default {
   "Prüftag in den Kalender": "Kontrol gününü takvime ekle",
   "Coinweather: Autopilot prüfen": "Coinweather: otomatik pilotu kontrol et",
   "Schau nach, ob der Autopilot Schritte für dein Portfolio hat": "Otomatik pilotun portföyün için adımları var mı bak",
+  "Live seit #": "# tarihinden beri canlı",
+  "– mit echten Kursen und Gebühren, ohne Rückrechnung": "– gerçek fiyatlar ve ücretlerle, geriye dönük test olmadan",
 };

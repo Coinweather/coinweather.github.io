@@ -922,7 +922,7 @@ const BB = {
       ['Bitcoin mi altcoin mi almalı?', () => '2022’den beri Bitcoin ve Ethereum, ucuz döngü seviyelerinden bir yıl sonra tipik altcoinden çok daha sık daha yüksekti. Bu yüzden Coinweather otomatik pilotu paranın çoğunu en büyük coinlerde tutar ve altcoinleri yalnızca güçlü alım skoruyla ekler.']] },
 };
 const AP = {
-  en: { nav: 'Crypto portfolio autopilot', path: '/crypto-portfolio-autopilot/',
+  en: { live: (d, r, b) => `Live since ${d}: autopilot ${r}, Bitcoin ${b} – with real prices and fees, no backtest.`, nav: 'Crypto portfolio autopilot', path: '/crypto-portfolio-autopilot/',
     title: 'Crypto portfolio autopilot: tells you what to buy – free for 30 days',
     desc: (r, n) => `Enter an amount and Coinweather’s autopilot tells you which coins to buy and how much to keep in reserve. Today: ${n} coins, ${r} % reserve. Checked every week. You trade yourself, no access to your money.`,
     h1: 'The crypto autopilot: you say how much – it says what to buy',
@@ -934,7 +934,7 @@ const AP = {
     faq: [['Does Coinweather have access to my money?', 'No. Coinweather never trades for you and never connects to your exchange. You see the steps and carry them out yourself.'],
       ['How often does the autopilot trade?', 'It checks once a week. Steps only appear when the model changes its holdings or you add money – small deviations are ignored to save fees.'],
       ['Is this financial advice?', 'No. The autopilot follows fixed, published rules tested on past prices. Crypto can fall sharply, up to a total loss.']] },
-  de: { nav: 'Krypto-Autopilot', path: '/crypto-portfolio-autopilot/',
+  de: { live: (d, r, b) => `Live seit ${d}: Autopilot ${r}, Bitcoin ${b} – mit echten Kursen und Gebühren, ohne Rückrechnung.`, nav: 'Krypto-Autopilot', path: '/crypto-portfolio-autopilot/',
     title: 'Krypto-Autopilot fürs Portfolio: sagt dir, was du kaufst – 30 Tage kostenlos',
     desc: (r, n) => `Betrag eingeben – der Autopilot von Coinweather sagt dir, welche Coins du kaufst und wie viel Reserve bleibt. Heute: ${n} Coins, ${r} % Reserve. Jede Woche geprüft. Du handelst selbst, kein Zugriff auf dein Geld.`,
     h1: 'Der Krypto-Autopilot: Du sagst, wie viel – er sagt, was du kaufst',
@@ -946,7 +946,7 @@ const AP = {
     faq: [['Hat Coinweather Zugriff auf mein Geld?', 'Nein. Coinweather handelt nie für dich und verbindet sich nicht mit deiner Börse. Du siehst die Schritte und führst sie selbst aus.'],
       ['Wie oft handelt der Autopilot?', 'Er prüft einmal pro Woche. Schritte gibt es nur, wenn das Modell seinen Bestand ändert oder du Geld einzahlst – kleine Abweichungen bleiben liegen, das spart Gebühren.'],
       ['Ist das eine Anlageberatung?', 'Nein. Der Autopilot folgt festen, offengelegten Regeln, geprüft an vergangenen Kursen. Krypto kann stark fallen, bis zum Totalverlust.']] },
-  es: { nav: 'Piloto automático cripto', path: '/crypto-portfolio-autopilot/',
+  es: { live: (d, r, b) => `En vivo desde ${d}: piloto automático ${r}, Bitcoin ${b}, con precios reales y comisiones, sin backtest.`, nav: 'Piloto automático cripto', path: '/crypto-portfolio-autopilot/',
     title: 'Piloto automático para tu cartera cripto: te dice qué comprar – 30 días gratis',
     desc: (r, n) => `Introduce un importe y el piloto automático de Coinweather te dice qué monedas comprar y cuánto dejar en reserva. Hoy: ${n} monedas, ${r} % de reserva. Revisado cada semana. Operas tú, sin acceso a tu dinero.`,
     h1: 'El piloto automático cripto: tú dices cuánto, él dice qué comprar',
@@ -958,7 +958,7 @@ const AP = {
     faq: [['¿Tiene Coinweather acceso a mi dinero?', 'No. Coinweather nunca opera por ti ni se conecta a tu exchange. Ves los pasos y los ejecutas tú.'],
       ['¿Con qué frecuencia opera el piloto automático?', 'Revisa una vez por semana. Solo hay pasos cuando el modelo cambia sus posiciones o aportas dinero; las pequeñas desviaciones se ignoran para ahorrar comisiones.'],
       ['¿Es asesoramiento financiero?', 'No. El piloto automático sigue reglas fijas y publicadas, probadas con precios pasados. Las criptos pueden caer con fuerza, hasta la pérdida total.']] },
-  fr: { nav: 'Pilote automatique crypto', path: '/crypto-portfolio-autopilot/',
+  fr: { live: (d, r, b) => `En direct depuis le ${d} : pilote automatique ${r}, Bitcoin ${b} – avec de vrais cours et frais, sans backtest.`, nav: 'Pilote automatique crypto', path: '/crypto-portfolio-autopilot/',
     title: 'Pilote automatique pour ton portefeuille crypto : il te dit quoi acheter – 30 jours gratuits',
     desc: (r, n) => `Saisis un montant et le pilote automatique Coinweather te dit quelles cryptos acheter et combien garder en réserve. Aujourd’hui : ${n} cryptos, ${r} % de réserve. Vérifié chaque semaine. Tu négocies toi-même, aucun accès à ton argent.`,
     h1: 'Le pilote automatique crypto : tu dis combien – il dit quoi acheter',
@@ -970,7 +970,7 @@ const AP = {
     faq: [['Coinweather a-t-il accès à mon argent ?', 'Non. Coinweather ne négocie jamais pour toi et ne se connecte pas à ta plateforme. Tu vois les étapes et tu les exécutes toi-même.'],
       ['À quelle fréquence le pilote automatique négocie-t-il ?', 'Il vérifie une fois par semaine. Il n’y a des étapes que si le modèle change ses positions ou si tu ajoutes de l’argent – les petits écarts sont ignorés pour économiser des frais.'],
       ['Est-ce un conseil en investissement ?', 'Non. Le pilote automatique suit des règles fixes et publiées, testées sur des cours passés. Les cryptos peuvent chuter fortement, jusqu’à la perte totale.']] },
-  it: { nav: 'Pilota automatico crypto', path: '/crypto-portfolio-autopilot/',
+  it: { live: (d, r, b) => `Dal vivo dal ${d}: pilota automatico ${r}, Bitcoin ${b} – con prezzi reali e commissioni, senza backtest.`, nav: 'Pilota automatico crypto', path: '/crypto-portfolio-autopilot/',
     title: 'Pilota automatico per il tuo portafoglio crypto: ti dice cosa comprare – 30 giorni gratis',
     desc: (r, n) => `Inserisci un importo e il pilota automatico di Coinweather ti dice quali coin comprare e quanta riserva tenere. Oggi: ${n} coin, ${r} % di riserva. Controllato ogni settimana. Operi tu, nessun accesso al tuo denaro.`,
     h1: 'Il pilota automatico crypto: tu dici quanto – lui dice cosa comprare',
@@ -982,7 +982,7 @@ const AP = {
     faq: [['Coinweather ha accesso al mio denaro?', 'No. Coinweather non opera mai per te e non si collega al tuo exchange. Vedi i passi e li esegui tu.'],
       ['Quanto spesso opera il pilota automatico?', 'Controlla una volta a settimana. I passi compaiono solo quando il modello cambia le sue posizioni o versi denaro – le piccole differenze vengono ignorate per risparmiare commissioni.'],
       ['È una consulenza finanziaria?', 'No. Il pilota automatico segue regole fisse e pubbliche, testate su prezzi passati. Le crypto possono crollare, fino alla perdita totale.']] },
-  pt: { nav: 'Piloto automático cripto', path: '/crypto-portfolio-autopilot/',
+  pt: { live: (d, r, b) => `Ao vivo desde ${d}: piloto automático ${r}, Bitcoin ${b} – com preços reais e taxas, sem backtest.`, nav: 'Piloto automático cripto', path: '/crypto-portfolio-autopilot/',
     title: 'Piloto automático para sua carteira cripto: diz o que comprar – 30 dias grátis',
     desc: (r, n) => `Informe um valor e o piloto automático do Coinweather diz quais moedas comprar e quanto manter em reserva. Hoje: ${n} moedas, ${r} % de reserva. Verificado toda semana. Você negocia, sem acesso ao seu dinheiro.`,
     h1: 'O piloto automático cripto: você diz quanto – ele diz o que comprar',
@@ -994,7 +994,7 @@ const AP = {
     faq: [['O Coinweather tem acesso ao meu dinheiro?', 'Não. O Coinweather nunca negocia por você e não se conecta à sua corretora. Você vê os passos e os executa.'],
       ['Com que frequência o piloto automático negocia?', 'Ele verifica uma vez por semana. Só há passos quando o modelo muda suas posições ou você deposita dinheiro – pequenos desvios são ignorados para economizar taxas.'],
       ['Isso é recomendação de investimento?', 'Não. O piloto automático segue regras fixas e públicas, testadas com preços passados. Cripto pode cair muito, até a perda total.']] },
-  tr: { nav: 'Kripto otomatik pilot', path: '/crypto-portfolio-autopilot/',
+  tr: { live: (d, r, b) => `${d} tarihinden beri canlı: otomatik pilot ${r}, Bitcoin ${b} – gerçek fiyatlar ve ücretlerle, geriye dönük test olmadan.`, nav: 'Kripto otomatik pilot', path: '/crypto-portfolio-autopilot/',
     title: 'Kripto portföyün için otomatik pilot: ne alacağını söyler – 30 gün ücretsiz',
     desc: (r, n) => `Bir tutar gir; Coinweather otomatik pilotu hangi coinleri alacağını ve ne kadar rezerv tutacağını söyler. Bugün: ${n} coin, % ${r} rezerv. Her hafta kontrol edilir. İşlemi sen yaparsın, paran üzerinde erişim yok.`,
     h1: 'Kripto otomatik pilot: sen ne kadar dersin – o ne alacağını söyler',
@@ -1157,6 +1157,7 @@ for (const lang of LANG_ORDER) {
         <div class="panel"><table><tr><th>${esc(A.coin)}</th><th class="n">${esc(A.share)}</th></tr>
           ${t.holdings.map((h, i) => `<tr><td>${i < 2 ? esc(nameOf(h.symbol)) : '🔒'}</td><td class="n">${i < 2 ? `${num(h.share, 1)} %` : '–'}</td></tr>`).join('')}
           <tr><td>${esc(A.reserve)}</td><td class="n">${num(t.cash, 1)} %</td></tr></table></div>
+        ${record?.ap?.days ? `<p><strong>${esc(A.live(new Date(record.ap.since * 86_400_000).toLocaleDateString(locale), pct(record.ap.nav - 100), pct(record.ap.btc - 100)))}</strong></p>` : ''}
         <h2>${esc(A.how)}</h2><ol>${A.steps.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>
         <h2>${esc(A.btH)}</h2><p>${esc(A.bt(B2.perYear, B2.recent, B2.drawdown, HOLD_BACKTEST.perYear))}</p>
         <section class="panel cta"><strong>${esc(A.cta)}</strong><p><a class="btn" href="${app('#/konto')}">${esc(A.btn)}</a> <a class="btn ghost" href="${app('#/rechner')}">${esc(A.calc)}</a></p></section>

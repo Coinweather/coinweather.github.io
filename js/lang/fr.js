@@ -1896,4 +1896,6 @@ export default {
   "Prüftag in den Kalender": "Ajouter le jour de contrôle au calendrier",
   "Coinweather: Autopilot prüfen": "Coinweather : vérifier le pilote automatique",
   "Schau nach, ob der Autopilot Schritte für dein Portfolio hat": "Regarde si le pilote automatique a des étapes pour ton portefeuille",
+  "Live seit #": "En direct depuis le #",
+  "– mit echten Kursen und Gebühren, ohne Rückrechnung": "– avec de vrais cours et frais, sans backtest",
 };

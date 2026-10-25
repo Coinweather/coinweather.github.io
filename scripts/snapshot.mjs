@@ -202,6 +202,45 @@ const sumUp = (key) => {
 };
 const record = { since: track.since, days: track.days.length, d7: sumUp('e7'), d30: sumUp('e30') };
 
+// ---------- Autopilot live ----------
+// Das Modell-Portfolio der Strategie „Ausgewogen“ (jeden Morgen beim Veröffentlichen gerechnet, data/model-curve.json) wird ab dem
+// Start mit echten Kursen mitgeführt – genau wie es jemand täte, der dem Autopiloten folgt: Anteile wie im Modell, umgeschichtet nur bei
+// mindestens 1 % Abweichung, 0,25 % Gebühr auf jeden Umbau. So entsteht eine Messung ohne Rückrechnung. Stand in track.json unter „ap“.
+const AP_FEE = 0.0025;
+const bySym = (s) => coins.filter((c) => c.symbol.toUpperCase() === s && c.current_price > 0)
+  .sort((a, b) => (a.market_cap_rank ?? 9999) - (b.market_cap_rank ?? 9999))[0];
+try {
+  const curve = await (await fetch(`https://coinweather.github.io/data/model-curve.json?t=${Date.now()}`)).json();
+  const t = curve.profiles?.balanced;
+  if (t?.holdings && btc?.current_price > 0) {
+    const ap = track.ap ?? { since: today, btc0: btc.current_price, cash: 100, pos: {}, px: {}, days: [] };
+    const priceOf = (s) => bySym(s)?.current_price ?? ap.px[s];
+    for (const s of Object.keys(ap.pos)) if (bySym(s)) ap.px[s] = bySym(s).current_price;
+    const nav = ap.cash + Object.entries(ap.pos).reduce((sum, [s, u]) => sum + u * (priceOf(s) ?? 0), 0);
+    // Zielanteile des Modells zu heutigen Kursen; nicht auffindbare Coins bleiben in Reserve
+    let cashW = t.cash;
+    const parts = [];
+    for (const h of t.holdings) { const p = bySym(h.symbol)?.current_price; if (p > 0 && h.price > 0) parts.push([h.symbol, h.share * p / h.price, p]); else cashW += h.share; }
+    const sum = cashW + parts.reduce((a, [, w]) => a + w, 0);
+    const want = Object.fromEntries(parts.map(([s, w, p]) => [s, w / sum * nav / p]));
+    const syms = new Set([...Object.keys(want), ...Object.keys(ap.pos)]);
+    const turnover = [...syms].reduce((a, s) => a + Math.abs(((want[s] ?? 0) - (ap.pos[s] ?? 0)) * (priceOf(s) ?? 0)), 0);
+    if (turnover >= nav * 0.01) {
+      // Gebühr auf alles, was gekauft oder verkauft wird; danach dieselben Anteile vom etwas kleineren Wert
+      const k = (nav - turnover * AP_FEE) / nav;
+      ap.pos = Object.fromEntries(Object.entries(want).map(([s, u]) => [s, u * k]));
+      for (const [s, , p] of parts) ap.px[s] = p;
+      ap.cash = cashW / sum * nav * k;
+      ap.trades = (ap.trades ?? 0) + 1;
+    }
+    const navNow = ap.cash + Object.entries(ap.pos).reduce((a, [s, u]) => a + u * (priceOf(s) ?? 0), 0);
+    ap.days = ap.days.filter(([d]) => d !== today).concat([[today, Number(navNow.toFixed(3)), btc.current_price]]);
+    track.ap = ap;
+    record.ap = { since: ap.since, nav: Number(navNow.toFixed(2)), btc: Number((btc.current_price / ap.btc0 * 100).toFixed(2)), days: ap.days.length,
+      series: ap.days.slice(-400).map(([d, v, b]) => [d, v, Number((b / ap.btc0 * 100).toFixed(2))]) };
+  }
+} catch (err) { console.warn('Autopilot live nicht fortgeschrieben:', err.message); }
+
 // Wechselkurse je US-Dollar für die Anzeige in anderen Währungen – abgeleitet aus dem Bitcoin-Kurs in jeder Währung
 const FX = ['eur', 'chf', 'gbp', 'cad', 'aud', 'jpy'];
 let fx = null;
