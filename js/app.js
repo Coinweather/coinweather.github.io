@@ -1,3 +1,4 @@
+import * as visits from './visits.js';   // als erstes: erkennt, ob der Browser die Seite schon kannte
 import { $, esc, settings, sleep, isNum, money, compact, num, signed, tone, pct, fromDisplay, toDisplay, currencyCode, localise } from './util.js';
 import * as i18n from './i18n.js';
 import { lineChart, proChart } from './charts.js';
@@ -7,6 +8,7 @@ import * as api from './api.js';
 import * as pf from './portfolio.js';
 import * as auth from './auth.js';
 import * as tr from './track.js';
+import { visitorsPanel } from './admin-visits.js';
 import { plan, applyMove, adjusted, reserveAdvice, fngTilt, followModel, withdrawPlan, RESERVE_MODES, RESERVE_BACKTEST, HOLD_BACKTEST } from './manager.js';
 import { quickAnalyse, detailAnalyse, marketIndex, prepare, backtest, expectedMove, analyseNews, TRADE_SETUPS, TRADE_LIMITS, TRADE_LEVERAGE, SHORT_TESTS, outlookOf, greedZone, WEIGHTS, RISK_ZONES, buyHistory as yearAfterBuy } from './model.js';
 
@@ -51,6 +53,7 @@ const allLoaded = () => state.pagesLoaded >= api.PAGES && (state.server ? !!stat
 // Wörterbuch der gewählten Sprache laden; ab hier wird alles übersetzt, was auf der Seite erscheint
 await i18n.ready;
 i18n.start();
+visits.start(i18n.prefs);
 $('#foot-prefs').innerHTML = i18n.prefsControls();
 
 const view = $('#view');
@@ -1849,6 +1852,7 @@ auth.onUser(async (user) => {
   depot.user = user;
   depot.owner = owner;
   depot.ready = true;
+  visits.user(user, owner);
   try { if (user) localStorage.setItem(LOGIN_HINT, '1'); else localStorage.removeItem(LOGIN_HINT); } catch { /* dann wird gewartet */ }
   if (user?.uid !== before?.uid) usageStart(user);
   abo.stop?.();
@@ -1890,7 +1894,8 @@ auth.onUser(async (user) => {
   // Das Portfolio gibt es nur angemeldet – nach An- oder Abmelden die Ansicht neu wählen
   // … und mit Bezahlschranke hängt jede Ansicht davon ab, wer angemeldet ist
   // Gäste sehen die Vorschau schon vor der Prüfung – bleibt es beim Gast, nicht neu aufbauen (sonst springt die Seite nach oben)
-  if ((SITE.paywall && routedFor !== (depot.user?.uid ?? 'guest')) || /^#\/(portfolio|konto|preise)/.test(location.hash)) route(); else current?.update();
+  // Eine Warteansicht („Anmeldung wird geprüft“) wird immer ersetzt – auch ohne Bezahlschranke, etwa auf der Betreiber-Seite
+  if (routedFor === 'wait' || (SITE.paywall && routedFor !== (depot.user?.uid ?? 'guest')) || /^#\/(portfolio|konto|preise|admin)/.test(location.hash)) route(); else current?.update();
 });
 
 const SYNC_TEXT = {
@@ -3300,7 +3305,7 @@ const MINUTE = 60_000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
 let adminTimer = null;
 
 function adminView() {
-  let users = null, error = null, loading = false, filter = '', sort = 'lastSeen';
+  let users = null, error = null, loading = false, filter = '', sort = 'lastSeen', tab = 'besucher', vis = null, visEl = null;
   const openRows = new Set(), portfolios = new Map();
   const when = (t) => (t ? new Date(t).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' }) : '–');
   const ago = (t) => {
@@ -3359,15 +3364,27 @@ function adminView() {
       </div></td></tr>`;
   }
 
+  const tabs = () => `<div class="chips admin-tabs" role="tablist">${[['besucher', 'Besucher (alle)'], ['konten', `Konten${users ? ` (${users.length})` : ''}`]]
+    .map(([k, l]) => `<button class="chip ${tab === k ? 'active' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>`;
+  const tabEvents = () => { for (const b of view.querySelectorAll('[data-tab]')) b.addEventListener('click', () => { tab = b.dataset.tab; render(); }); };
+
   function render() {
+    if (tab === 'besucher') {
+      view.innerHTML = `<div translate="no"><h1 class="page-title">Übersicht</h1>${tabs()}<div id="vis-slot"></div></div>`;
+      if (!vis || vis.dead()) { visEl = document.createElement('div'); vis = visitorsPanel(visEl, { coinName: (id) => state.byId.get(id)?.name ?? id }); }
+      view.querySelector('#vis-slot').append(visEl);
+      tabEvents();
+      return;
+    }
     if (error) {
-      view.innerHTML = `<div translate="no"><h1 class="page-title">Nutzerübersicht</h1><section class="panel"><p class="notice">${esc(error)}</p>
+      view.innerHTML = `<div translate="no"><h1 class="page-title">Nutzerübersicht</h1>${tabs()}<section class="panel"><p class="notice">${esc(error)}</p>
         <p>Wahrscheinlich sind die neuen Firestore-Regeln noch nicht veröffentlicht. In der Firebase-Konsole unter Firestore → Regeln den Inhalt
         der Datei <code>firestore.rules</code> einfügen und auf „Veröffentlichen“ klicken.</p><button class="btn" data-reload>Erneut laden</button></section></div>`;
       view.querySelector('[data-reload]').addEventListener('click', load);
+      tabEvents();
       return;
     }
-    if (!users) { view.innerHTML = '<div translate="no"><h1 class="page-title">Nutzerübersicht</h1><section class="panel"><p class="muted">Wird geladen …</p></section></div>'; return; }
+    if (!users) { view.innerHTML = `<div translate="no"><h1 class="page-title">Nutzerübersicht</h1>${tabs()}<section class="panel"><p class="muted">Wird geladen …</p></section></div>`; tabEvents(); return; }
     const now = Date.now(), seen = (u) => now - (u.lastSeen ?? 0);
     const count = (fn) => users.filter(fn).length;
     const card = (label, value, sub = '') => `<div class="card"><div class="label">${label}</div><div class="value">${value}</div><div class="muted">${sub}</div></div>`;
@@ -3378,6 +3395,7 @@ function adminView() {
       <div class="page-head"><div><h1 class="page-title">Nutzerübersicht</h1>
         <p class="hint">Erfasst wird jedes Konto ab seinem ersten Besuch mit dieser Version. „Online“ heißt: in den letzten 5 Minuten aktiv.</p></div>
         <div class="actions"><button class="btn ghost" data-reload>${loading ? 'Lädt …' : 'Aktualisieren'}</button></div></div>
+      ${tabs()}
       <div class="summary">
         ${card('Konten', users.length, `${count((u) => now - (u.created ?? 0) < 7 * DAY)} neu in 7 Tagen`)}
         ${card('Online', count((u) => seen(u) < 5 * MINUTE), 'letzte 5 Minuten')}
@@ -3401,6 +3419,7 @@ function adminView() {
             ${openRows.has(u.uid) ? detailHtml(u) : ''}`;
         }).join('') || '<tr><td colspan="10" class="empty">Noch keine erfassten Nutzer.</td></tr>'}
       </tbody></table></div></div>`;
+    tabEvents();
     view.querySelector('#ad-sort').value = sort;
     view.querySelector('[data-reload]').addEventListener('click', load);
     view.querySelector('#ad-sort').addEventListener('change', (e) => { sort = e.target.value; render(); });
@@ -3990,6 +4009,7 @@ function route() {
   const sales = () => site.pricingView(view, { access, user: () => depot.user, record: () => state.record });
   // Mit Bezahlschranke erst abwarten, wer angemeldet ist und ob ein Abo läuft – sonst blitzt die Verkaufsseite kurz auf
   usagePage(name || 'markt', arg);
+  visits.page(name || 'markt', name === 'coin' ? id : null);
   if (name === 'admin') current = !depot.ready ? waitView() : depot.owner ? adminView() : accountView();
   else if (SITE.paywall && !open && ((!depot.ready && maybeSignedIn()) || (depot.user && !depot.owner && !abo.loaded))) current = waitView();
   // Ohne Abo: Markt als kostenlose Vorschau, Bitcoin und Ethereum als Beispiel, sonst das Angebot

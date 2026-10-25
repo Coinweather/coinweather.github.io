@@ -16,6 +16,8 @@ Stand: 12. Oktober 2026. Diese Liste ersetzt keine Rechtsberatung. Die Rechtstex
   Freischaltung über `subscriptions/{Konto-Kennung}`; alles in `js/config.js` einstellbar. Die Bezahlschranke ist eingeschaltet,
   kaufen lässt sich noch nichts („Der Verkauf startet in Kürze“).
 - Nutzerübersicht für Betreiber unter `#/admin` (Konten, online, aktiv, Testphase, aufgerufene Bereiche und Coins, Portfolio). Braucht die veröffentlichten `firestore.rules`.
+- Reiter „Besucher“ unter `#/admin`: alle Besuche, auch ohne Konto – live online, Herkunft, Einstiegsseiten, Länder, Geräte, Handlungen, Weg zum Konto, letzte Besuche mit Klickpfad.
+  Gezählt wird erst, wenn die aktuellen `firestore.rules` (Abschnitte `visits` und `stats`) veröffentlicht sind.
 - Betreiber-Zugang ohne Abo: über eine bestätigte E-Mail-Adresse (Google-Anmeldung) oder die Konto-Kennung in `owners`.
   Die Konto-Kennung steht unter „Konto“.
 - Quellenangaben: „Data provided by CoinGecko“, alternative.me direkt beim Fear-&-Greed-Index
@@ -79,7 +81,7 @@ Alle Daten müssen über den Schnappschuss laufen. Dieser Umbau steht noch aus u
 - Freischaltung: Nach einer Zahlung muss in Firestore das Dokument `subscriptions/{Konto-Kennung}` entstehen:
   `status` (`active`), `plan` (`standard` oder `full`), `until` (Ende des bezahlten Monats in Millisekunden), `cancel` (true, wenn gekündigt).
   Wege dorthin: eine Automatisierung (Zahlungs-Benachrichtigung → Firestore), eine kleine Cloud Function oder am Anfang von Hand in der Firebase-Konsole.
-- `firestore.rules` in Firebase veröffentlichen (Regeln für `subscriptions`, `users` und die Nutzerübersicht).
+- `firestore.rules` in Firebase veröffentlichen (Regeln für `subscriptions`, `users`, die Nutzerübersicht und die Besuchszählung `visits`/`stats`).
 - Sind Betreiberangaben und beide Bezahl-Links eingetragen, erscheinen die Kauf-Knöpfe von selbst.
 
 ### 6. Ohne Firma verkaufen

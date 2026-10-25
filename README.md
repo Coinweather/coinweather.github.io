@@ -52,8 +52,10 @@ Danach `http://localhost:8123` öffnen.
 | `js/api.js` | Datenquellen: CoinGecko (Kurse), Binance und Gate.io (Kursgeschichte der letzten 4 Jahre), alternative.me (Fear & Greed), cryptocurrency.cv (Nachrichten) |
 | `js/portfolio.js` | Speicherung im Browser und CSV-Import |
 | `js/auth.js` | Konten und Speicherung im Konto (Firebase) |
+| `js/visits.js` | Anonyme Besuchszählung, auch ohne Konto: ohne Cookies und ohne Kennung im Browser (Besuche 30 Tage, Tagessummen dauerhaft) |
+| `js/admin-visits.js` | Betreiber-Übersicht „Besucher“ unter `#/admin`: online, Besuche, Herkunft, Seiten, Coins, Länder, Geräte, Handlungen, letzte Besuche |
 | `js/firebase-config.js` | Zugangsdaten des Firebase-Projekts |
-| `firestore.rules` | Zugriffsregeln: Jede Person sieht nur ihr eigenes Portfolio und ihre Nutzung; Betreiber lesen alles für die Nutzerübersicht |
+| `firestore.rules` | Zugriffsregeln: Jede Person sieht nur ihr eigenes Portfolio und ihre Nutzung; Besuche schreibt jeder Browser nur für sich, in festen Feldern; Betreiber lesen alles für die Übersicht |
 
 ## Konten einrichten (Firebase)
 

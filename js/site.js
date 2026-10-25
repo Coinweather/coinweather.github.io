@@ -75,7 +75,7 @@ const FAQ = [
   ['Versprecht ihr Gewinne?', 'Nein. Kurse lassen sich nicht sicher vorhersagen. Die Rückrechnungen beruhen auf vergangenen Kursen und fallen besser aus als die Wirklichkeit, weil sie nur Coins enthalten, die es heute noch gibt.'],
   ['Habt ihr Zugriff auf mein Geld oder mein Börsenkonto?', 'Nein. Du trägst deine Bestände selbst ein oder importierst eine Tabelle. Es gibt keine Verbindung zu einer Börse, und die Seite führt keine Käufe oder Verkäufe aus.'],
   ['Wie kündige ich?', 'Jederzeit zum Ende des bezahlten Monats, ohne Frist. Dein Portfolio bleibt danach gespeichert, bis du dein Konto löschst.'],
-  ['Welche Daten speichert ihr?', 'Deine E-Mail-Adresse für die Anmeldung, das Portfolio, das du einträgst, und eine einfache Nutzungsstatistik deines Kontos (wann und welche Bereiche du nutzt). Keine Werbe-Cookies, keine Analyse-Dienste von Dritten. Im Konto kannst du alles löschen.'],
+  ['Welche Daten speichert ihr?', 'Deine E-Mail-Adresse für die Anmeldung, das Portfolio, das du einträgst, und eine einfache Nutzungsstatistik deines Kontos (wann und welche Bereiche du nutzt). Besuche zählen wir anonym, ohne Cookies. Keine Werbe-Cookies, keine Analyse-Dienste von Dritten. Im Konto kannst du alles löschen.'],
 ];
 
 export function pricingView(el, { access, user, record }) {
@@ -232,7 +232,7 @@ const LEGAL = {
   datenschutz: () => ['Datenschutzerklärung', `${missing()}
     <h3>Verantwortlich</h3>${address()}
     <h3>Kurz gesagt</h3>
-    <p>${SITE.name} verwendet keine Werbe-Cookies und keine Analyse-Dienste von Dritten. Gespeichert wird, was für Anmeldung, Portfolio und Abo nötig ist, und – nur mit Konto – eine einfache Nutzungsstatistik.</p>
+    <p>${SITE.name} verwendet keine Werbe-Cookies und keine Analyse-Dienste von Dritten. Gespeichert wird, was für Anmeldung, Portfolio und Abo nötig ist, eine anonyme Besuchszählung ohne Cookies und – nur mit Konto – eine einfache Nutzungsstatistik.</p>
     <h3>Welche Daten verarbeitet werden</h3>
     <ul>
       <li><strong>Aufruf der Seite:</strong> Der Hosting-Anbieter (${esc(SITE.hosting)}) verarbeitet technisch nötige Daten wie IP-Adresse, Zeitpunkt und Browser, um die Seite auszuliefern.</li>
@@ -242,6 +242,11 @@ const LEGAL = {
       <li><strong>Nutzung (nur mit Konto):</strong> wann du die Seite zuerst und zuletzt genutzt hast, wie oft, welche Bereiche und Coins du aufrufst, die letzten 20 aufgerufenen Seiten,
         über welchen Werbe-Link du gekommen bist, Sprache, Währung und ob du ein Handy oder einen Computer verwendest. Der Betreiber sieht diese Angaben zusammen mit deiner E-Mail-Adresse und deinem Portfolio, um Konten zu betreuen,
         Fehler zu finden und das Angebot zu verbessern. Sie werden mit deinem Konto gelöscht.</li>
+      <li><strong>Besuchszählung (auch ohne Konto):</strong> Für jeden Besuch wird anonym gespeichert: Beginn und Dauer, die aufgerufenen Bereiche und Coins in ihrer Reihenfolge,
+        einzelne Handlungen (zum Beispiel Rechner benutzt, Teilen geklickt, Konto angelegt), woher du kamst (zum Beispiel eine Suchmaschine oder ein geteilter Link), Sprache, Währung, Zeitzone,
+        Gerätetyp, Betriebssystem und Browser sowie, ob dein Browser die Seite schon kannte (abgeleitet aus den ohnehin gespeicherten Einstellungen). Es werden dafür keine Cookies gesetzt,
+        keine Kennung in deinem Browser abgelegt und keine IP-Adresse gespeichert. Ein Besuch lässt sich weder mit späteren Besuchen noch mit deinem Konto verbinden.
+        Die Zählung läuft über Firebase (Google), ist nur für den Betreiber sichtbar und dient dazu, das Angebot zu verbessern.</li>
       <li><strong>Abo:</strong> Die Zahlung wickelt ${SITE.paymentProvider ? esc(SITE.paymentProvider) : 'ein Zahlungsanbieter'} ab. Der Anbieter erhält von dort keine Kartendaten, sondern nur, ob und bis wann dein Abo läuft.</li>
       <li><strong>In deinem Browser:</strong> Einstellungen, eine Kopie deines Portfolios und die Anmeldung werden lokal gespeichert, damit die Seite funktioniert.</li>
     </ul>
@@ -253,12 +258,13 @@ const LEGAL = {
       Dabei erhält TradingView deine IP-Adresse und kann Cookies setzen; es gilt die Datenschutzerklärung von TradingView. Deine Wahl wird nur in deinem Browser gespeichert.</p>
     <h3>Zwecke und Rechtsgrundlagen</h3>
     <p>Die Daten werden verarbeitet, um den Dienst bereitzustellen und den Vertrag mit dir zu erfüllen, um gesetzliche Pflichten einzuhalten und auf Grundlage des berechtigten Interesses
-      an einem sicheren und funktionierenden Betrieb.</p>
+      an einem sicheren und funktionierenden Betrieb sowie an einer anonymen Auswertung, wie die Seite genutzt wird.</p>
     <h3>Empfänger und Übermittlung ins Ausland</h3>
     <p>Die genannten Dienstleister verarbeiten Daten auch außerhalb der Schweiz und der EU, insbesondere in den USA. Die Übermittlung stützt sich auf Angemessenheitsbeschlüsse
       (Data Privacy Framework) oder Standardvertragsklauseln.</p>
     <h3>Speicherdauer</h3>
-    <p>Konto und Portfolio bleiben gespeichert, bis du dein Konto löschst. Das geht jederzeit unter „Konto“. Zahlungsbelege werden so lange aufbewahrt, wie das Gesetz es vorschreibt.</p>
+    <p>Konto und Portfolio bleiben gespeichert, bis du dein Konto löschst. Das geht jederzeit unter „Konto“. Zahlungsbelege werden so lange aufbewahrt, wie das Gesetz es vorschreibt.
+      Einzelne Besuche der Besuchszählung werden nach 30 Tagen gelöscht, die anonymen Tagessummen bleiben.</p>
     <h3>Deine Rechte</h3>
     <p>Du kannst Auskunft, Berichtigung, Löschung und Herausgabe deiner Daten verlangen sowie der Verarbeitung widersprechen. Dein Portfolio kannst du selbst als Tabelle exportieren.
       Wende dich dafür an die oben genannte Adresse. Du kannst dich außerdem bei der zuständigen Aufsichtsbehörde beschweren – in der Schweiz beim EDÖB, in der EU bei der Datenschutzbehörde deines Wohnsitzes.</p>
@@ -270,7 +276,7 @@ export function legalView(el, kind) {
   return { update() {
     const [title, body] = LEGAL[kind]();
     el.innerHTML = `<article class="legal"><h1 class="page-title">${title}</h1>
-      <p class="hint">Stand: ${dateText(SITE.legalVersion)}</p>${body}</article>`;
+      <p class="hint">Stand: ${dateText(kind === 'datenschutz' ? SITE.privacyVersion ?? SITE.legalVersion : SITE.legalVersion)}</p>${body}</article>`;
   } };
 }
 

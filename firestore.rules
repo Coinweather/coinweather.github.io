@@ -31,5 +31,28 @@ service cloud.firestore {
       allow read: if own(userId) || admin();
       allow write: if false;
     }
+
+    // Anonyme Besuche (js/visits.js), auch ohne Konto: Jeder Browser schreibt nur seinen laufenden Besuch, mit festen Feldern und
+    // einem Zeitstempel nahe der Serverzeit. Lesen und löschen (nach 30 Tagen) dürfen nur die Betreiber.
+    function visitOk() {
+      let d = request.resource.data;
+      let now = request.time.toMillis();
+      return d.keys().hasOnly(['day', 'start', 'last', 'dur', 'n', 'pages', 'land', 'ev', 'acc', 'dev', 'os', 'br', 'src', 'ref', 'tz', 'loc',
+          'lang', 'cur', 'ret', 'pwa'])
+        && d.start is int && d.last is int && d.last > now - 600000 && d.last < now + 600000 && d.start <= d.last
+        && d.pages is list && d.pages.size() <= 40 && d.ev is map && d.ev.size() <= 30;
+    }
+    match /visits/{visitId} {
+      allow read, delete: if admin();
+      allow create: if visitId.matches('^[a-z0-9]{12,24}$') && visitOk();
+      allow update: if visitOk() && request.resource.data.start == resource.data.start && request.resource.data.day == resource.data.day;
+    }
+    // Tagessummen der Besuche: nur bekannte Felder hochzählen; lesen nur die Betreiber
+    match /stats/{day} {
+      allow read, delete: if admin();
+      allow create, update: if day.matches('^20[0-9]{2}-[0-1][0-9]-[0-3][0-9]$')
+        && request.resource.data.keys().hasOnly(['v', 'one', 'pv', 'secs', 'acc', 'ret', 'pwa', 'dev', 'os', 'br', 'src', 'ref', 'hour', 'tz', 'loc',
+          'lang', 'cur', 'land', 'pages', 'coins', 'ev']);
+    }
   }
 }

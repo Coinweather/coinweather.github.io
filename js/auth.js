@@ -16,6 +16,7 @@ const config = emulator
   ? { apiKey: 'demo-key', authDomain: 'demo-krypto.firebaseapp.com', projectId: 'demo-krypto' } : firebaseConfig;
 
 export const available = !!config;
+export const emulatorMode = emulator;
 
 let ready = null;
 function init() {
@@ -124,6 +125,33 @@ export async function saveUsage(uid, base, counts) {
   if (counts.visits) data.visits = fs.increment(counts.visits);
   await fs.setDoc(fs.doc(db, 'users', uid), data, { merge: true });
 }
+
+// Anonyme Besuche (js/visits.js): den Besuch fortschreiben und die Tagessummen hochzählen – in einem Schreibvorgang.
+// counts ist ein Baum aus Zahlen, z. B. { v: 1, pages: { markt: 2 } }; jede Zahl wird zu einem Hochzählen.
+// Leere Zweige fallen weg: Eine leere Map würde beim Zusammenführen die bisherigen Summen ersetzen.
+const increments = (fs, tree) => Object.fromEntries(Object.entries(tree)
+  .filter(([, v]) => typeof v === 'number' ? v !== 0 : v && Object.keys(v).length)
+  .map(([k, v]) => [k, typeof v === 'number' ? fs.increment(v) : increments(fs, v)]));
+export async function saveVisit(id, visit, day, counts) {
+  const { fs, db } = await init();
+  const batch = fs.writeBatch(db);
+  batch.set(fs.doc(db, 'visits', id), visit, { merge: true });
+  if (counts) batch.set(fs.doc(db, 'stats', day), increments(fs, counts), { merge: true });
+  await batch.commit();
+}
+// Für Betreiber: Tagessummen ab einem Tag (JJJJ-MM-TT), Besuche seit einem Zeitpunkt, alte Besuche löschen
+export const listStats = (fromDay) => run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, 'stats'), fs.where(fs.documentId(), '>=', fromDay))))
+  .docs.map((d) => ({ day: d.id, ...d.data() })));
+export const listVisits = (since, max) => run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, 'visits'), fs.where('last', '>=', since),
+  fs.orderBy('last', 'desc'), fs.limit(max)))).docs.map((d) => ({ id: d.id, ...d.data() })));
+export const pruneVisits = (before) => run(async ({ fs, db }) => {
+  const snap = await fs.getDocs(fs.query(fs.collection(db, 'visits'), fs.where('last', '<', before), fs.limit(300)));
+  if (!snap.size) return 0;
+  const batch = fs.writeBatch(db);
+  for (const d of snap.docs) batch.delete(d.ref);
+  await batch.commit();
+  return snap.size;
+});
 
 // Für Betreiber: alle Einträge, das Portfolio und der Abo-Stand einer Person. Die Firestore-Regeln erlauben das nur Betreibern.
 export const listUsage = () => run(async ({ fs, db }) => (await fs.getDocs(fs.collection(db, 'users'))).docs.map((d) => ({ uid: d.id, ...d.data() })));
