@@ -4,7 +4,57 @@ Alle Texte sind zum Kopieren. Die täglichen Beiträge laufen automatisch (siehe
 hier stehen die einmaligen Beiträge zum Start. Jeder Kanal hat einen eigenen Link mit `?von=…` – so siehst du in der
 Nutzerübersicht (Admin → „Herkunft“), woher die Anmeldungen kommen. Profiltexte stehen in [SOCIAL-MEDIA.md](SOCIAL-MEDIA.md).
 
-## Die stärksten Botschaften (Stand 24.10.2026, abends) – zuerst diese verwenden
+## Das neue Hauptprodukt: der Autopilot (Stand 25.10.2026) – ab jetzt zuerst damit werben
+
+Der Autopilot ist das, wofür Leute später zahlen: **Betrag eingeben → er sagt dir, was du kaufst → jede Woche siehst du, ob etwas zu tun ist.**
+Kein anderer Gratis-Dienst macht das so einfach, und wir messen ihn **live und offen** mit (seit 25.10.2026, echte Kurse und Gebühren,
+steht auf der Startseite und auf der Verkaufsseite). Das ist der stärkste Vertrauensbeweis – nach ein paar Wochen in jedem Beitrag nennen.
+
+Drei Botschaften:
+1. **„Du sagst, wie viel. Er sagt, was du kaufst.“** (der Satz für alle Kanäle)
+2. **„Kauft, wenn alle Angst haben – hält Reserve, wenn der Markt kippt.“** Zyklus-Kompass + beste Kauf-Scores unter den Top 200.
+3. **„Wir messen ihn live mit – auch wenn es schlecht läuft.“** Rückrechnung (+82 % pro Jahr seit 2018, −46 % Rückgang) nur mit Hinweis
+   „im Nachhinein gerechnet“. Keine Gewinnversprechen.
+
+Links: Startseite `https://coinweather.github.io/?von=…`, Produktseite `https://coinweather.github.io/crypto-portfolio-autopilot/?von=…`
+(deutsch: `/de/crypto-portfolio-autopilot/`). Die Produktseite hat ein tagesaktuelles Vorschaubild – ideal zum Teilen.
+
+**X / Bluesky (angeheftet):**
+> I built a crypto autopilot.
+> You type an amount → it tells you exactly what to buy.
+> Cheap cycle → more in. Bear market → more cash. Only coins with strong buy scores.
+> Checked weekly. Tracked live since Oct 25 – including the bad weeks.
+> Free for 30 days, no card: https://coinweather.github.io/crypto-portfolio-autopilot/?von=x
+
+**Reddit (r/CryptoCurrency „Daily Discussion“, r/Bitcoin nur als Kommentar, r/SideProject, r/indiehackers):**
+> I got tired of "buy the dip" advice with no numbers, so I built a rules-based autopilot: you enter an amount, it tells you what to buy
+> (BTC/ETH-heavy, alts only with strong buy scores) and how much to keep in cash. Cash goes up in bear markets, down when the cycle is cheap.
+> Backtest since 2018 looks great (~80 %/yr) but it's in-sample, so I'm tracking it live from today with real prices and fees – it's on the
+> front page, good or bad. It never touches your money; you execute at your own exchange. Feedback welcome:
+> https://coinweather.github.io/crypto-portfolio-autopilot/?von=reddit
+
+**Product Hunt (Tagline / Beschreibung):**
+> Tagline: *Crypto autopilot – you say how much, it says what to buy*
+> Coinweather turns a contrarian cycle score and per-coin buy scores into a portfolio you can actually follow. Enter an amount and an optional
+> monthly savings rate; the autopilot shows exactly what to buy and how much to keep in reserve. Once a week it checks the model and tells you
+> if anything changed. Tracked live in public. No exchange connection, no custody, 7 languages, free 30-day trial.
+
+**Hacker News – Show HN:**
+> **Show HN: A crypto "autopilot" that's tracked live in public, not just backtested**
+> Most crypto tools show a backtest and stop there. Mine shows the backtest (in-sample, ~80 %/yr since 2018, −46 % max drawdown) *and* a live
+> forward test that started on 2026-10-25 with real prices and 0.25 % fees per trade. The autopilot itself is simple: you type an amount, it copies the
+> model portfolio's weights (cycle compass for the reserve, best buy scores among the top 200 coins), and only suggests trades when the model trades.
+> Static site, GitHub Actions for data, no backend. https://coinweather.github.io/crypto-portfolio-autopilot/?von=hn
+
+**Deutsch – WhatsApp / Facebook-Gruppen / Freunde:**
+> Ich hab mir einen Krypto-Autopiloten gebaut: Du gibst ein, wie viel du anlegen willst – er sagt dir genau, was du kaufst und wie viel du in Reserve
+> hältst. Wenn alle Angst haben, kauft er mehr; im Bärenmarkt hält er Bargeld. Jede Woche siehst du, ob etwas zu tun ist. 30 Tage kostenlos,
+> ohne Zahlungsdaten, und er hat keinen Zugriff auf dein Geld: https://coinweather.github.io/de/crypto-portfolio-autopilot/?von=whatsapp
+
+**Google-Seiten, die neu sind (zum Verlinken in Antworten auf Fragen in Foren):** „Should I buy Bitcoin now?“, „… Ethereum now?“,
+„Best crypto to buy now“ (täglich die 10 stärksten Kauf-Scores), „Crypto portfolio autopilot“ – jeweils in 7 Sprachen.
+
+## Die stärksten Botschaften (Stand 24.10.2026, abends)
 
 Alles auf der Seite sagt jetzt dasselbe: Wetter = Stimmung, Kauf-Score = Zyklus-Kompass, Bitcoin und Ethereum folgen ihm,
 Altcoins nie dagegen. Daraus drei Botschaften, die man in einem Satz versteht:
