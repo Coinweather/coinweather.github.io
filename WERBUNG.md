@@ -51,6 +51,12 @@ Links: Startseite `https://coinweather.github.io/?von=…`, Produktseite `https:
 > hältst. Wenn alle Angst haben, kauft er mehr; im Bärenmarkt hält er Bargeld. Jede Woche siehst du, ob etwas zu tun ist. 30 Tage kostenlos,
 > ohne Zahlungsdaten, und er hat keinen Zugriff auf dein Geld: https://coinweather.github.io/de/crypto-portfolio-autopilot/?von=whatsapp
 
+**Challenge „Schlag den Autopiloten“ (`https://coinweather.github.io/#/challenge`) – zum Mitmachen, ohne Anmeldung:** Jeder wählt drei Coins und
+bekommt einen Link, der ab heute die eigene Auswahl gegen den Autopiloten und Bitcoin misst. Ideal für Gruppen-Chats und als wöchentlicher Beitrag:
+> 🏁 Challenge: Pick 3 coins. We track them against our crypto autopilot and Bitcoin – with real prices, from today. Post your link below 👇
+> https://coinweather.github.io/?von=challenge#/challenge
+> 🏁 Challenge: Wähl drei Coins – wir messen sie ab heute gegen unseren Krypto-Autopiloten und Bitcoin. Poste deinen Link in die Kommentare 👇
+
 **Google-Seiten, die neu sind (zum Verlinken in Antworten auf Fragen in Foren):** „Should I buy Bitcoin now?“, „… Ethereum now?“,
 „Best crypto to buy now“ (täglich die 10 stärksten Kauf-Scores), „Crypto portfolio autopilot“ – jeweils in 7 Sprachen.
 
