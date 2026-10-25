@@ -1932,4 +1932,6 @@ export default {
   "von # nach Kauf-Score (große Coins mit genug Handelsvolumen, riskantere abgewertet": "of # by buy score (large coins with enough trading volume, riskier ones marked down",
   "Zum Autopiloten": "Go to autopilot",
   "Autopilot ansehen": "See the autopilot",
+  "Live-Messung (Start = #": "Live tracking (start = #",
+  "Autopilot live": "Autopilot live",
 };

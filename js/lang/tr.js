@@ -1942,4 +1942,6 @@ export default {
   "von # nach Kauf-Score (große Coins mit genug Handelsvolumen, riskantere abgewertet": "/ # alım skoruna göre (yeterli hacimli büyük coinler, riskliler düşürülmüş",
   "Zum Autopiloten": "Otomatik pilota git",
   "Autopilot ansehen": "Otomatik pilotu gör",
+  "Live-Messung (Start = #": "Canlı ölçüm (başlangıç = #",
+  "Autopilot live": "Canlı otomatik pilot",
 };

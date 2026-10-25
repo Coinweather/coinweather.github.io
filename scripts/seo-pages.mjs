@@ -1356,6 +1356,7 @@ for (const p of pages) {
 <a href="/?lang=${lang}#/risiko">${L.risk}</a> · <a href="/?lang=${lang}#/impressum">${L.legal}</a> · <a href="/?lang=${lang}#/datenschutz">${L.privacy}</a></p>
 <p class="langs">${twins.map((t) => `<a href="${t.path}" hreflang="${t.lang}"${t.lang === lang ? ' aria-current="page"' : ''}>${LANG_NAME[t.lang]}</a>`).join('')}</p>
 <p class="muted">${L.foot(esc(p.day))} Data: CoinGecko, Binance, Gate.io, alternative.me.</p></div></footer>
+<script>(function(){var v=new URLSearchParams(location.search).get('von');if(!v||!/^[A-Za-z0-9_-]{1,30}$/.test(v))return;document.querySelectorAll('a[href*="von=seo"]').forEach(function(a){a.href=a.href.replace(/von=seo[^&#]*/,'von='+v);});})();</script>
 </body></html>`;
   await mkdir(`${out}${p.path}`, { recursive: true });
   await writeFile(`${out}${p.path}index.html`, html);

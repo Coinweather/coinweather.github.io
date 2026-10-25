@@ -1942,4 +1942,6 @@ export default {
   "von # nach Kauf-Score (große Coins mit genug Handelsvolumen, riskantere abgewertet": "sur # par score d’achat (grandes cryptos avec assez de volume, les plus risquées pénalisées",
   "Zum Autopiloten": "Aller au pilote automatique",
   "Autopilot ansehen": "Voir le pilote automatique",
+  "Live-Messung (Start = #": "Suivi en direct (départ = #",
+  "Autopilot live": "Pilote automatique en direct",
 };

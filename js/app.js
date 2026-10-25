@@ -422,7 +422,9 @@ document.addEventListener('click', (e) => {
   if (set.has(btn.dataset.watch)) set.delete(btn.dataset.watch); else set.add(btn.dataset.watch);
   saveDepot({ ...depot.data, watch: [...set] }, { internal: true });
 });
-const shareUrl = (hash = '') => `${location.origin}/?von=share&lang=${i18n.prefs.lang}${hash}`;
+// Geteilte Links tragen bei angemeldeten Nutzern ein Kürzel ihres Kontos – so zeigt die Betreiber-Übersicht unter „Herkunft“, wer wen bringt
+const refTag = (base = 'share') => (depot.user?.uid ? `${base}-${depot.user.uid.slice(0, 6).toLowerCase()}` : base);
+const shareUrl = (hash = '') => `${location.origin}/?von=${refTag()}&lang=${i18n.prefs.lang}${hash}`;
 
 // Das Krypto-Wetter: die Stimmung am Markt (Markt-Wetter) als Wetterlage – dieselben Stufen wie in den täglichen Beiträgen.
 // Ob sich ein Kauf lohnt, sagt der Kauf-Score: Er ist antizyklisch – bei Regen ist Bitcoin meist günstiger.
@@ -2251,7 +2253,7 @@ async function autopilotTeaser(el) {
     <div class="btn-row">${full ? `<a class="btn" href="#/portfolio/auto?b=${Math.round(fromDisplay(apAmount) * 100) / 100}&m=once">Mit diesem Betrag starten</a>`
       : `<a class="btn" href="${depot.user ? '#/preise' : '#/konto'}" data-next="#/portfolio/auto?b=${Math.round(fromDisplay(apAmount) * 100) / 100}&m=once">${depot.user ? 'Pakete ansehen' : 'Kostenlos starten – 30 Tage alle Funktionen'}</a>`}
       <a class="btn ghost" href="#/rechner">So wäre es gelaufen</a></div>
-    <p class="share-row hint">${shareLinks(`${location.origin}${i18n.prefs.lang === 'en' ? '' : `/${i18n.prefs.lang}`}/crypto-portfolio-autopilot/?von=share-ap`,
+    <p class="share-row hint">${shareLinks(`${location.origin}${i18n.prefs.lang === 'en' ? '' : `/${i18n.prefs.lang}`}/crypto-portfolio-autopilot/?von=${refTag('share-ap')}`,
       i18n.say('Sag, wie viel du anlegen willst – der Autopilot sagt dir, was du kaufst.'), 'Teilen')}</p>
     <p class="ap-challenge"><span>🏁 <strong>Glaubst du, du bist besser?</strong> Wähle drei Coins und tritt gegen den Autopiloten an.</span>
       <a class="btn ghost small" href="#/challenge">Schlag den Autopiloten</a></p>
@@ -3093,7 +3095,7 @@ function portfolioView(arg = '') {
         : f.total ? `<p class="all-done">✓ Dein Portfolio entspricht dem Modell. Bis zur nächsten Prüfung ist nichts zu tun.</p>` : ''}
       ${f.missing.length ? `<p class="notice">Nicht gefunden und deshalb in Reserve gelassen: ${f.missing.map(esc).join(', ')}.</p>` : ''}
       ${depot.data.reserveMode === 'balanced' ? autopilotLive() : ''}
-      <p class="share-row hint">${shareLinks(`${location.origin}${i18n.prefs.lang === 'en' ? '' : `/${i18n.prefs.lang}`}/crypto-portfolio-autopilot/?von=share-ap`,
+      <p class="share-row hint">${shareLinks(`${location.origin}${i18n.prefs.lang === 'en' ? '' : `/${i18n.prefs.lang}`}/crypto-portfolio-autopilot/?von=${refTag('share-ap')}`,
         i18n.say('Mein Krypto-Portfolio läuft mit dem Autopiloten von Coinweather – er sagt mir jede Woche, was ich kaufe.'), 'Autopilot empfehlen')}</p>
       <details class="fold target-fold"${f.moves.length ? '' : ' open'}><summary>Ziel und Stand</summary>
         <table class="m-table target-table"><thead><tr><th>Coin</th><th class="num">Kauf-Score</th><th class="num">Ziel</th><th class="num">Jetzt</th><th></th></tr></thead><tbody>
@@ -3585,6 +3587,7 @@ async function modelSection(el) {
       <p class="hint">Diese Kurve beginnt an einem bestimmten Wochentag. Je nach Starttag schwankt das Ergebnis um rund ±10 Punkte pro Jahr – im Mittel aus 7 Starttagen:
         +${RESERVE_BACKTEST.balanced.perYear} % pro Jahr, seit 2022 +${RESERVE_BACKTEST.balanced.recent} %, größter Rückgang −${RESERVE_BACKTEST.balanced.drawdown} %.</p>
       ${autopilotLive()}
+      ${(state.record?.ap?.series?.length ?? 0) >= 3 ? '<div class="label">Live-Messung (Start = 100)</div><div id="m-live" class="chart small-chart"></div>' : ''}
       <p class="hint"><strong>Wichtig:</strong> Das ist eine Rückrechnung an den Kursen, an denen die Regeln entwickelt wurden. Die Zukunft fällt meist schlechter aus;
         Coins, die es nicht mehr gibt, fehlen; Steuern sind nicht berücksichtigt. Keine Anlageberatung.</p>
     </section>
@@ -3613,6 +3616,12 @@ async function modelSection(el) {
       overlays: c.btc ? [{ values: c.btc.slice(from).map((v) => (v === null ? null : v / bb * 100)), color: 'var(--muted)', label: 'Bitcoin (Start = 100)' }] : [] });
   };
   chart(4);
+  // Live-Messung seit dem Start: Autopilot und Bitcoin, beide auf 100 gesetzt
+  const live = state.record?.ap?.series;
+  if ($('#m-live') && live?.length >= 3) {
+    drawChart($('#m-live'), { t: live.map(([d]) => d * 86_400_000 + 43_200_000), p: live.map(([, v]) => v), plain: true, note: 'Autopilot live',
+      overlays: [{ values: live.map(([, , b]) => b), color: 'var(--muted)', label: 'Bitcoin' }] });
+  }
   $('#m-range').addEventListener('click', (e) => {
     const b = e.target.closest('[data-years]');
     if (!b) return;

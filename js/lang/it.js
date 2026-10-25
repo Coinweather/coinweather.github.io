@@ -1942,4 +1942,6 @@ export default {
   "von # nach Kauf-Score (große Coins mit genug Handelsvolumen, riskantere abgewertet": "su # per punteggio di acquisto (coin grandi con volume sufficiente, i più rischiosi penalizzati",
   "Zum Autopiloten": "Vai al pilota automatico",
   "Autopilot ansehen": "Vedi il pilota automatico",
+  "Live-Messung (Start = #": "Misurazione dal vivo (inizio = #",
+  "Autopilot live": "Pilota automatico dal vivo",
 };
