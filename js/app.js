@@ -1370,26 +1370,15 @@ function detailView(id) {
   view.innerHTML = `
     <a class="back" href="#/">← Zurück zur Übersicht</a>
     <div id="d-head"></div>
-    <div id="d-compass"></div>
-    <div id="d-auto"></div>
     <section class="panel">
-      <div class="panel-top"><h2>Kursverlauf</h2>
-        <div class="chips" id="ranges">${Object.keys(RANGES).map((r) => `<button class="chip ${r === d.range ? 'active' : ''}" data-range="${r}">${i18n.span(r)}</button>`).join('')}</div></div>
+      <h2 class="chart-title">Kursverlauf</h2>
       <div id="chart" class="chart"><p class="muted">Lade Kursverlauf …</p></div>
     </section>
+    <div id="d-compass"></div>
+    <div id="d-auto"></div>
     <div id="d-forecast"></div>
     <div id="d-news"></div>
     <div id="d-stats"></div>`;
-
-  $('#ranges').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-range]');
-    if (!btn) return;
-    d.range = btn.dataset.range;
-    for (const b of $('#ranges').children) b.classList.toggle('active', b === btn);
-    d.pro?.setRange(d.range);
-    chart();
-    update();   // Kopfzeile zeigt die Veränderung über den gewählten Zeitraum
-  });
 
   const self = { update };
 
@@ -1430,9 +1419,7 @@ function detailView(id) {
     const src = histSource(c);
     if (src === null && !d.data) { $('#chart').innerHTML = `<p class="muted">${esc(d.error ?? 'Lade Kursverlauf …')}</p>`; return; }
     d.pro = proChart($('#chart'), { coin: { id: c.id, symbol: c.symbol, name: c.name }, source: src,
-      fallback: () => (d.data ? { t: d.data.t, p: d.data.p, v: d.data.v, source: d.source } : null),
-      onRange: (r) => { d.range = r; for (const b of $('#ranges').children) b.classList.toggle('active', b.dataset.range === r); update(); } });
-    d.pro.setRange(d.range);
+      fallback: () => (d.data ? { t: d.data.t, p: d.data.p, v: d.data.v, source: d.source } : null) });
   }
 
   // Kursveränderung über den im Diagramm gewählten Zeitraum, gemessen bis zum aktuellen Kurs
@@ -1636,7 +1623,7 @@ function detailView(id) {
       loadData(c);
       if (!c.analysis.stable && !d.news) loadNews(c);
       chart();
-    } else if (d.range === '7T' || d.range === '1T') chart();
+    }
     const a = c.analysis;
     head(c, a);
     // Kompass nur neu zeichnen, wenn sich der Kauf-Score ändert – sonst klappt die Aufschlüsselung bei jedem Kurs-Update zu
@@ -1841,6 +1828,8 @@ function renderAccountLink() {
   link.textContent = depot.user ? (depot.user.name || depot.user.email || 'Konto') : 'Anmelden';
   link.classList.toggle('signed-in', !!depot.user);
   $('#nav-admin').hidden = !depot.owner;
+  $('#foot-admin').hidden = !depot.owner;
+  $('#tab-account b').textContent = depot.user ? 'Konto' : 'Anmelden';
 }
 
 auth.onUser(async (user) => {
@@ -2191,9 +2180,10 @@ async function navBadge() {
   const n = depot.data.mode === 'auto' && fullAccess() ? autopilotOpen(await loadModelCurve()) : 0;
   if (n === badgeShown) return;
   badgeShown = n;
-  const a = document.querySelector('nav a[data-nav="portfolio"]');
-  a?.querySelector('.nav-badge')?.remove();
-  if (a && n) a.insertAdjacentHTML('beforeend', `<span class="nav-badge" title="${esc(i18n.say('Schritte des Autopiloten'))}">${n}</span>`);
+  for (const a of document.querySelectorAll('nav a[data-nav="portfolio"]')) {
+    a.querySelector('.nav-badge')?.remove();
+    if (n) a.insertAdjacentHTML('beforeend', `<span class="nav-badge" title="${esc(i18n.say('Schritte des Autopiloten'))}">${n}</span>`);
+  }
 }
 setInterval(() => navBadge().catch(() => {}), 60_000);
 
@@ -2227,7 +2217,7 @@ async function autopilotTeaser(el) {
       <h2>Sag, wie viel du anlegen willst – der Autopilot sagt dir, was du kaufst.</h2>
       <p class="muted">Nach dem Zyklus-Kompass und den besten Kauf-Scores, mit Reserve in schwachen Phasen. Jede Woche geprüft – du siehst, ob etwas zu tun ist.</p></div></div>
     ${mine ? `<p class="ap-mine"><strong>${open ? `Dein Autopilot: ${open} ${open === 1 ? 'Schritt' : 'Schritte'} zu tun` : 'Dein Autopilot: alles erledigt'}</strong> <a class="btn small" href="#/portfolio">Zum Portfolio</a></p>` : ''}
-    <form class="ap-form" id="ap-form"><label>Betrag <span translate="no">(${currencyCode()})</span><input id="ap-amount" inputmode="decimal" value="${esc(inputText(apAmount))}" autocomplete="off"></label>
+    <form class="ap-form" id="ap-form"><label><span>Betrag <span translate="no">(${currencyCode()})</span></span><input id="ap-amount" inputmode="decimal" value="${esc(inputText(apAmount))}" autocomplete="off"></label>
       <button class="btn ghost" type="submit">Zeigen</button></form>
     <ul class="ap-list">
       ${shown.map((m) => `<li><span><strong>${esc(m.name)}</strong> <span class="muted">≈ ${m.units.toLocaleString(settings.locale, { maximumSignificantDigits: 3 })} ${esc(m.symbol.toUpperCase())}</span></span><strong>${money(m.usd)}</strong></li>`).join('')}
@@ -2283,7 +2273,7 @@ function portfolioView(arg = '') {
       <div class="actions">
         <button class="btn" id="p-open-add" data-for="manual">+ Position</button>
         <button class="btn ghost" id="p-open-import" data-for="manual">Importieren</button>
-        <button class="btn" id="p-open-money" data-for="auto">Einzahlen / Auszahlen</button>
+        <button class="btn" id="p-open-money" data-for="auto">Ein- und auszahlen</button>
         <button class="btn ghost" id="p-open-reserve">Strategie: <b id="r-chip"></b></button>
       </div>
     </div>
@@ -2383,7 +2373,7 @@ function portfolioView(arg = '') {
         <div class="chips" id="m-kind" role="group" aria-label="Einzahlen oder auszahlen">
           <button type="button" class="chip active" data-kind="in">Einzahlen</button><button type="button" class="chip" data-kind="out">Auszahlen</button>
         </div>
-        <label>Betrag (<span translate="no">${currencyCode()}</span>) <input id="m-amount" inputmode="decimal" placeholder="zum Beispiel 500" required autocomplete="off"></label>
+        <label><span>Betrag <span translate="no">(${currencyCode()})</span></span><input id="m-amount" inputmode="decimal" placeholder="zum Beispiel 500" required autocomplete="off"></label>
         <p class="hint" id="m-help"></p>
         <div id="m-preview" class="preview"></div>
         <p id="m-msg" class="notice" hidden></p>
@@ -2828,11 +2818,14 @@ function portfolioView(arg = '') {
     };
     const btc = (day) => (day >= today ? state.byId.get('bitcoin')?.current_price ?? null : closeOn(state.btcData, day));
     const span = PERF_RANGES[perfRange];
-    const from = span ? today - span : Math.min(start, today - 30);
+    // Zurückrechnen lohnt nur, wenn zu Beginn schon Coins da waren – ein Start mit Bargeld (Autopilot) beginnt am ersten Tag
+    const backfill = track.states[0].pos.length > 0;
+    const from = backfill ? (span ? today - span : Math.min(start, today - 30)) : Math.max(start, span ? today - span : start);
     const pts = tr.series(track, { fromDay: from, toDay: today, priceOn: price, btcOn: btc });
     const all = tr.series(track, { fromDay: start, toDay: today, priceOn: price, btcOn: btc });
     const first = pts.findIndex((x) => x.tracked);
-    drawChart($('#p-perf-chart'), {
+    if (pts.length < 2) $('#p-perf-chart').innerHTML = `<p class="muted perf-empty">${esc(i18n.say('Die Aufzeichnung beginnt heute – ab morgen siehst du hier, wie sich dein Portfolio entwickelt.'))}</p>`;
+    else drawChart($('#p-perf-chart'), {
       t: pts.map((x) => x.day * 86_400_000 + 43_200_000), p: pts.map((x) => x.value),
       overlays: [{ label: 'Eingezahlt', color: 'var(--muted)', values: pts.map((x) => x.in) },
         { label: 'Dasselbe Geld in Bitcoin', color: 'var(--accent)', values: pts.map((x) => x.btc) }],
@@ -2893,8 +2886,8 @@ function portfolioView(arg = '') {
             <div class="setup-top"><span class="setup-icon" aria-hidden="true">🤖</span><div><h3>Autopilot</h3><span class="badge buy">Empfohlen für den Einstieg</span></div></div>
             <p>Du sagst, wie viel du anlegst – der Manager sagt dir genau, was du kaufst. Dein Portfolio folgt dem Modell-Portfolio aus dem Rechner,
               und jede Woche siehst du, ob etwas zu tun ist.</p>
-            <label>Startbetrag <span translate="no">(${currencyCode()})</span><input id="p-start-value" inputmode="decimal" placeholder="zum Beispiel 5000" autocomplete="off"></label>
-            <label>Monatliche Sparrate, optional <span translate="no">(${currencyCode()})</span><input id="p-start-monthly" inputmode="decimal" placeholder="zum Beispiel 200" autocomplete="off"></label>
+            <label><span>Startbetrag <span translate="no">(${currencyCode()})</span></span><input id="p-start-value" inputmode="decimal" placeholder="zum Beispiel 5000" autocomplete="off"></label>
+            <label><span>Monatliche Sparrate, optional <span translate="no">(${currencyCode()})</span></span><input id="p-start-monthly" inputmode="decimal" placeholder="zum Beispiel 200" autocomplete="off"></label>
             <fieldset class="setup-modes"><legend>Strategie</legend>
               ${Object.entries(RESERVE_MODES).map(([k, m]) => `<label class="setup-mode"><input type="radio" name="p-start-mode" value="${k}" ${k === 'balanced' ? 'checked' : ''}>
                 <span><strong>${m.label}</strong><small>${bt(k)} (Rückrechnung)</small></span></label>`).join('')}
@@ -2973,7 +2966,7 @@ function portfolioView(arg = '') {
         : `<div><div class="coin-name">${esc(pos.name || pos.symbol)}</div><div class="coin-sym">${state.pagesLoaded < api.PAGES ? 'wird geladen …' : 'nicht in den Top 1000'}</div></div>`;
       return `<tr>
         <td class="col-coin">${name}</td>
-        <td class="num">${pos.amount.toLocaleString(settings.locale, { maximumFractionDigits: 8 })}</td>
+        <td class="num">${pos.amount.toLocaleString(settings.locale, { maximumFractionDigits: pos.amount >= 1000 ? 2 : pos.amount >= 1 ? 4 : 8 })}</td>
         <td class="num col-7d">${c ? money(c.current_price) : '–'}</td>
         <td class="num">${pct(c?.price_change_percentage_24h_in_currency)}</td>
         <td class="num">${money(value)}</td>

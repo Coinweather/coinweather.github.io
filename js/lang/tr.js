@@ -1970,4 +1970,8 @@ export default {
   "Mit allen Zeichenwerkzeugen und über # Indikatoren. Er wird von tradingview.com geladen – dabei gehen Daten wie deine IP-Adresse an TradingView": "Tüm çizim araçları ve # üzeri göstergeyle. tradingview.com’dan yüklenir – IP adresin gibi veriler TradingView’a gider",
   "TradingView laden": "TradingView’ı yükle",
   "Die Diagramme zeichnet die Bibliothek „Lightweight Charts“ von TradingView; sie liegt auf dieser Seite und lädt nichts von TradingView. Nur wenn du in einem Coin-Chart „TradingView laden“ wählst, lädt dein Browser den vollen Chart von tradingview.com (TradingView, Inc., USA). Dabei erhält TradingView deine IP-Adresse und kann Cookies setzen; es gilt die Datenschutzerklärung von TradingView. Deine Wahl wird nur in deinem Browser gespeichert": "Grafikleri TradingView’ın “Lightweight Charts” kütüphanesi çizer; bu sitede barındırılır ve TradingView’dan hiçbir şey yüklemez. Yalnızca bir coin grafiğinde “TradingView’ı yükle”yi seçersen tarayıcın tam grafiği tradingview.com’dan (TradingView, Inc., ABD) yükler. TradingView o zaman IP adresini alır ve çerez kullanabilir; TradingView’ın gizlilik politikası geçerlidir. Seçimin yalnızca tarayıcında saklanır",
+  "Hauptmenü": "Ana menü",
+  "Kompass": "Pusula",
+  "Die Aufzeichnung beginnt heute – ab morgen siehst du hier, wie sich dein Portfolio entwickelt": "Kayıt bugün başlıyor – yarından itibaren portföyünün gelişimini burada görürsün",
+  "Ein- und auszahlen": "Yatır ve çek",
 };

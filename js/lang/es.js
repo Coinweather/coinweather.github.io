@@ -1970,4 +1970,8 @@ export default {
   "Mit allen Zeichenwerkzeugen und über # Indikatoren. Er wird von tradingview.com geladen – dabei gehen Daten wie deine IP-Adresse an TradingView": "Con todas las herramientas de dibujo y más de # indicadores. Se carga desde tradingview.com: datos como tu dirección IP se envían a TradingView",
   "TradingView laden": "Cargar TradingView",
   "Die Diagramme zeichnet die Bibliothek „Lightweight Charts“ von TradingView; sie liegt auf dieser Seite und lädt nichts von TradingView. Nur wenn du in einem Coin-Chart „TradingView laden“ wählst, lädt dein Browser den vollen Chart von tradingview.com (TradingView, Inc., USA). Dabei erhält TradingView deine IP-Adresse und kann Cookies setzen; es gilt die Datenschutzerklärung von TradingView. Deine Wahl wird nur in deinem Browser gespeichert": "Los gráficos los dibuja la biblioteca «Lightweight Charts» de TradingView; está alojada en esta web y no carga nada de TradingView. Solo si eliges «Cargar TradingView» en un gráfico, tu navegador carga el gráfico completo desde tradingview.com (TradingView, Inc., EE. UU.). TradingView recibe entonces tu dirección IP y puede usar cookies; se aplica su política de privacidad. Tu elección solo se guarda en tu navegador",
+  "Hauptmenü": "Menú principal",
+  "Kompass": "Brújula",
+  "Die Aufzeichnung beginnt heute – ab morgen siehst du hier, wie sich dein Portfolio entwickelt": "El registro empieza hoy: a partir de mañana verás aquí cómo evoluciona tu cartera",
+  "Ein- und auszahlen": "Depositar y retirar",
 };

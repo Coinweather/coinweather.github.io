@@ -134,14 +134,14 @@ const INDICATORS = [
 const IND_KEY = 'coinwetter-chart-indikatoren', TV_KEY = 'coinwetter-tradingview-ok';
 const loadInd = () => { try { const x = JSON.parse(localStorage.getItem(IND_KEY)); if (Array.isArray(x)) return new Set(x); } catch { /* Standard */ } return new Set(['ma50', 'ma200', 'vol']); };
 const INTERVALS = [['15m', '15m', '15 Minuten'], ['1h', '1h', '1 Stunde'], ['4h', '4h', '4 Stunden'], ['1d', '1D', '1 Tag'], ['1w', '1W', '1 Woche'], ['1M', '1M', '1 Monat']];
-// Zeitraum-Knöpfe der Detailansicht: Intervall und wie viele Kerzen sichtbar sind
-export const RANGE_VIEW = { '1T': ['15m', 96], '7T': ['1h', 168], '30T': ['4h', 180], '90T': ['1d', 90], '1J': ['1d', 365], '4J': ['1w', 209] };
+// Sichtbarer Ausschnitt je Intervall: 15m = 1 Tag, 1h = 1 Woche, 4h = 1 Monat, 1D = 1 Jahr, 1W = 4 Jahre, 1M = alles
+const BARS = { '15m': 96, '1h': 168, '4h': 180, '1d': 365, '1w': 209, '1M': null };
 
 // ---------- Profi-Chart je Coin ----------
 // coin: { id, symbol, name }, source: Börse der Kursgeschichte ('Binance', 'Gate.io' oder null),
 // fallback: () => Tageskurse { t, p, v, source } ohne Kerzen (kommen oft erst später – dann retry())
-export function proChart(el, { coin, source, fallback, onRange }) {
-  const st = { iv: '1d', type: 'candles', ind: loadInd(), log: false, draw: null, pending: null, data: null, run: 0, bars: 365, tv: false };
+export function proChart(el, { coin, source, fallback }) {
+  const st = { iv: '1d', type: 'candles', ind: loadInd(), log: false, draw: null, pending: null, data: null, run: 0, bars: BARS['1d'], tv: false };
   el.innerHTML = `<div class="pro">
       <div class="pro-bar">
         <div class="chips" data-g="type"><button type="button" class="chip" data-type="candles" title="Kerzen">🕯️<span class="lbl"> Kerzen</span></button><button type="button" class="chip" data-type="line" title="Linie">📈<span class="lbl"> Linie</span></button></div>
@@ -319,7 +319,7 @@ export function proChart(el, { coin, source, fallback, onRange }) {
     const b = e.target.closest('button');
     if (!b || b.disabled) return;
     if (b.dataset.type) { st.type = b.dataset.type; render(); }
-    if (b.dataset.iv) { st.iv = b.dataset.iv; st.bars = null; onRange?.(null); load(); }
+    if (b.dataset.iv) { st.iv = b.dataset.iv; st.bars = BARS[st.iv]; load(); }
     const act = b.dataset.act;
     if (act === 'ind') q('.pro-menu').hidden = !q('.pro-menu').hidden;
     if (act === 'log') { st.log = !st.log; main?.priceScale().applyOptions({ mode: st.log ? L.PriceScaleMode.Logarithmic : L.PriceScaleMode.Normal }); syncButtons(); }
@@ -341,12 +341,6 @@ export function proChart(el, { coin, source, fallback, onRange }) {
 
   load();
   return {
-    // Zeitraum-Knöpfe (1T … 4J): passendes Intervall und Ausschnitt
-    setRange(range) {
-      const [iv, bars] = RANGE_VIEW[range] ?? ['1d', 365];
-      st.bars = bars;
-      if (iv !== st.iv || !st.data) { st.iv = iv; load(); } else if (!st.tv) render();
-    },
     // Tageskurse sind nachträglich da: neu laden, falls bisher nichts zu zeigen war
     retry() { if (!st.data && !st.tv && st.run && fallback?.()?.p?.length) load(); },
     remove() { st.run++; chart?.remove(); },

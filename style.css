@@ -953,3 +953,34 @@ details.d-fold > summary { font-size: 15px; letter-spacing: 0; text-transform: n
   .lw-legend, .pro-legend { max-width: calc(100% - 60px); font-size: 11.5px; }
 
 }
+
+/* ---------- Handy: Menü unten wie in einer App ---------- */
+.tabbar, .foot-mobile { display: none; }
+@media (max-width: 720px) {
+  header.top nav { display: none; }
+  .foot-mobile:not([hidden]) { display: inline; }
+  .tabbar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; gap: 0; padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--panel) 94%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--line); }
+  .tabbar a { position: relative; flex: 1; display: grid; justify-items: center; gap: 1px; padding: 5px 2px; border-radius: 10px; font-size: 11px; font-weight: 600;
+    color: var(--muted); background: none; box-shadow: none; }
+  .tabbar a span[aria-hidden] { font-size: 20px; line-height: 1.15; filter: grayscale(.6); }
+  .tabbar a b { font-weight: 600; }
+  .tabbar a.active { color: var(--accent); background: none; box-shadow: none; }
+  .tabbar a.active span[aria-hidden] { filter: none; }
+  .tabbar .nav-badge { position: absolute; top: 0; left: calc(50% + 6px); margin: 0; }
+  body { padding-bottom: calc(66px + env(safe-area-inset-bottom)); }
+  .chart-max { bottom: 0; z-index: 100; }
+}
+
+.chart-title { margin: 0 0 10px; font-size: 18px; }
+@media (max-width: 600px) {
+  /* Kurs- und Indikatorwerte über dem Chart statt darüber gelegt – sonst verdecken sie die Kerzen */
+  .pro-legend, .lw-legend { position: static; max-width: none; margin-bottom: 4px; pointer-events: auto; }
+}
+@media (max-width: 720px) {
+  /* Anmelden zuerst – die Vorteile stehen darunter */
+  .gate > .account { order: -1; }
+  .gate { margin-top: 16px; }
+}
+/* In Dialogen: die gewählte Option deutlich zeigen */
+.dialog .chips .chip.active { background: var(--accent); color: var(--on-accent); box-shadow: none; }
