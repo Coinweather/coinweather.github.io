@@ -1172,7 +1172,7 @@ for (const lang of LANG_ORDER) {
         ${record?.ap?.days ? `<p><strong>${esc(A.live(new Date(record.ap.since * 86_400_000).toLocaleDateString(locale), pct(record.ap.nav - 100), pct(record.ap.btc - 100)))}</strong></p>` : ''}
         <h2>${esc(A.how)}</h2><ol>${A.steps.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>
         <h2>${esc(A.btH)}</h2><p>${esc(A.bt(B2.perYear, B2.recent, B2.drawdown, HOLD_BACKTEST.perYear))}</p>
-        <section class="panel cta"><strong>${esc(A.cta)}</strong><p><a class="btn" href="${app('#/konto?next=portfolio')}">${esc(A.btn)}</a> <a class="btn ghost" href="${app('#/rechner')}">${esc(A.calc)}</a></p></section>
+        <section class="panel cta"><strong>${esc(A.cta)}</strong><p><a class="btn" href="${app('#/konto?next=portfolio')}">${esc(A.btn)}</a> <a class="btn ghost" href="${app('#/rechner/bitcoin')}">${esc(A.calc)}</a></p></section>
         ${A.faq.map(([q, a]) => `<h2>${esc(q)}</h2><p>${esc(a)}</p>`).join('')}
         <p><a href="${pre}${BB[lang].path}">${esc(BB[lang].nav)}</a> · <a href="${pre}${BQ[lang].path}">${esc(BQ[lang].nav)}</a> · <a href="${pre}/savings-plan/">${SP[lang].nav}</a></p>`,
         `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`);
@@ -1290,7 +1290,7 @@ for (const lang of LANG_ORDER) {
     add('sp-hub', '/savings-plan/', S2.hubTitle(y3), S2.hubDesc(y3),
       `<h1>${S2.hubH1}</h1><p class="muted">${esc(S2.hubSub(y3, day))}</p>
       <div class="panel"><table>${spHead(S2.coin)}${ranked.map((c) => spRow(`<a href="${pre}/savings-plan/${slug(c.id)}/">${esc(c.name)}</a>`, spResults.get(c.id).plan[0])).join('')}</table></div>
-      <section class="panel cta"><strong>${S2.try}</strong><p><a class="btn" href="${app('#/rechner')}">${S2.tryBtn}</a></p></section><p class="muted">${S2.note}</p>`);
+      <section class="panel cta"><strong>${S2.try}</strong><p><a class="btn" href="${app('#/rechner/bitcoin')}">${S2.tryBtn}</a></p></section><p class="muted">${S2.note}</p>`);
   }
 
   // Übersicht

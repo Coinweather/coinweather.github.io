@@ -665,13 +665,6 @@ details.d-fold > summary { font-size: 15px; letter-spacing: 0; text-transform: n
 .teaser-stats { display: flex; flex-wrap: wrap; gap: 6px 22px; flex: 1; font-size: 14.5px; color: var(--muted); }
 .teaser-stats strong { color: var(--text); }
 
-/* Markt-Heatmap */
-.heat-wrap { margin-top: 30px; }
-.heatmap { position: relative; width: 100%; border-radius: var(--radius-sm); overflow: hidden; background: var(--panel); }
-.heat-tile { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid var(--bg); color: var(--text); text-decoration: none; overflow: hidden; line-height: 1.15; text-align: center; }
-.heat-tile:hover { outline: 2px solid var(--accent); z-index: 1; }
-.heat-tile .coin-sym { font-weight: 800; color: var(--text); font-size: 1em; }
-.heat-tile small { font-size: .72em; opacity: .9; }
 @media (max-width: 560px) { .weather .label { padding-right: 92px; } }
 .prefs label { flex-wrap: wrap; max-width: 100%; }
 .prefs select { max-width: 100%; min-width: 0; }
@@ -812,7 +805,7 @@ details.d-fold > summary { font-size: 15px; letter-spacing: 0; text-transform: n
 .jump a:hover { color: var(--text); border-color: var(--accent); }
 .pager { gap: 14px; align-items: center; flex-wrap: wrap; }
 .pick-score small { font-size: 13px; color: var(--muted); font-weight: 600; margin-left: 2px; }
-#picks-sec, #cycle, .heat-wrap, .controls { scroll-margin-top: 90px; }
+#picks-sec, #cycle, .controls { scroll-margin-top: 90px; }
 @media (max-width: 560px) {
   .todo-list li { grid-template-columns: 28px 1fr; }
   .todo-list li .btn { grid-column: 2; justify-self: start; }
@@ -1026,16 +1019,6 @@ details.d-fold > summary { font-size: 15px; letter-spacing: 0; text-transform: n
 .vis-box:has(.vis-hours) { padding-bottom: 28px; }
 .vis-path { margin: 4px 0 8px; padding-left: 20px; font-size: 13.5px; columns: 2 260px; }
 
-/* Startseite auf dem Handy: Details eingeklappt, Doppeltes weg */
-.parts-fold > summary { display: flex; align-items: baseline; gap: 10px; cursor: pointer; list-style: none; }
-.parts-fold > summary::-webkit-details-marker { display: none; }
-.parts-fold > summary::after { content: "▾"; margin-left: auto; color: var(--muted); transition: transform .15s; }
-.parts-fold[open] > summary::after { transform: rotate(180deg); }
-.parts-fold:not([open]) .parts-count { display: inline; }
-.parts-fold[open] .parts-count { display: none; }
-@media (max-width: 720px) {
-  /* Das Markt-Wetter steht schon oben – hier bleibt nur die Herleitung zum Aufklappen */
-  #market-parts .mood-row, #market-parts .mood-bar, #market-parts .range-labels, #market-parts .mood-text { display: none; }
 }
 .vis-health { margin: 0 0 12px; font-size: 14px; }
 
@@ -1050,3 +1033,74 @@ body.login-gate header.top nav, body.login-gate .tabbar { display: none; }
 .account-pitch span:first-child { color: var(--text); font-weight: 700; }
 @media (max-width: 720px) { body.login-gate { padding-bottom: 16px; } }
 
+
+/* ---------- Startseite: Wetter als ruhiger Kopf, kleine Übersichten, viel Platz für die Coins ---------- */
+.weather { grid-template-columns: 120px minmax(0, 1fr) minmax(260px, auto); gap: 8px 26px; margin: 18px 0 14px; }
+.weather-icon .sky { width: 120px; height: 128px; }
+.weather-title { font-size: clamp(30px, 4vw, 40px); }
+.weather-mood { margin: 0 0 8px; }
+.weather-answer { margin: 0 0 10px; font-size: 16px; }
+.weather-tip { margin: 0 0 8px; font-size: 14px; }
+.weather .share-row { margin: 8px 0 0; }
+.weather-stats { display: grid; gap: 10px; align-self: stretch; align-content: center; }
+.weather-stats > div { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 12px; padding: 10px 14px; background: var(--panel-2); border-radius: var(--radius-sm); }
+.weather-stats .label { grid-column: 1 / -1; margin: 0; }
+.weather-stats strong { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.weather-stats strong small { font-size: 13px; color: var(--muted); font-weight: 600; }
+.teaser-row { margin: 0 0 14px; gap: 14px; }
+.compass-teaser, .calc-teaser { margin: 0; padding: 14px 18px; }
+.compass-teaser { align-items: center; gap: 8px 18px; }
+.compass-teaser .label { margin: 0; }
+.teaser-score { display: flex; flex: 1 1 200px; align-items: center; gap: 10px; }
+.teaser-score strong { font-size: 24px; font-weight: 800; }
+.teaser-score strong small { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.teaser-bar { flex: 1; min-width: 50px; height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.teaser-bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--down), var(--hold), var(--up)); background-size: 300px 100%; }
+.compass-teaser .teaser-stats { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13.5px; color: var(--muted); }
+.compass-teaser .teaser-stats strong { color: var(--text); }
+.teaser-head .label { flex-basis: auto; }
+.onboard .link-btn { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; font-size: 13.5px; font-weight: 700; }
+.teaser-head { flex-basis: 100%; display: flex; justify-content: space-between; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; }
+.compass-teaser .link-more { font-size: 13.5px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+.jump { margin: 0 0 6px; }
+#picks-sec { margin-top: 18px; }
+.picks-more { margin: 10px 0 0; }
+.tools-tabs { margin: 14px 0; }
+.tools-tabs .chip { text-decoration: none; }
+@media (max-width: 900px) {
+  .weather { grid-template-columns: 96px minmax(0, 1fr); }
+  .weather-icon .sky { width: 96px; height: 102px; }
+  .weather-stats { grid-column: 1 / -1; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+  .weather-stats > div { grid-template-columns: 1fr; padding: 8px 10px; }
+  .weather-stats strong { font-size: 17px; }
+  .weather-stats .badge { justify-self: start; }
+}
+@media (max-width: 560px) {
+  .weather { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+  .weather-icon .sky { width: 76px; height: 82px; }
+  .weather .label, .weather-title, .weather-mood { padding-right: 78px; }
+  .weather-stats { grid-column: auto; gap: 8px; }
+  .weather-stats > div { padding: 8px; align-content: start; }
+  .weather-stats .label { font-size: 10.5px; letter-spacing: .04em; padding-right: 0; }
+  .weather-stats strong { font-size: 15px; }
+  .weather-stats .badge { font-size: 11px; padding: 2px 6px; white-space: normal; }
+  .weather-stats .muted, .weather-stats .up, .weather-stats .down { font-size: 12.5px; }
+  .weather-stats > div { grid-template-columns: 1fr auto; }
+  /* Kaufsignale zum Wischen: So liegt die Coin-Liste nicht drei Bildschirme tiefer */
+  .picks { display: flex; overflow-x: auto; gap: 10px; scroll-snap-type: x mandatory; padding-bottom: 8px; }
+  .picks .pick { flex: 0 0 78%; scroll-snap-align: start; }
+  .picks .upsell, .picks .no-picks { flex: 0 0 90%; scroll-snap-align: start; }
+  .teaser-head { flex-wrap: nowrap; }
+  .compass-teaser .link-more { font-size: 0; }
+  .compass-teaser .link-more::after { content: '→'; font-size: 18px; }
+  .calc-teaser { padding: 12px 16px; }
+  .calc-teaser .muted { display: none; }
+  .jump .label { display: none; }
+  .weather .share-row { gap: 4px 11px; font-size: 13px; }
+  .weather-stats .muted, .weather-stats .up, .weather-stats .down { justify-self: start; }
+}
+@media (max-width: 340px) {
+  .weather-stats { grid-auto-flow: row; }
+  .weather-stats > div { grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; }
+  .weather-stats .label { grid-column: auto; }
+}

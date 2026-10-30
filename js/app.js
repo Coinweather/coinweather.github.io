@@ -878,46 +878,128 @@ function lockedCoinView(id) {
   return { update() { head(); sales.update(); } };
 }
 
+// ---------- Marktlage im Detail: steht auf der Seite Zyklus-Kompass ----------
+// Was heißt das für dich? – aus dem Kauf-Score drei klare nächste Schritte
+function marketTodo() {
+  const m = state.market, el = $('#todo');
+  if (!m?.buy || !el) { if (el) el.hidden = true; return; }
+  el.hidden = false;
+  const v = m.value;
+  const steps = v >= 62 ? [['🌧️', 'Günstiger Zyklus: in Raten kaufen – vor allem Bitcoin und Ethereum, über mindestens 12 Monate.', '#/coin/bitcoin', 'Bitcoin ansehen'],
+    ['🧮', 'Ausrechnen, was ein Sparplan gebracht hätte – mit einem Coin, mit Bitcoin oder mit dem Autopiloten.', '#/rechner/bitcoin', 'Sparplan rechnen'],
+    ['💼', 'Den Autopiloten sagen lassen, was du kaufst und wie viel Reserve du hältst.', depot.user ? '#/portfolio' : '#/konto', depot.user ? 'Portfolio prüfen' : 'Kostenlos starten']]
+    : v >= 45 ? [['☁️', 'Weder billig noch teuer: Ein Sparplan kann normal weiterlaufen.', '#/rechner/bitcoin', 'Sparplan rechnen'],
+      ['📈', 'Für die nächsten Wochen zählt der Trend: die stärksten Kaufsignale ansehen.', '#/', 'Kaufsignale ansehen'],
+      ['💼', 'Den Autopiloten sagen lassen, was du kaufst.', depot.user ? '#/portfolio' : '#/konto', depot.user ? 'Portfolio prüfen' : 'Kostenlos starten']]
+      : [['☀️', 'Teurer Zyklus: nicht nachkaufen, Gewinne teilweise sichern.', depot.user ? '#/portfolio' : '#/konto', depot.user ? 'Portfolio prüfen' : 'Kostenlos starten'],
+        ['🧭', 'Im Zyklus-Kompass sehen, welche Bausteine heiß laufen.', '#/indikatoren', 'Zyklus-Kompass'],
+        ['🧮', 'Prüfen, wie ein Sparplan durch teure Phasen kam.', '#/rechner/bitcoin', 'Sparplan rechnen']];
+  el.innerHTML = `<div class="label">Was heißt das für dich?</div>
+    <ol class="todo-list">${steps.map(([icon, text, href, btn]) => `<li><span class="todo-icon" aria-hidden="true">${icon}</span><span>${text}</span>
+      <a class="btn ghost small" href="${href}">${btn}</a></li>`).join('')}</ol>
+    <p class="hint">Keine Anlageberatung – eine Einordnung aus vergangenen Daten.</p>`;
+}
+
+
+// Kauf-Score-Einordnung, Fear & Greed, Markt-Wetter und Erfolgskontrolle. Neu gezeichnet nur, wenn sich etwas geändert hat
+let detailsKey = null;
+function marketDetails() {
+  const m = state.market;
+  if (!$('#g-fng')) return;
+  const key = JSON.stringify([m?.value, moodOf(m), state.fng?.value, state.record?.d7, state.record?.d30, m?.regime?.score]);
+  if (key === detailsKey) return;
+  detailsKey = key;
+  marketTodo();
+  const cy = m?.cycle, h = m?.buy ? yearAfterBuy(m.value) : null;
+  $('#cycle').hidden = !cy && !h;
+  const after = (who, up, mid) => `<strong>${who}:</strong> in ${up} % der Fälle höher, mittleres Ergebnis ${signed(mid, 0)} %.`;
+  if (h) {
+    // 12 Monate nach dem Kauf-Score – getrennt für Bitcoin, Ethereum und Altcoins, weil sie sich seit 2022 sehr verschieden verhielten
+    $('#cycle').className = `panel cycle ${m.value >= 62 ? 'deep' : m.value >= 45 ? 'mid' : 'high'}`;
+    $('#cycle').innerHTML = `<div class="panel-top"><div><div class="label">Sicht auf 12 Monate · nach dem Kauf-Score</div><h2>Ein Jahr nach Ständen wie heute</h2>${infoBtn('cycle')}</div>
+        <strong class="cycle-dd">${m.value}<small> Kauf-Score</small></strong></div>
+      <ul class="plain"><li>${after('Bitcoin', h.btc.up, h.btc.median)}</li><li>${after('Ethereum', h.eth.up, h.eth.median)}</li>
+        <li>${after('Mittlerer Altcoin', h.alt.up, h.alt.median)}</li></ul>
+      <p class="hint">Alle Tage seit 2022 mit vergleichbarem Kauf-Score. Altcoins verloren seit 2022 auf Jahressicht meist – auch nach günstigen Ständen.${cy ? ` Bitcoin liegt ${num(-cy.dd, 0)} % unter seinem Allzeithoch.` : ''}</p>`;
+  } else if (cy) {
+    $('#cycle').className = `panel cycle ${cy.zone}`;
+    $('#cycle').innerHTML = `<div class="panel-top"><div><div class="label">Zyklus – Sicht auf 12 Monate</div><h2>${esc(cy.label)}</h2>${infoBtn('cycle')}</div>
+        <strong class="cycle-dd">${num(-cy.dd, 0)} %<small> unter Allzeithoch</small></strong></div>
+      <p>Bitcoin liegt ${num(-cy.dd, 0)} % unter seinem Allzeithoch. Ein Jahr nach vergleichbaren Ständen seit 2022:</p>
+      <ul class="plain"><li>${after('Bitcoin', cy.btcUp, cy.btcMedian)}</li>
+        <li>${after('Mittlerer Coin', cy.altUp, cy.altMedian)}</li></ul>`;
+  }
+  // Erfolgskontrolle: was aus den Kaufsignalen der Seite tatsächlich geworden ist
+  const rec = state.record;
+  $('#record').hidden = !rec;
+  if (rec) {
+    const line = (label, o) => (o ? `<div><div class="label">${label}</div><div class="value ${tone(o.avg)}">${signed(o.avg, 1)} %</div>
+        <div class="muted">${num(o.up / o.n * 100, 0)} % im Plus (${o.up} von ${o.n}) · Bitcoin ${signed(o.btc, 1)} %${isNum(o.mkt) ? ` · Top 100 im Schnitt ${signed(o.mkt, 1)} %` : ''}</div></div>`
+      : `<div><div class="label">${label}</div><div class="value muted">–</div><div class="muted">noch keine Ergebnisse</div></div>`);
+    $('#record').innerHTML = `<div class="head-row"><div><div class="label">Erfolgskontrolle</div>
+        <div class="muted">Kaufsignale der Seite, gemessen seit ${new Date(rec.since * 86_400_000).toLocaleDateString(settings.locale)}</div></div>${infoBtn('record', 'So wird gemessen')}</div>
+      <div class="stat-grid">${line('Nach 7 Tagen', rec.d7)}${line('Nach 30 Tagen', rec.d30)}</div>
+      ${rec.d7 ? '' : '<p class="hint">Die Messung hat gerade begonnen. Erste Ergebnisse gibt es 7 Tage nach den ersten Signalen.</p>'}`;
+  }
+  const f = state.fng;
+  $('#g-fng').innerHTML = f ? `<div class="label">Fear &amp; Greed Index · <a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener">alternative.me</a></div>${gauge(f.value, SELL_TO_BUY)}
+      <div class="gauge-value">${f.value}<small> / 100</small></div><span class="badge none big">${fngLabel(f.value)}</span>
+      <div class="hint">Vor 7 Tagen: ${isNum(f.history[7]?.value) ? f.history[7].value : '–'} · vor 30 Tagen: ${isNum(f.history[29]?.value) ? f.history[29].value : '–'}${f.cmc ? `<br>CoinMarketCap: ${f.cmc.value}${f.cmc.label ? ` (${esc(f.cmc.label)})` : ''}` : ''}</div>
+      <details class="fold"><summary>Wirkung im Modell</summary>${fngEffect(m?.regime)}${infoBtn('fng', 'So wird gerechnet')}</details>`
+    : '<div class="label">Fear &amp; Greed Index · <a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener">alternative.me</a></div><p class="muted">Wird geladen …</p>';
+  $('#market-parts').innerHTML = m ? `<div class="label">Markt-Wetter · Stimmung der nächsten Wochen</div>
+      <div class="mood-row"><span class="mood-num">${moodOf(m)}<small> / 100</small></span><strong>${SKY_TITLE[skyOf(moodOf(m))]}</strong></div>
+      <span class="mood-bar"><i style="left:${moodOf(m)}%"></i></span><div class="range-labels"><span>Sturm</span><span>Sonne</span></div>
+      <p class="muted mood-text"><span>${SKY_TEXT[skyOf(moodOf(m))]}</span> <span>Das Wetter sagt, wie es dem Markt geht – ob sich ein Kauf lohnt, sagt der Kauf-Score.</span></p>
+      <details class="fold"><summary>So entsteht das Markt-Wetter</summary>${infoBtn('weather')}
+      ${factorList(m.mood?.parts ?? m.parts)}
+      <details><summary>Heutige Einzelwerte der Marktphase</summary>${factorList(m.regime.factors)}</details></details>`
+    : '<div class="label">Markt-Wetter</div><p class="muted">Wird berechnet …</p>';
+}
+
+// Erste Schritte: Checkliste für neue Konten, auf der Rechner-Seite
+function onboarding() {
+  const el = $('#onboard');
+  let hidden = false; try { hidden = localStorage.getItem(ONBOARD_KEY) === '1'; } catch { /* dann zeigen */ }
+  const d = depot.data;
+  const steps = [
+    ['☆', 'Coins mit einem Stern als Favoriten markieren', (d.watch ?? []).length > 0, '#/'],
+    ['🤖', 'Den Autopiloten starten oder deine Coins eintragen', d.positions.length > 0 || d.cash > 0 || !!d.mode, '#/portfolio'],
+    ['🧭', 'Den Zyklus-Kompass ansehen', seen('compass'), '#/indikatoren'],
+    ['🧮', 'Den Sparplan-Rechner ausprobieren', seen('calc'), '#/rechner/bitcoin'],
+  ];
+  const done = steps.filter((x) => x[2]).length;
+  el.hidden = !depot.user || hidden || done === steps.length;
+  if (el.hidden) return;
+  el.innerHTML = `<div class="panel-top"><div><div class="label">Erste Schritte</div><strong>${done} von ${steps.length} erledigt</strong></div>
+      <button type="button" class="link-btn" id="onboard-hide">Ausblenden</button></div>
+    <ul class="onboard-list">${steps.map(([icon, text, ok, href]) => `<li class="${ok ? 'ok' : ''}"><span aria-hidden="true">${ok ? '✅' : icon}</span>
+      ${ok ? `<span>${text}</span>` : `<a href="${href}">${text}</a>`}</li>`).join('')}</ul>`;
+  $('#onboard-hide').addEventListener('click', () => { try { localStorage.setItem(ONBOARD_KEY, '1'); } catch { /* nur jetzt */ } el.hidden = true; });
+}
+
+
 function marketView(preview = false) {
-  let partsOpen = matchMedia('(min-width: 761px)').matches;   // Bausteine des Kauf-Scores: am Computer offen, auf dem Handy zu
   const th = (key, label, cls = '') => (preview && key === 'score' ? `<th class="${cls}">${label}</th>` : `<th class="${cls} sortable" data-sort="${key}">${label}</th>`);
   if (preview && state.sort.key === 'score') state.sort = { key: 'rank', dir: 1 };
   if (preview) state.filter = 'all';
   view.innerHTML = `
     <section class="panel weather" id="weather"></section>
-    <section class="panel onboard" id="onboard" hidden></section>
-    <section class="panel ap-teaser" id="ap-teaser" hidden></section>
-    <section class="buy-hero">
-      <div class="panel buy-card" id="g-market"></div>
-      <div class="panel buy-parts" id="buy-parts"></div>
-    </section>
-    <section class="panel todo-box" id="todo"></section>
+    <div class="teaser-row">
+      <a class="panel compass-teaser" href="#/indikatoren" id="compass-teaser"><div class="teaser-head"><span class="label">Zyklus-Kompass · Kauf-Score</span><span class="link-more">Alle Indikatoren →</span></div></a>
+      <a class="panel calc-teaser" href="#/rechner"><span class="calc-icon" aria-hidden="true">🧮</span><span><strong>Rechner und Autopilot</strong>
+        <span class="muted">Sag, wie viel du anlegen willst: Autopilot, Sparplan und Challenge.</span></span><span class="btn ghost">Öffnen</span></a>
+    </div>
     <nav class="jump" aria-label="Auf dieser Seite"><span class="label">Auf dieser Seite</span>
-      <a href="#" data-jump="#picks-sec">Kaufsignale</a><a href="#" data-jump="#cycle">12 Monate</a><a href="#" data-jump=".heat-wrap">Heatmap</a><a href="#" data-jump=".controls">Alle Coins</a></nav>
+      <a href="#" data-jump="#picks-sec">Kaufsignale</a><a href="#" data-jump=".controls">Alle Coins</a></nav>
     ${preview ? previewCta('Die Großwetterlage siehst du hier frei. Welche Coins gerade ein Kaufsignal haben, zeigt dein kostenloses Konto.',
       '30 Tage alle Funktionen, ohne Zahlungsdaten. Anmelden mit Google dauert 10 Sekunden.') : ''}
-    <section class="hero hero-two">
-      <div class="panel gauge-panel" id="g-fng"></div>
-      <div class="panel" id="market-parts"></div>
-      <section class="panel" id="cycle"></section>
-    </section>
-    <div class="teaser-row">
-      <a class="panel compass-teaser" href="#/indikatoren" id="compass-teaser" hidden></a>
-      <a class="panel calc-teaser" href="#/rechner"><span class="calc-icon" aria-hidden="true">🧮</span><span><strong>Sparplan- und Portfolio-Rechner</strong>
-        <span class="muted">Was wäre aus einem Sparplan geworden – mit einem Coin, mit Bitcoin oder mit dem Autopiloten?</span></span><span class="btn ghost">Ausprobieren</span></a>
-    </div>
     <section id="favs" hidden></section>
     <section id="picks-sec">
       <h2>Stärkste Kaufsignale</h2>
       <p class="hint">Coins aus den Top 500 mit ausreichend Handelsvolumen, sortiert nach Kauf-Score – riskantere Coins werden dabei abgewertet.</p>
       <div id="picks" class="picks"></div>
-    </section>
-    <section class="panel" id="record" hidden></section>
-    <section class="heat-wrap">
-      <div class="panel-top"><h2>Markt-Heatmap</h2>
-        <div class="chips" id="heat-range"><button class="chip active" data-heat="24h">24 h</button><button class="chip" data-heat="7d">7 Tage</button><button class="chip" data-heat="30d">30 Tage</button></div></div>
-      <div id="heatmap" class="heatmap"></div>
-      <p class="hint">Die 100 größten Coins ohne Stablecoins: Die Fläche wächst mit dem Marktwert, die Farbe zeigt die Kursveränderung. Ein Klick öffnet den Coin.</p>
+      <p class="hint picks-more"><a href="#/indikatoren?s=record">Wie gut waren die Signale? Zur Erfolgskontrolle</a></p>
     </section>
     ${preview ? '<p class="hint">Bitcoin und Ethereum zeigen das Signal als Beispiel. Die Signale aller 1000 Coins siehst du mit einem kostenlosen Konto.</p>' : ''}
     <section class="controls">
@@ -945,14 +1027,6 @@ function marketView(preview = false) {
     if (!sel) return;
     e.preventDefault();
     view.querySelector(sel)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
-  let heatRange = '24h';
-  $('#heat-range').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-heat]');
-    if (!btn) return;
-    heatRange = btn.dataset.heat;
-    for (const b of $('#heat-range').children) b.classList.toggle('active', b === btn);
-    heatmap();
   });
   $('#show-none').addEventListener('change', (e) => { state.showNone = e.target.checked; state.page = 1; table(); });
   $('#filters').addEventListener('click', (e) => {
@@ -984,7 +1058,7 @@ function marketView(preview = false) {
   function shareRow() {
     const m = state.market;
     if (!m) return;
-    $('#share-row').innerHTML = shareLinks(shareUrl(), `${i18n.say('Das Krypto-Wetter heute')}: ${i18n.say(m.label)} (${m.value}/100)`, 'Heutigen Krypto-Wetterbericht teilen');
+    $('#share-row').innerHTML = shareLinks(shareUrl(), `${i18n.say('Das Krypto-Wetter heute')}: ${i18n.say(m.label)} (${m.value}/100)`);
   }
 
   function weather() {
@@ -1005,120 +1079,16 @@ function marketView(preview = false) {
         <p class="weather-mood">${SKY_TEXT[sky]}</p>
         <p class="weather-answer"><strong>Jetzt kaufen?</strong> ${NOW_ANSWER[m.label]}</p>
         ${tip ? `<p class="weather-tip ${wet && m.value >= 62 ? 'good' : ''}">${tip}</p>` : ''}
-        <div class="weather-stats">
-          <span>Kauf-Score <strong>${m.value}/100</strong> · ${badge(m)}</span>
-          ${f ? `<span>Fear &amp; Greed <strong>${f.value}</strong> · ${fngLabel(f.value)}</span>` : ''}
-          ${btc ? `<span>Bitcoin <strong>${money(btc.current_price)}</strong> <span class="${tone(d24)}">${pct(d24)}</span></span>` : ''}
-        </div>
         <p class="share-row hint" id="share-row"></p>
+      </div>
+      <div class="weather-stats">
+        ${f ? `<div><span class="label">Fear &amp; Greed</span><strong>${f.value}</strong><span class="muted">${fngLabel(f.value)}</span></div>` : ''}
+        ${btc ? `<div><span class="label">Bitcoin</span><strong>${money(btc.current_price)}</strong><span class="${tone(d24)}">${pct(d24)}</span></div>` : ''}
       </div>`;
     shareRow();
   }
 
-  // Wie lief Bitcoin nach Kauf-Scores wie heute? Aus dem Rückblick des Zyklus-Kompasses (Zyklus-Risiko = 100 − Kauf-Score)
-  async function buyHistory() {
-    const m = state.market, el = $('#buy-history');
-    if (!m?.buy || !el) return;
-    const x = await loadIndices();
-    const risk = 100 - m.value, row = x?.risk?.backtest?.find((b) => risk >= b.lo && risk < b.hi);
-    const y = yearAfterBuy(m.value)?.btc, q = row?.['90'] ?? row?.periods?.[1]?.['90'];
-    if (!y || !$('#buy-history')) return;
-    $('#buy-history').innerHTML = `<div class="label">Nach Ständen wie heute · seit 2022</div>
-      <div class="bh-grid"><div><strong class="${y.up >= 55 ? 'up' : y.up <= 45 ? 'down' : ''}">${y.up} %</strong><span>Bitcoin ein Jahr später höher</span></div>
-        <div><strong class="${tone(y.median)}">${signed(y.median, 0)} %</strong><span>mittleres Ergebnis nach einem Jahr</span></div>
-        ${q ? `<div><strong class="${q.up >= 55 ? 'up' : q.up <= 45 ? 'down' : ''}">${q.up} %</strong><span>nach 90 Tagen höher</span></div>` : ''}</div>`;
-  }
-
-  // Was heißt das für dich? – aus dem Kauf-Score drei klare nächste Schritte
-  function todo() {
-    const m = state.market, el = $('#todo');
-    if (!m?.buy || !el) { if (el) el.hidden = true; return; }
-    el.hidden = false;
-    const v = m.value;
-    const steps = v >= 62 ? [['🌧️', 'Günstiger Zyklus: in Raten kaufen – vor allem Bitcoin und Ethereum, über mindestens 12 Monate.', '#/coin/bitcoin', 'Bitcoin ansehen'],
-      ['🧮', 'Ausrechnen, was ein Sparplan gebracht hätte – mit einem Coin, mit Bitcoin oder mit dem Autopiloten.', '#/rechner', 'Sparplan rechnen'],
-      ['💼', 'Den Autopiloten sagen lassen, was du kaufst und wie viel Reserve du hältst.', depot.user ? '#/portfolio' : '#/konto', depot.user ? 'Portfolio prüfen' : 'Kostenlos starten']]
-      : v >= 45 ? [['☁️', 'Weder billig noch teuer: Ein Sparplan kann normal weiterlaufen.', '#/rechner', 'Sparplan rechnen'],
-        ['📈', 'Für die nächsten Wochen zählt der Trend: die stärksten Kaufsignale ansehen.', '#picks-sec', 'Kaufsignale ansehen'],
-        ['💼', 'Den Autopiloten sagen lassen, was du kaufst.', depot.user ? '#/portfolio' : '#/konto', depot.user ? 'Portfolio prüfen' : 'Kostenlos starten']]
-        : [['☀️', 'Teurer Zyklus: nicht nachkaufen, Gewinne teilweise sichern.', depot.user ? '#/portfolio' : '#/konto', depot.user ? 'Portfolio prüfen' : 'Kostenlos starten'],
-          ['🧭', 'Im Zyklus-Kompass sehen, welche Bausteine heiß laufen.', '#/indikatoren', 'Zyklus-Kompass'],
-          ['🧮', 'Prüfen, wie ein Sparplan durch teure Phasen kam.', '#/rechner', 'Sparplan rechnen']];
-    el.innerHTML = `<div class="label">Was heißt das für dich?</div>
-      <ol class="todo-list">${steps.map(([icon, text, href, btn]) => `<li><span class="todo-icon" aria-hidden="true">${icon}</span><span>${text}</span>
-        <a class="btn ghost small" href="${href.startsWith('#/') ? href : '#'}"${href.startsWith('#/') ? '' : ` data-jump-to="${href}"`}>${btn}</a></li>`).join('')}</ol>
-      <p class="hint">Keine Anlageberatung – eine Einordnung aus vergangenen Daten.</p>`;
-    for (const a of el.querySelectorAll('[data-jump-to]')) a.addEventListener('click', (e) => { e.preventDefault(); view.querySelector(a.dataset.jumpTo)?.scrollIntoView({ behavior: 'smooth' }); });
-  }
-
-  function hero() {
-    weather();
-    todo();
-    const m = state.market;
-    $('#g-market').innerHTML = m ? `<div class="buy-gauge"><div class="label">Jetzt kaufen? · Kauf-Score</div>${gauge(m.value, SELL_TO_BUY)}
-          <div class="gauge-value">${m.value}<small> / 100</small></div>${badge(m, 'big')}</div>
-        <div class="buy-text">
-          <h2>${m.buy ? BUY_TITLE[m.label] : 'Kauf-Score wird berechnet …'}</h2>
-          <p>${m.buy ? buyDrivers(m.buy) : NOW_ANSWER[m.label]}</p>
-          <div id="buy-history" class="buy-history"></div>
-          <p class="hint">Sicht: 12 Monate und länger, für Sparpläne und Käufe in Raten. Kurzfristig kann der Kurs weiter fallen.
-            Stand ${m.time.toLocaleTimeString(settings.locale, { hour: '2-digit', minute: '2-digit' })} ${infoBtn('index')}</p>
-        </div>`
-      : '<div class="label">Jetzt kaufen?</div><p class="muted">Wird berechnet …</p>';
-    const b = m?.buy;
-    // Auf dem Handy eingeklappt (Detailwissen); der Zustand bleibt beim Neuzeichnen mit neuen Kursen erhalten
-    $('#buy-parts').innerHTML = b ? `<details class="parts-fold"${partsOpen ? ' open' : ''}><summary><span class="label">Das steckt im Kauf-Score</span>
-        <span class="muted parts-count">5 Bausteine</span></summary>
-        <div class="head-row"><span></span><a class="link-more" href="#/indikatoren">Zyklus-Kompass →</a></div>${buyInputs(b)}</details>`
-      : '<div class="label">Das steckt im Kauf-Score</div><p class="muted">Wird berechnet …</p>';
-    $('#buy-parts details')?.addEventListener('toggle', (e) => { partsOpen = e.target.open; });
-    buyHistory();
-    const cy = m?.cycle, h = m?.buy ? yearAfterBuy(m.value) : null;
-    $('#cycle').hidden = !cy && !h;
-    const after = (who, up, mid) => `<strong>${who}:</strong> in ${up} % der Fälle höher, mittleres Ergebnis ${signed(mid, 0)} %.`;
-    if (h) {
-      // 12 Monate nach dem Kauf-Score – getrennt für Bitcoin, Ethereum und Altcoins, weil sie sich seit 2022 sehr verschieden verhielten
-      $('#cycle').className = `panel cycle ${m.value >= 62 ? 'deep' : m.value >= 45 ? 'mid' : 'high'}`;
-      $('#cycle').innerHTML = `<div class="panel-top"><div><div class="label">Sicht auf 12 Monate · nach dem Kauf-Score</div><h2>Ein Jahr nach Ständen wie heute</h2>${infoBtn('cycle')}</div>
-          <strong class="cycle-dd">${m.value}<small> Kauf-Score</small></strong></div>
-        <ul class="plain"><li>${after('Bitcoin', h.btc.up, h.btc.median)}</li><li>${after('Ethereum', h.eth.up, h.eth.median)}</li>
-          <li>${after('Mittlerer Altcoin', h.alt.up, h.alt.median)}</li></ul>
-        <p class="hint">Alle Tage seit 2022 mit vergleichbarem Kauf-Score. Altcoins verloren seit 2022 auf Jahressicht meist – auch nach günstigen Ständen.${cy ? ` Bitcoin liegt ${num(-cy.dd, 0)} % unter seinem Allzeithoch.` : ''}</p>`;
-    } else if (cy) {
-      $('#cycle').className = `panel cycle ${cy.zone}`;
-      $('#cycle').innerHTML = `<div class="panel-top"><div><div class="label">Zyklus – Sicht auf 12 Monate</div><h2>${esc(cy.label)}</h2>${infoBtn('cycle')}</div>
-          <strong class="cycle-dd">${num(-cy.dd, 0)} %<small> unter Allzeithoch</small></strong></div>
-        <p>Bitcoin liegt ${num(-cy.dd, 0)} % unter seinem Allzeithoch. Ein Jahr nach vergleichbaren Ständen seit 2022:</p>
-        <ul class="plain"><li>${after('Bitcoin', cy.btcUp, cy.btcMedian)}</li>
-          <li>${after('Mittlerer Coin', cy.altUp, cy.altMedian)}</li></ul>`;
-    }
-    // Erfolgskontrolle: was aus den Kaufsignalen der Seite tatsächlich geworden ist
-    const rec = state.record;
-    $('#record').hidden = !rec;
-    if (rec) {
-      const line = (label, o) => (o ? `<div><div class="label">${label}</div><div class="value ${tone(o.avg)}">${signed(o.avg, 1)} %</div>
-          <div class="muted">${num(o.up / o.n * 100, 0)} % im Plus (${o.up} von ${o.n}) · Bitcoin ${signed(o.btc, 1)} %${isNum(o.mkt) ? ` · Top 100 im Schnitt ${signed(o.mkt, 1)} %` : ''}</div></div>`
-        : `<div><div class="label">${label}</div><div class="value muted">–</div><div class="muted">noch keine Ergebnisse</div></div>`);
-      $('#record').innerHTML = `<div class="head-row"><div><div class="label">Erfolgskontrolle</div>
-          <div class="muted">Kaufsignale der Seite, gemessen seit ${new Date(rec.since * 86_400_000).toLocaleDateString(settings.locale)}</div></div>${infoBtn('record', 'So wird gemessen')}</div>
-        <div class="stat-grid">${line('Nach 7 Tagen', rec.d7)}${line('Nach 30 Tagen', rec.d30)}</div>
-        ${rec.d7 ? '' : '<p class="hint">Die Messung hat gerade begonnen. Erste Ergebnisse gibt es 7 Tage nach den ersten Signalen.</p>'}`;
-    }
-    const f = state.fng;
-    $('#g-fng').innerHTML = f ? `<div class="label">Fear &amp; Greed Index · <a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener">alternative.me</a></div>${gauge(f.value, SELL_TO_BUY)}
-        <div class="gauge-value">${f.value}<small> / 100</small></div><span class="badge none big">${fngLabel(f.value)}</span>
-        <div class="hint">Vor 7 Tagen: ${isNum(f.history[7]?.value) ? f.history[7].value : '–'} · vor 30 Tagen: ${isNum(f.history[29]?.value) ? f.history[29].value : '–'}${f.cmc ? `<br>CoinMarketCap: ${f.cmc.value}${f.cmc.label ? ` (${esc(f.cmc.label)})` : ''}` : ''}</div>
-        <details class="fold"><summary>Wirkung im Modell</summary>${fngEffect(m?.regime)}${infoBtn('fng', 'So wird gerechnet')}</details>`
-      : '<div class="label">Fear &amp; Greed Index · <a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener">alternative.me</a></div><p class="muted">Wird geladen …</p>';
-    $('#market-parts').innerHTML = m ? `<div class="label">Markt-Wetter · Stimmung der nächsten Wochen</div>
-        <div class="mood-row"><span class="mood-num">${moodOf(m)}<small> / 100</small></span><strong>${SKY_TITLE[skyOf(moodOf(m))]}</strong></div>
-        <span class="mood-bar"><i style="left:${moodOf(m)}%"></i></span><div class="range-labels"><span>Sturm</span><span>Sonne</span></div>
-        <p class="muted mood-text"><span>${SKY_TEXT[skyOf(moodOf(m))]}</span> <span>Das Wetter sagt, wie es dem Markt geht – ob sich ein Kauf lohnt, sagt der Kauf-Score.</span></p>
-        <details class="fold"><summary>So entsteht das Markt-Wetter</summary>${infoBtn('weather')}
-        ${factorList(m.mood?.parts ?? m.parts)}
-        <details><summary>Heutige Einzelwerte der Marktphase</summary>${factorList(m.regime.factors)}</details></details>`
-      : '<div class="label">Markt-Wetter</div><p class="muted">Wird berechnet …</p>';
-  }
+  const hero = () => weather();
 
   // Kein Kaufsignal für die nächsten Wochen – aber vielleicht ein günstiger Zyklus. Beides steht da, damit es sich nicht widerspricht.
   function noPicks() {
@@ -1207,75 +1177,20 @@ function marketView(preview = false) {
   }
 
   // Erste Schritte nach der Anmeldung: eine kurze Liste mit Haken – verschwindet, wenn alles erledigt oder ausgeblendet ist
-  function onboard() {
-    const el = $('#onboard');
-    let hidden = false; try { hidden = localStorage.getItem(ONBOARD_KEY) === '1'; } catch { /* dann zeigen */ }
-    const d = depot.data;
-    const steps = [
-      ['☆', 'Coins mit einem Stern als Favoriten markieren', (d.watch ?? []).length > 0, '#rows'],
-      ['🤖', 'Den Autopiloten starten oder deine Coins eintragen', d.positions.length > 0 || d.cash > 0 || !!d.mode, '#/portfolio'],
-      ['🧭', 'Den Zyklus-Kompass ansehen', seen('compass'), '#/indikatoren'],
-      ['🧮', 'Den Sparplan-Rechner ausprobieren', seen('calc'), '#/rechner'],
-    ];
-    const done = steps.filter((x) => x[2]).length;
-    el.hidden = !depot.user || hidden || done === steps.length;
-    if (el.hidden) return;
-    el.innerHTML = `<div class="panel-top"><div><div class="label">Erste Schritte</div><strong>${done} von ${steps.length} erledigt</strong></div>
-        <button type="button" class="link-btn" id="onboard-hide">Ausblenden</button></div>
-      <ul class="onboard-list">${steps.map(([icon, text, ok, href]) => `<li class="${ok ? 'ok' : ''}"><span aria-hidden="true">${ok ? '✅' : icon}</span>
-        ${ok ? `<span>${text}</span>` : `<a href="${href.startsWith('#/') ? href : '#/'}" ${href.startsWith('#/') ? '' : 'data-scroll="' + href + '"'}>${text}</a>`}</li>`).join('')}</ul>`;
-    $('#onboard-hide').addEventListener('click', () => { try { localStorage.setItem(ONBOARD_KEY, '1'); } catch { /* nur jetzt */ } el.hidden = true; });
-    for (const a of el.querySelectorAll('[data-scroll]')) a.addEventListener('click', (e) => { e.preventDefault(); $(a.dataset.scroll)?.scrollIntoView({ behavior: 'smooth' }); });
-  }
-
-  // Zyklus-Kompass als Kurzfassung – lädt einmal und verlinkt auf die ganze Seite
-  let teaserDone = false;
+  // Zyklus-Kompass als Kurzfassung: Kauf-Score und drei Indikatoren, alles Weitere auf der eigenen Seite
+  let teaserKey = null;
   async function compassTeaser() {
-    if (teaserDone) return;
-    teaserDone = true;
-    const x = await loadIndices();
-    const el = $('#compass-teaser');
-    if (!x || !el) return;
-    el.innerHTML = `<div class="label">Zyklus-Kompass</div>
-      <div class="teaser-stats">
-        ${x.altseason ? `<span>Altcoin-Saison <strong>${x.altseason.value}/100</strong> · ${seasonLabel(x.altseason.value)}</span>` : ''}
+    const x = await loadIndices(), m = state.market, el = $('#compass-teaser');
+    const key = `${m?.value}|${!!x}`;
+    if (!el || key === teaserKey) return;
+    teaserKey = key;
+    el.innerHTML = `<div class="teaser-head"><span class="label">Zyklus-Kompass · Kauf-Score</span><span class="link-more">Alle Indikatoren →</span></div>
+      ${m?.buy ? `<div class="teaser-score"><strong>${m.value}<small>/100</small></strong> ${badge(m)}<span class="teaser-bar"><i style="width:${m.value}%"></i></span></div>` : ''}
+      ${x ? `<div class="teaser-stats">
+        ${x.altseason ? `<span>Altcoin-Saison <strong>${x.altseason.value}/100</strong></span>` : ''}
         <span>Pi-Cycle <strong>${num(x.pi.ratio * 100, 0)} %</strong></span>
         <span>Mayer-Multiple <strong>${num(x.mayer.value, 2)}</strong></span>
-      </div><span class="btn ghost">Alle Indikatoren</span>`;
-    el.hidden = false;
-  }
-
-  // Heatmap: Kacheln nach dem „Squarified“-Verfahren – möglichst quadratisch, damit Kürzel und Prozent lesbar bleiben
-  function heatmap() {
-    const el = $('#heatmap');
-    const list = state.coins.filter((c) => (c.market_cap_rank ?? 9999) <= 110 && c.analysis.signal !== 'none' && c.market_cap > 0).slice(0, 100);
-    if (!list.length || !el.clientWidth) return;
-    const W = el.clientWidth, H = Math.round(W < 600 ? W * 1.25 : W * 0.5);
-    // Die Fläche wächst mit dem Marktwert, abgeschwächt – sonst wäre Bitcoin fast die ganze Karte
-    const weights = list.map((c) => Math.pow(c.market_cap, 0.6)), sum = weights.reduce((a, b) => a + b, 0);
-    let rest = list.map((c, i) => ({ c, v: weights[i] / sum * W * H }));
-    const tiles = [];
-    let x = 0, y = 0, w = W, h = H;
-    while (rest.length) {
-      const short = Math.min(w, h);
-      const worst = (row) => { const t = row.reduce((a, b) => a + b.v, 0); const mx = Math.max(...row.map((r) => r.v)), mn = Math.min(...row.map((r) => r.v)); return Math.max(short * short * mx / (t * t), t * t / (short * short * mn)); };
-      const row = [rest[0]]; let i = 1;
-      while (i < rest.length && worst([...row, rest[i]]) <= worst(row)) row.push(rest[i++]);
-      const t = row.reduce((a, b) => a + b.v, 0);
-      if (w >= h) { const cw = t / h; let cy = y; for (const r of row) { const rh = r.v / cw; tiles.push({ ...r, x, y: cy, w: cw, h: rh }); cy += rh; } x += cw; w -= cw; }
-      else { const rh = t / w; let cx = x; for (const r of row) { const rw = r.v / rh; tiles.push({ ...r, x: cx, y, w: rw, h: rh }); cx += rw; } y += rh; h -= rh; }
-      rest = rest.slice(i);
-    }
-    const key = { '24h': 'price_change_percentage_24h_in_currency', '7d': 'price_change_percentage_7d_in_currency', '30d': 'price_change_percentage_30d_in_currency' }[heatRange];
-    const full = { '24h': 8, '7d': 20, '30d': 35 }[heatRange];   // so viel Prozent ergeben die kräftigste Farbe
-    el.style.height = `${H}px`;
-    el.innerHTML = tiles.map(({ c, x: tx, y: ty, w: tw, h: th }) => {
-      const v = c[key], a = isNum(v) ? Math.round(Math.min(1, Math.abs(v) / full) * 75 + 10) : 0;
-      const bg = !isNum(v) ? 'var(--panel-2)' : `color-mix(in srgb, var(--${v >= 0 ? 'up' : 'down'}) ${a}%, var(--panel-2))`;
-      const big = tw > 46 && th > 30, fs = Math.max(10, Math.min(22, Math.sqrt(tw * th) / 5));
-      return `<a class="heat-tile" href="#/coin/${encodeURIComponent(c.id)}" style="left:${tx}px;top:${ty}px;width:${tw}px;height:${th}px;background:${bg};font-size:${fs}px"
-        title="${esc(c.name)}: ${isNum(v) ? `${signed(v, 1)} %` : '–'}">${big ? `<span class="coin-sym">${esc(c.symbol.toUpperCase())}</span><small>${pct(v)}</small>` : ''}</a>`;
-    }).join('');
+      </div>` : ''}`;
   }
 
   function favs() {
@@ -1291,10 +1206,7 @@ function marketView(preview = false) {
     }).join('')}</div>`;
   }
 
-  // Autopilot-Vorschau: einmal, sobald Kurse da sind, und wenn sich der Zugang ändert
-  let apKey = null;
-  const apTeaser = () => { const key = `${state.coins.length > 0}|${access().plan}|${depot.data.mode}|${state.record?.ap?.nav}`; if (key === apKey) return; apKey = key; autopilotTeaser($('#ap-teaser')); };
-  return { update() { hero(); onboard(); compassTeaser(); apTeaser(); favs(); picks(); heatmap(); table(); } };
+  return { update() { hero(); compassTeaser(); favs(); picks(); table(); } };
 }
 
 // ---------- Detailansicht ----------
@@ -2267,7 +2179,7 @@ async function autopilotTeaser(el) {
       <li class="ap-reserve"><span>Reserve (Bargeld oder Stablecoins)</span><strong>${money(f.reserve * f.reserveShare)}</strong></li></ul>
     <div class="btn-row">${full ? `<a class="btn" href="#/portfolio/auto?b=${Math.round(fromDisplay(apAmount) * 100) / 100}&m=once">Mit diesem Betrag starten</a>`
       : `<a class="btn" href="${depot.user ? '#/preise' : '#/konto'}" data-next="#/portfolio/auto?b=${Math.round(fromDisplay(apAmount) * 100) / 100}&m=once">${depot.user ? 'Pakete ansehen' : 'Kostenlos starten – 30 Tage alle Funktionen'}</a>`}
-      <a class="btn ghost" href="#/rechner">So wäre es gelaufen</a></div>
+      <a class="btn ghost" href="#/rechner/bitcoin">So wäre es gelaufen</a></div>
     <p class="share-row hint">${shareLinks(`${location.origin}${i18n.prefs.lang === 'en' ? '' : `/${i18n.prefs.lang}`}/crypto-portfolio-autopilot/?von=${refTag('share-ap')}`,
       i18n.say('Sag, wie viel du anlegen willst – der Autopilot sagt dir, was du kaufst.'), 'Teilen')}</p>
     <p class="ap-challenge"><span>🏁 <strong>Glaubst du, du bist besser?</strong> Wähle drei Coins und tritt gegen den Autopiloten an.</span>
@@ -3584,6 +3496,7 @@ function compassView() {
     // 1 Jahr: dieselbe Tabelle wie Startseite, Coin-Seiten und Beiträge (unter 45 seit 2018, sonst zu wenige Tage)
     const buyRows = r.backtest.map((b) => ({ ...b, ...(btCell(b, '365') ? { 365: yearAfterBuy(100 - (b.lo + Math.min(100, b.hi)) / 2).btc } : {}), label: `${BUY_OF_RISK[b.label] ?? b.label} · ${Math.max(0, 100 - b.hi)}–${100 - b.lo}` }));
     const y1 = yearAfterBuy(100 - r.value)?.btc;
+    const row90 = r.backtest.find((b) => r.value >= b.lo && r.value < b.hi), q90 = row90?.['90'] ?? row90?.periods?.[1]?.['90'];
     const s = x.altseason, d = x.dominance;
     el.innerHTML = `
       <section class="panel compass-risk">
@@ -3593,13 +3506,24 @@ function compassView() {
           <h2>${RISK_TEXT[label]}</h2>
           ${y1 ? `<div class="buy-history"><div class="label">Nach Ständen wie heute · seit 2022</div>
             <div class="bh-grid"><div><strong class="${y1.up >= 55 ? 'up' : y1.up <= 45 ? 'down' : ''}">${y1.up} %</strong><span>Bitcoin ein Jahr später höher</span></div>
-            <div><strong class="${tone(y1.median)}">${signed(y1.median, 0)} %</strong><span>mittleres Ergebnis nach einem Jahr</span></div></div></div>` : ''}
+            <div><strong class="${tone(y1.median)}">${signed(y1.median, 0)} %</strong><span>mittleres Ergebnis nach einem Jahr</span></div>
+            ${q90 ? `<div><strong class="${q90.up >= 55 ? 'up' : q90.up <= 45 ? 'down' : ''}">${q90.up} %</strong><span>nach 90 Tagen höher</span></div>` : ''}</div></div>` : ''}
+          ${live ? `<p>${buyDrivers(live)}</p>` : ''}
+          <p class="hint">Sicht: 12 Monate und länger, für Sparpläne und Käufe in Raten. Kurzfristig kann der Kurs weiter fallen.
+            ${state.market?.time ? `Stand ${state.market.time.toLocaleTimeString(settings.locale, { hour: '2-digit', minute: '2-digit' })}` : ''} ${infoBtn('index')}</p>
           <div class="label">Das steckt im Kauf-Score</div>
           ${buyInputs(live ?? { parts: r.parts })}
           <p class="hint">Zyklus-Risiko ${num(r.value, 0)}/100 · ${label} · dieselbe Rechnung, andersherum gezählt ${infoBtn('compass')}</p>
         </div>
         <div class="compass-wide">${full ? `${backtestTable(buyRows, r.value)}<p class="hint">Unter einem Kauf-Score von 45 ist „1 Jahr später“ seit 2018 gerechnet, weil es seit 2022 zu wenige solche Tage gab.</p>` : ''}${chartBox('c-risk')}</div>
       </section>
+      <section class="panel todo-box" id="todo"></section>
+      <section class="hero hero-two">
+        <div class="panel gauge-panel" id="g-fng"></div>
+        <div class="panel" id="market-parts"></div>
+        <section class="panel" id="cycle"></section>
+      </section>
+      <section class="panel" id="record" hidden></section>
       <div class="compass-grid">
         ${s ? `<section class="panel"><div class="label">Altcoin-Saison-Index</div>
           <div class="ind-value">${s.value}<small> / 100</small></div><span class="badge ${s.value >= 75 ? 'buy' : s.value <= 25 ? 'sell' : 'hold'}">${seasonLabel(s.value)}</span>
@@ -3630,6 +3554,10 @@ function compassView() {
       <p class="hint">Stand ${new Date(x.time).toLocaleString(settings.locale)} · Tageskurse von Binance seit ${new Date(x.since).getUTCFullYear()}, Fear & Greed von alternative.me, Dominanz von CoinGecko.
         Indikatoren beschreiben vergangene Zyklen – keine Garantie für den nächsten. Keine Anlageberatung.</p>
       <p class="share-row hint">${shareLinks(shareUrl('#/indikatoren'), `${i18n.say('Kauf-Score')}: ${buy}/100 (${i18n.say(buyLabel)}) – Coinweather`)}</p>`;
+    detailsKey = null;
+    marketDetails();
+    // Link von der Startseite: direkt zur Erfolgskontrolle
+    if (!scrolled && new URLSearchParams(location.hash.split('?')[1] ?? '').get('s') === 'record') { scrolled = true; $('#record')?.scrollIntoView({ block: 'start' }); }
     if (!full) return;
     const line = (id, hist, opts = {}) => { const box = $(`#${id}`); if (!box || !hist?.length) return; drawChart(box, { t: hist.map((h) => dayMs(h[0])), p: hist.map((h) => h[1]), plain: true, ...opts }); };
     line('c-risk', r.history.map((h) => [h[0], 100 - h[1]]), { note: 'Kauf-Score', levels: [{ value: 62, label: 'Eher kaufen', color: 'var(--up)' }, { value: 45, label: 'Halten', color: 'var(--hold)' }] });
@@ -3639,8 +3567,8 @@ function compassView() {
     line('c-2y', x.twoYear.history, { note: 'Kurs / 2-Jahres-Schnitt', levels: [{ value: 5, label: 'Verkaufszone', color: 'var(--down)' }, { value: 1, label: 'Kaufzone', color: 'var(--up)' }] });
     line('c-vol', x.volatility.history, { note: 'Volatilität in % pro Jahr' });
   }
-  let shown = null;
-  return { update() { const key = `${!!access().plan}|${state.market?.buy?.value ?? ''}`; if (key === shown) return; shown = key; render(); } };
+  let shown = null, scrolled = false;
+  return { update() { marketDetails(); const key = `${!!access().plan}|${state.market?.buy?.value ?? ''}`; if (key === shown) return; shown = key; render(); } };
 }
 
 // ---------- Modell-Portfolio: der Portfolio-Manager als Musterdepot zum Mitverfolgen ----------
@@ -3727,12 +3655,12 @@ async function modelSection(el) {
 // Ohne Server: Auswahl, Startkurse und Starttag stehen in der Adresse. Verglichen wird mit echten
 // Kursen gegen die Live-Messung des Autopiloten (state.record.ap) und Bitcoin. Wer den Link teilt, lädt andere zum Mitmachen ein.
 const CHALLENGE_KEY = 'coinwetter-challenge';
-function challengeView() {
+function challengeView(root = view) {
   const params = new URLSearchParams(location.hash.split('?')[1] ?? '');
   const picks = (params.get('c') ?? '').split(',').map((x) => x.split('@')).filter(([id, p]) => id && Number(p) > 0).slice(0, 3).map(([id, p]) => ({ id, p0: Number(p) }));
   const day0 = Number(params.get('d')) || null, who = (params.get('n') ?? '').slice(0, 24);
   let mine = null; try { mine = localStorage.getItem(CHALLENGE_KEY); } catch { /* ohne Speicher */ }
-  view.innerHTML = `
+  root.innerHTML = `
     <section class="panel challenge-head">
       <div class="label">🏁 Challenge</div>
       <h1 class="page-title">Schlag den Autopiloten</h1>
@@ -3937,8 +3865,31 @@ function simulate(data, price, { mode, amount, startMs }) {
 
 // Sparplan- und Portfolio-Rechner: derselbe Plan mit einem Coin, mit Bitcoin und mit dem Portfolio-Manager nebeneinander,
 // darunter das Modell-Portfolio im Detail. #/modell öffnet dieselbe Seite beim Modell-Portfolio.
-function calculatorView(arg, { focus } = {}) {
-  markSeen('calc');
+// Rechner-Seite: Autopilot, Sparplan-Rechner (mit Modell-Portfolio) und Challenge als Reiter; jeder hat seine eigene Adresse.
+// #/rechner öffnet den Autopiloten, #/rechner/bitcoin den Sparplan, #/modell das Modell-Portfolio, #/challenge die Challenge
+function toolsView(name, arg) {
+  const tab = name === 'challenge' ? 'challenge' : name === 'modell' || arg || location.hash.includes('?') ? 'plan' : 'auto';
+  if (tab === 'plan') markSeen('calc');
+  const link = (key, href, label) => `<a class="chip ${tab === key ? 'active' : ''}" href="${href}">${label}</a>`;
+  view.innerHTML = `<section class="panel onboard" id="onboard" hidden></section>
+    <nav class="chips tools-tabs" aria-label="Rechner">${link('auto', '#/rechner', '🤖 Autopilot')}${link('plan', '#/rechner/bitcoin', '🧮 Sparplan')}${link('challenge', '#/challenge', '🏁 Challenge')}</nav>
+    <div id="tool-body"></div>`;
+  const root = $('#tool-body');
+  let inner;
+  if (tab === 'challenge') inner = challengeView(root);
+  else if (tab === 'plan') inner = calculatorView(arg, { root, focus: name === 'modell' ? 'model' : undefined });
+  else {
+    root.innerHTML = '<section class="panel ap-teaser" id="ap-teaser"><p class="muted">Lade den Autopiloten …</p></section>';
+    let key = null;
+    inner = { update() {
+      const next = `${state.coins.length > 0}|${access().plan}|${depot.data.mode}|${state.record?.ap?.nav}`;
+      if (next !== key) { key = next; autopilotTeaser($('#ap-teaser')); }
+    } };
+  }
+  return { calc: tab === 'plan', update() { onboarding(); inner.update(); } };
+}
+
+function calculatorView(arg, { focus, root = view } = {}) {
   const params = new URLSearchParams(location.hash.split('?')[1] ?? '');
   const now = new Date();
   const monthStr = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
@@ -3960,7 +3911,7 @@ function calculatorView(arg, { focus } = {}) {
       ?? candidates().find((c) => c.name.toLowerCase().startsWith(q) || c.symbol.toLowerCase().startsWith(q));
   };
 
-  view.innerHTML = `
+  root.innerHTML = `
     <section class="panel calc">
       <div class="label">Kostenloser Rechner</div>
       <h1 class="page-title">Sparplan- und Portfolio-Rechner</h1>
@@ -4086,7 +4037,7 @@ function route() {
   const [rawName, arg] = location.hash.replace(/^#\/?/, '').split('/');
   const name = (rawName ?? '').split('?')[0];
   const pages = ['preise', ...site.LEGAL_KINDS];
-  const section = name === 'portfolio' ? 'portfolio' : name === 'konto' ? 'account' : name === 'daytrading' ? 'trading' : name === 'admin' ? 'admin' : name === 'rechner' || name === 'modell' ? 'tools' : name === 'indikatoren' ? 'compass' : name === 'vergleich' ? 'market'
+  const section = name === 'portfolio' ? 'portfolio' : name === 'konto' ? 'account' : name === 'daytrading' ? 'trading' : name === 'admin' ? 'admin' : name === 'rechner' || name === 'modell' || name === 'challenge' ? 'tools' : name === 'indikatoren' ? 'compass' : name === 'vergleich' ? 'market'
     : pages.includes(name) ? null : 'market';
   for (const a of document.querySelectorAll('nav a')) a.classList.toggle('active', a.dataset.nav === section);
   let id = arg;
@@ -4113,11 +4064,9 @@ function route() {
   else if (name === 'konto') current = accountView();
   else if (name === 'daytrading') { current = fullAccess() ? tradingView() : lockedView('trading'); if (fullAccess()) tradingAck(); }
   else if (name === 'preise') current = sales();
-  else if (name === 'rechner') current = calculatorView(arg);
+  else if (name === 'rechner' || name === 'modell' || name === 'challenge') current = toolsView(name, arg);
   else if (name === 'indikatoren') current = compassView();
-  else if (name === 'modell') current = calculatorView('', { focus: 'model' });
   else if (name === 'vergleich') current = compareView(arg);
-  else if (name === 'challenge') current = challengeView();
   else if (site.LEGAL_KINDS.includes(name)) current = site.legalView(view, name);
   else current = marketView();
   guard(current).update();
