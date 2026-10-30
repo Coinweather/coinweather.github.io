@@ -35,7 +35,11 @@ const [src, ref] = (() => {
   if (von) return von.startsWith('share-') ? ['teilen', von] : ['link', von];
   let r = null;
   try { r = document.referrer ? new URL(document.referrer) : null; } catch { /* unlesbar */ }
-  if (!r) return ['direkt', null];
+  // Der Browser in einer App verrät oft keine verweisende Seite – die App selbst steht aber in der Kennung des Browsers
+  if (!r) {
+    const app = /Instagram/.test(ua) ? 'instagram' : /FBAN|FBAV|FB_IAB/.test(ua) ? 'facebook' : /TikTok|musical_ly|BytedanceWebview/.test(ua) ? 'tiktok' : null;
+    return app ? [app, 'app'] : ['direkt', null];
+  }
   const host = (r.hostname || r.host).replace(/^www\./, '');
   if (host === location.hostname) {
     // Von einer eigenen Seite außerhalb der App: den SEO-Seiten wie /best-crypto-to-buy-now/

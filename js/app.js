@@ -1775,11 +1775,16 @@ const usage = { uid: null, counts: null, recent: [], dirty: false, timer: null, 
 // Herkunft aus Werbe-Links wie coinweather.github.io/?von=reddit: Der erste Kanal zählt. Danach verschwindet der Zusatz
 // aus der Adresse, damit er beim Weitergeben des Links nicht mitwandert.
 const REF_KEY = 'coinwetter-von';
-// Über einen Link gekommen (Instagram, Teilen …): Diese Besucher sehen zuerst das Angebot statt der Marktlage
-const cameByLink = (() => { try { return new URLSearchParams(location.search).has('von'); } catch { return false; } })();
 // Eingebetteter Browser einer App: Google verbietet dort die Anmeldung („disallowed_useragent“)
 const IN_APP = /Instagram|FBAN|FBAV|FB_IAB|TikTok|musical_ly|BytedanceWebview|Snapchat|LinkedInApp|Pinterest|Line\/|; wv\)/i;
 const inAppBrowser = () => !!SITE.testInApp || IN_APP.test(navigator.userAgent);
+// Von außen gekommen (Instagram, geteilter Link, Suche): Diese Besucher sehen zuerst das Angebot statt der Marktlage
+const cameByLink = (() => {
+  try {
+    if (new URLSearchParams(location.search).has('von') || inAppBrowser()) return true;
+    return !!document.referrer && new URL(document.referrer).hostname !== location.hostname;
+  } catch { return false; }
+})();
 const referrer = (() => {
   let ref = null;
   try {

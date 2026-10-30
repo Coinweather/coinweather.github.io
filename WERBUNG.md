@@ -1,3 +1,35 @@
+# Die ersten 10 Nutzer (Stand 30.10.2026)
+
+**Die Rechnung, ehrlich:** Ein Konto mit 1 Follower bekommt pro Reel oft nur wenige hundert Aufrufe. Von 1000 Aufrufen klicken grob 2 bis 10 auf
+den Link im Profil, davon legt vielleicht jeder Fünfte ein Konto an (Erfahrungswerte, keine Messung). Reels allein bringen in einer Woche also eher
+1 bis 3 Nutzer. Die ersten 10 kommen von **direkten Nachrichten an Menschen**. Reels sind das, was wächst, wenn man dranbleibt.
+
+**Heute (10 Minuten)**
+1. Instagram-Profil: Link auf `https://coinweather.github.io/?von=instagram` ändern, Bio ersetzen (Text in [SOCIAL-MEDIA.md](SOCIAL-MEDIA.md)).
+2. Das beste Reel oben im Profil anheften.
+3. Firestore-Regeln veröffentlichen, falls noch nicht geschehen. Sonst siehst du nicht, ob jemand kommt.
+
+**Morgen: 20 Personen persönlich anschreiben** (einzeln, mit Namen – keine Gruppe, kein Serientext). Auf 20 Nachrichten kommen realistisch 3 bis 6 Konten.
+Nimm alle, die sich je für Krypto oder Geldanlage interessiert haben.
+> Hey [Name], ich habe die letzten Wochen an einer Krypto-Seite gebaut und brauche ehrliches Feedback von 10 Leuten, bevor ich sie weiter bekannt mache.
+> Du gibst einen Betrag ein, und sie zeigt dir, was ein festes Regelwerk damit kaufen würde. Kostet nichts, keine Zahlungsdaten, sie hat keinen Zugriff auf dein Geld.
+> Würdest du dir 2 Minuten nehmen, ein Konto anlegen und mir sagen, was du nicht verstehst? https://coinweather.github.io/?von=whatsapp
+
+**Nachfassen nach 2 Tagen** (nur einmal):
+> Kein Stress, falls du keine Zeit hattest. Mich würde vor allem interessieren: Wo bist du ausgestiegen?
+
+**Tag 3 bis 7: dorthin gehen, wo gefragt wird** (je ein Beitrag, mit Link-Kennung; fertige Texte weiter unten)
+- Reddit: r/SideProject und r/indiehackers zuerst (dort sind Eigenprojekte erwünscht), in r/CryptoCurrency nur im Daily-Thread. Vorher die Regeln des Forums lesen.
+- Product Hunt und Show HN: eher für Reichweite als für Krypto-Anleger, einmalig, an einem Werktag morgens US-Zeit.
+- Instagram: täglich 10 Minuten bei grösseren Krypto-Konten **sinnvolle** Kommentare schreiben und auf Kommentare unter den eigenen Reels antworten. Kein Spam, keine Links.
+- Die Bekannten, die mitmachen, bitten, einen Freund einzuladen: Der Teilen-Knopf trägt die Herkunft schon mit.
+
+**Was nicht geht:** Follower oder Nutzer kaufen, Fake-Konten, Massennachrichten, Gewinnversprechen. Das bringt keine echten Nutzer und gefährdet Konto und Ruf.
+
+**Messen:** Unter `#/admin` → Besucher: Herkunft, „Weg zum Konto“, neue Konten. Die Spalte zeigt, wo die Leute aussteigen – dort als Nächstes ansetzen.
+
+---
+
 # Werbung für Coinweather – fertige Texte (Englisch)
 
 Alle Texte sind zum Kopieren. Die täglichen Beiträge laufen automatisch (siehe [SOCIAL-MEDIA.md](SOCIAL-MEDIA.md));

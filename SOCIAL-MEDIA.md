@@ -136,6 +136,13 @@ Is now a good time to buy crypto? ☀️🌧️ Daily crypto weather: contrarian
 ```
 
 **Instagram – Bio** (max. 150 Zeichen) · Link: `https://coinweather.github.io/?von=instagram`
+Empfohlen seit 30.10.2026 (kurz, sagt, was man bekommt):
+```
+You say how much. The autopilot says what to buy. 🤖
+📊 Free buy score for 1,000 coins · tracked live · NFA
+👇 30 days free
+```
+Frühere Fassung:
 ```
 ☀️🌧️ Daily crypto weather report
 📊 Market index · Fear & Greed · 1,000 coins

@@ -15,7 +15,7 @@ const C = { bg: '#0a0e17', panel: '#141b2b', line: '#2a3548', text: '#f4f6fb', m
 // Anton ist schmal und laut; ohne die Schrift (fc-list) Impact oder notfalls DejaVu. RATIO: mittlere Zeichenbreite je Schriftgröße
 const HAS_ANTON = (() => { try { return /Anton/.test(execFileSync('fc-list', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })); } catch { return false; } })();
 const DISPLAY = HAS_ANTON ? 'Anton' : process.platform === 'win32' ? 'Impact' : 'DejaVu Sans';
-const RATIO = HAS_ANTON || process.platform === 'win32' ? 0.5 : 0.68;
+const RATIO = HAS_ANTON ? 0.45 : process.platform === 'win32' ? 0.5 : 0.68;
 const BODY = process.platform === 'win32' ? 'Arial' : 'DejaVu Sans';
 
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
