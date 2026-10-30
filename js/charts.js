@@ -53,7 +53,7 @@ const FOCUS_MIN_RANGE = 0.01;   // die Y-Achse umfasst bei focus mindestens 1 % 
 // plain (Kennzahl statt Betrag), hourly; neu: levels [{ value, label, color }] als waagrechte Linien;
 // focus: Die Y-Achse richtet sich nur nach der Hauptlinie, damit kleine Bewegungen sichtbar sind – mit einer Mindesthöhe, sonst sähe ein fast
 // gleichbleibender Wert wild aus
-export async function lineChart(el, { t, p, overlays = [], note, marker, plain, hourly, levels = [], focus = false }) {
+export async function lineChart(el, { t, p, overlays = [], note, marker, plain, hourly, levels = [], focus = false, up = null }) {
   const L = await LW();
   el._lw?.remove(); el._lw = null;
   const pts = t.map((ms, i) => [toTime(ms), p[i]]).filter(([, v]) => isNum(v));
@@ -69,7 +69,7 @@ export async function lineChart(el, { t, p, overlays = [], note, marker, plain, 
   const wrap = el.querySelector('.lw-wrap'), box = el.querySelector('.lw-box'), legend = el.querySelector('.lw-legend');
   const chart = L.createChart(box, { ...baseOptions(L, th, { hourly }), localization: { locale: settings.locale, priceFormatter: fmt } });
   el._lw = chart;
-  const rising = pts[pts.length - 1][1] >= pts[0][1];
+  const rising = up ?? pts[pts.length - 1][1] >= pts[0][1];   // up: Farbe vorgeben, wenn Einzahlungen den Betrag verzerren
   const main = chart.addSeries(L.AreaSeries, { lineColor: rising ? th.up : th.down, topColor: alpha(rising ? th.up : th.down, 0.22), bottomColor: alpha(rising ? th.up : th.down, 0.01),
     lineWidth: 2, priceLineVisible: false,
     ...(focus ? { autoscaleInfoProvider: (original) => {

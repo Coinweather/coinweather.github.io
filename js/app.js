@@ -2842,10 +2842,11 @@ function portfolioView(arg = '') {
     // In den kurzen Zeiträumen liegt „Eingezahlt“ meist weit weg: Die Linie erscheint nur, wenn sie im Bild läge
     const paidInView = !focus || pts.some((x) => x.in >= low * 0.98 && x.in <= high * 1.02);
     const btcLine = from > start ? tr.rebasedBtc(pts, btc) : pts.map((x) => x.btc);
+    const inRange = tr.performance(pts);
     if (pts.length < 2) $('#p-perf-chart').innerHTML = `<p class="muted perf-empty">${esc(i18n.say('Die Aufzeichnung beginnt heute – ab morgen siehst du hier, wie sich dein Portfolio entwickelt.'))}</p>`;
     else drawChart($('#p-perf-chart'), {
       t: pts.map((x) => x.day * 86_400_000 + 43_200_000), p: pts.map((x) => x.value),
-      focus,
+      focus, up: inRange === null ? null : inRange >= 0,
       overlays: [...(paidInView ? [{ label: 'Eingezahlt', color: 'var(--muted)', values: pts.map((x) => x.in) }] : []),
         { label: 'Dasselbe Geld in Bitcoin', color: 'var(--accent)', values: btcLine }],
       // Ganz am rechten Rand wäre die Beschriftung abgeschnitten – dort steht das Datum nur im Hinweis
@@ -2854,7 +2855,6 @@ function portfolioView(arg = '') {
 
     const last = all[all.length - 1];
     trackGain = last.value - last.in;
-    const inRange = tr.performance(pts);
     const began = new Date(dated.states[0].t).toLocaleDateString(settings.locale);
     // Nur die Zahl zum offenen Zeitraum; der Rest steht oben in den Kacheln
     const period = !span || from === start ? `Seit ${began}` : span === 365 ? 'Letzte 12 Monate' : `Letzte ${span} Tage`;
