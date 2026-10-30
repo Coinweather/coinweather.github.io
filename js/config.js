@@ -18,7 +18,7 @@ export const SITE = {
 
   // Stand der Rechtstexte. Ändert sich das Datum, werden angemeldete Nutzer erneut um Zustimmung gebeten.
   legalVersion: '2026-10-14',
-  privacyVersion: '2026-10-25',   // Stand der Datenschutzerklärung (ohne erneute Zustimmung – sie stützt sich nicht auf eine Einwilligung)
+  privacyVersion: '2026-10-30',   // Stand der Datenschutzerklärung (ohne erneute Zustimmung – sie stützt sich nicht auf eine Einwilligung)
   hosting: 'GitHub Pages (GitHub Inc., USA)',
 
   // Kostenlose Testphase: Neue Konten haben so viele Tage lang alle Funktionen, ohne Zahlungsdaten. Danach endet der Zugang

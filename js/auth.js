@@ -90,7 +90,7 @@ export function savePortfolio(uid, data) {
   // Firestore lehnt undefined ab – der Umweg über JSON entfernt solche Felder
   const clean = JSON.parse(JSON.stringify({ positions: data.positions, cash: data.cash, cashFix: data.cashFix ?? null, reservePct: data.reservePct ?? null, reserveMode: data.reserveMode ?? 'balanced', mode: data.mode ?? null, auto: data.auto ?? null,
     // Firestore kennt keine Listen in Listen – der Bestand je Eintrag wird als Text abgelegt
-    track: { states: (data.track?.states ?? []).map((s) => ({ t: s.t, cash: s.cash, in: s.in, pos: JSON.stringify(s.pos) })) },
+    track: { states: (data.track?.states ?? []).map((s) => ({ t: s.t, cash: s.cash, in: s.in, pos: JSON.stringify(s.pos) })), dates: data.track?.dates ?? [] },
     log: data.log ?? [], consent: data.consent ?? null, prefs: data.prefs ?? null, watch: data.watch ?? [], updated: Date.now() }));
   return run(({ fs, db }) => fs.setDoc(fs.doc(db, 'portfolios', uid), clean));
 }

@@ -238,7 +238,7 @@ const LEGAL = {
       <li><strong>Aufruf der Seite:</strong> Der Hosting-Anbieter (${esc(SITE.hosting)}) verarbeitet technisch nötige Daten wie IP-Adresse, Zeitpunkt und Browser, um die Seite auszuliefern.</li>
       <li><strong>Konto:</strong> E-Mail-Adresse und ein verschlüsselt gespeichertes Passwort oder – bei Anmeldung mit Google – Name und E-Mail-Adresse deines Google-Kontos.
         Anmeldung und Speicherung laufen über Firebase (Google Ireland Limited / Google LLC).</li>
-      <li><strong>Portfolio:</strong> die Bestände, Kaufpreise und Einstellungen, die du einträgst, der Verlauf deiner Änderungen sowie Zeitpunkt und Stand deiner Zustimmung zu AGB und Risikohinweis.</li>
+      <li><strong>Portfolio:</strong> die Bestände, Kaufpreise, Kaufdaten und Einstellungen, die du einträgst, der Verlauf deiner Änderungen sowie Zeitpunkt und Stand deiner Zustimmung zu AGB und Risikohinweis.</li>
       <li><strong>Nutzung (nur mit Konto):</strong> wann du die Seite zuerst und zuletzt genutzt hast, wie oft, welche Bereiche und Coins du aufrufst, die letzten 20 aufgerufenen Seiten,
         über welchen Werbe-Link du gekommen bist, Sprache, Währung und ob du ein Handy oder einen Computer verwendest. Der Betreiber sieht diese Angaben zusammen mit deiner E-Mail-Adresse und deinem Portfolio, um Konten zu betreuen,
         Fehler zu finden und das Angebot zu verbessern. Sie werden mit deinem Konto gelöscht.</li>

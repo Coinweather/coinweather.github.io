@@ -1675,7 +1675,8 @@ const depotValue = (data) => data.cash + data.positions.reduce((sum, pos) => {
 }, 0);
 
 // internal: Kauf, Verkauf oder Tausch innerhalb des Portfolios – kein Geld von außen. note: Eintrag für den Verlauf.
-function saveDepot(data, { internal = false, note = null } = {}) {
+// dated: Kaufdaten dieser Erfassung [{ id, amount, day, cost }] – siehe tr.backdated
+function saveDepot(data, { internal = false, note = null, dated = null } = {}) {
   const before = depot.data;
   const next = pf.normalise(data);
   // Ändert ein Kauf oder Verkauf das Bargeld, wird der eingetragene Betrag in seiner Währung mitgeführt
@@ -1686,7 +1687,8 @@ function saveDepot(data, { internal = false, note = null } = {}) {
   // Geänderten Bestand für die Wertentwicklung festhalten – nur wenn Kurse da sind, sonst wäre der Wert falsch
   if (state.coins.length) {
     const held = { cash: next.cash, positions: next.positions.map((pos) => ({ id: pos.id ?? coinOf(pos)?.id ?? null, amount: pos.amount })) };
-    next.track = tr.record(next.track, held, { valueBefore: depotValue(before), valueAfter: depotValue(next), internal });
+    const now = Date.now(), recorded = tr.record(next.track, held, { valueBefore: depotValue(before), valueAfter: depotValue(next), internal, now });
+    next.track = dated && recorded !== next.track ? tr.addDates(recorded, dated, now) : recorded;
   }
   if (note) next.log = tr.addLog(next.log, note);
   depot.data = next;
@@ -1907,6 +1909,15 @@ const SYNC_TEXT = {
   saving: 'Wird mit deinem Konto abgeglichen …',
   synced: 'In deinem Konto gespeichert – auf jedem Gerät abrufbar, auf dem du dich anmeldest.',
 };
+
+// Kaufdatum als Eingabe: Tag ↔ Datumsfeld. inputDay: null = leer, false = in der Zukunft
+const dayInput = (day) => (day === null || day === undefined ? '' : new Date(day * 86_400_000).toISOString().slice(0, 10));
+function inputDay(text) {
+  if (!text) return null;
+  const day = tr.dayOf(Date.parse(`${text}T12:00:00Z`));
+  return Number.isFinite(day) && day <= tr.dayOf(Date.now()) ? day : false;
+}
+const UNDATED_DAYS = 365;   // ohne Kaufdatum: gekauft vor einem Jahr (gezählt ab der ersten Erfassung)
 
 // ---------- Daytrading ----------
 
@@ -2333,7 +2344,9 @@ function portfolioView(arg = '') {
         <label>Coin <input id="p-coin" list="coinlist" placeholder="z. B. Bitcoin oder BTC" required autocomplete="off"></label>
         <datalist id="coinlist"></datalist>
         <label>Menge <input id="p-amount" inputmode="decimal" placeholder="0,5" required></label>
-        <label>Kaufpreis je Coin in ${currencyCode()} (optional) <input id="p-cost" inputmode="decimal" placeholder="leer = aktueller Kurs"></label>
+        <label>Gekauft am (optional) <input id="p-date" type="date" max="${dayInput(tr.dayOf(Date.now()))}"></label>
+        <p class="hint">Ohne Datum rechnet die Wertentwicklung, als hättest du vor einem Jahr gekauft. Du kannst es später bei der Position nachtragen.</p>
+        <label>Kaufpreis je Coin in ${currencyCode()} (optional) <input id="p-cost" inputmode="decimal" placeholder="leer = Kurs am Kaufdatum"></label>
         <p id="p-add-msg" class="notice" hidden></p>
         <div class="btn-row"><button class="btn" type="submit">Hinzufügen</button><button class="btn ghost" type="button" data-close>Abbrechen</button></div>
       </form>
@@ -2346,9 +2359,14 @@ function portfolioView(arg = '') {
           <button type="button" class="chip active" data-action="swap">Tauschen</button>
           <button type="button" class="chip" data-action="sell">Verkaufen</button>
           <button type="button" class="chip" data-action="remove">Entfernen</button>
+          <button type="button" class="chip" data-action="date">Kaufdatum</button>
         </div>
         <p class="hint" id="e-help"></p>
-        <label>Menge <span id="e-have"></span>
+        <div id="e-date-row" hidden>
+          <label>Gekauft am <input id="e-date" type="date" max="${dayInput(tr.dayOf(Date.now()))}"></label>
+          <label>Kaufpreis je Coin in ${currencyCode()} (optional) <input id="e-cost" inputmode="decimal" placeholder="leer = Kurs am Kaufdatum"></label>
+        </div>
+        <label id="e-amount-row">Menge <span id="e-have"></span>
           <span class="input-row"><input id="e-amount" inputmode="decimal" required><button class="btn ghost small" type="button" id="e-all">Alles</button></span></label>
         <label id="e-target-row">Tauschen in <input id="e-target" list="coinlist" placeholder="z. B. Ethereum oder ETH" autocomplete="off"></label>
         <label class="check" id="e-fee-row"><input type="checkbox" id="e-fee" checked> Gebühr von 0,25 % je Kauf und Verkauf abziehen</label>
@@ -2381,6 +2399,8 @@ function portfolioView(arg = '') {
           <form id="p-cash" class="inline-form">
             <label for="p-cash-value">Bargeld außerhalb der Coins (${currencyCode()})</label>
             <input id="p-cash-value" inputmode="decimal" placeholder="0">
+            <label for="p-cash-date">Reserve seit (leer = vor einem Jahr)</label>
+            <input id="p-cash-date" type="date" max="${dayInput(tr.dayOf(Date.now()))}">
             <button class="btn ghost small" type="submit">Speichern</button>
           </form>
         </div>
@@ -2481,7 +2501,7 @@ function portfolioView(arg = '') {
     $('#dlg-money').close();
     if (flow.kind === 'in') {
       message = `${money(usd)} eingezahlt. Der Autopilot zeigt oben, was du davon kaufst.`;
-      return saveDepot({ ...depot.data, cash: depot.data.cash + usd, cashFix: null }, { note: `Einzahlung: ${money(usd)}` });
+      return saveDepot({ ...depot.data, cash: depot.data.cash + usd, cashFix: null }, { note: `Einzahlung: ${money(usd)}`, dated: [{ id: tr.CASH, amount: usd, day: tr.dayOf(Date.now()) }] });
     }
     // Auszahlung: jede Position und die Reserve um denselben Teil kleiner
     const k = 1 - flow.plan.part, stables = new Set(heldNow().filter((h) => h.stable).map((h) => h.id));
@@ -2499,14 +2519,29 @@ function portfolioView(arg = '') {
       || find({ symbol: text, name: text });
     const amount = pf.parseInput($('#p-amount').value);
     const cost = fromDisplay(pf.parseInput($('#p-cost').value));
+    const day = inputDay($('#p-date').value);
     if (!c) return fail(`„${text}“ wurde unter den geladenen Coins nicht gefunden.`);
     if (!(amount > 0)) return fail('Bitte eine Menge größer als 0 eingeben.');
+    if (day === false) return fail('Das Datum darf nicht in der Zukunft liegen.');
     message = `${c.name} hinzugefügt.`;
     e.target.reset();
     $('#dlg-add').close();
-    store(pf.add(copy(), { id: c.id, symbol: c.symbol, name: c.name, amount, cost: cost > 0 ? cost : c.current_price, costCur: 'usd', since: Date.now(), peak: c.current_price }),
-      {}, { note: `${amountText(amount)} ${c.symbol.toUpperCase()} hinzugefügt` });
+    const dated = day !== null ? [{ id: c.id, amount, day, ...(cost > 0 ? { cost } : {}) }]
+      // Kaufpreis ohne Datum: gilt ab dem gemeinsamen Start der Positionen ohne Datum
+      : cost > 0 ? [{ id: c.id, amount, day: tr.dayOf(depot.data.track.states[0]?.t ?? Date.now()) - UNDATED_DAYS, cost }] : null;
+    const add = (unit) => store(pf.add(copy(), { id: c.id, symbol: c.symbol, name: c.name, amount, cost: unit, costCur: 'usd', since: day !== null ? day * 86_400_000 : Date.now(), peak: c.current_price }),
+      {}, { note: `${amountText(amount)} ${c.symbol.toUpperCase()} hinzugefügt`, dated });
+    if (cost > 0 || day === null) return add(cost > 0 ? cost : c.current_price);
+    priceOnDay(c, day).then((unit) => add(unit ?? c.current_price));
   });
+
+  // Kurs eines Coins an einem Tag, für den Kaufpreis aus dem Kaufdatum; null, wenn es keine Kursgeschichte gibt
+  async function priceOnDay(c, day) {
+    let data = state.daily.get(c.id) ?? null;
+    if (!data) { try { data = await api.history(c.symbol, histSource(c)); } catch { /* ohne Kursgeschichte */ } }
+    if (!data || Math.abs(data.p[data.p.length - 1] / c.current_price - 1) > 0.1) return null;   // gleiches Kürzel, anderer Coin
+    return closeOn(data, day);
+  }
 
   // ----- Import in zwei Schritten: Datei wählen, dann Zuordnung prüfen -----
   function renderImport(error = '') {
@@ -2608,10 +2643,16 @@ function portfolioView(arg = '') {
     const amount = raw ? pf.parseInput(raw) : 0;
     if (!(amount >= 0)) return say('Bitte einen Betrag von 0 oder mehr eingeben.');
     $('#p-cash-value').blur();
-    if (raw === cashText()) return;
+    const dateText = $('#p-cash-date').value, day = inputDay(dateText);
+    if (day === false) return say('Das Datum darf nicht in der Zukunft liegen.');
+    $('#p-cash-date').blur();
+    const dateChanged = dateText !== dayInput(tr.dateOf(depot.data.track, tr.CASH));
+    if (raw === cashText() && !dateChanged) return;
     message = 'Bargeld gespeichert.';
     const cash = fromDisplay(amount);
-    saveDepot({ ...depot.data, cash, cashFix: { amount, currency: settings.currency } }, { note: `Bargeld auf ${money(cash)} gesetzt` });
+    // Das Datum gilt für die ganze Reserve; die Regeln sind dieselben wie bei einer Position
+    saveDepot({ ...depot.data, cash, cashFix: { amount, currency: settings.currency }, track: dateChanged ? tr.setDate(depot.data.track, tr.CASH, day) : depot.data.track },
+      { note: raw !== cashText() ? `Bargeld auf ${money(cash)} gesetzt` : day === null ? 'Reserve: Datum gelöscht' : `Reserve seit ${new Date(day * 86_400_000).toLocaleDateString(settings.locale)}` });
   };
   $('#p-cash').addEventListener('submit', (e) => { e.preventDefault(); saveCash(); });
   // „Fertig“, ✕ oder Esc übernehmen einen eingetippten Betrag, ohne dass erst „Speichern“ nötig ist
@@ -2622,6 +2663,7 @@ function portfolioView(arg = '') {
     swap: { button: 'Tauschen', help: 'Tauscht die Menge in einen anderen Coin. Der neue Coin bekommt den Gegenwert als Kaufpreis.' },
     sell: { button: 'Verkaufen', help: 'Verkauft die Menge zum aktuellen Kurs. Der Erlös wird deinem Bargeld gutgeschrieben.' },
     remove: { button: 'Entfernen', help: 'Nimmt die Menge aus dem Portfolio, ohne etwas zu verbuchen – z. B. um einen Eintrag zu korrigieren.' },
+    date: { button: 'Speichern', help: 'Ab dem Kaufdatum zählt die Position in der Wertentwicklung. Ohne Angabe gilt: vor einem Jahr.' },
   };
   let edit = null;   // { key, action }
 
@@ -2636,6 +2678,11 @@ function portfolioView(arg = '') {
     const pos = depot.data.positions.find((p) => pf.keyOf(p) === edit.key);
     if (!pos) return { error: 'Diese Position gibt es nicht mehr.' };
     const c = find(pos);
+    if (edit.action === 'date') {
+      const day = inputDay($('#e-date').value);
+      if (!c) return { pos, c, error: 'Für diesen Coin gibt es keine Kursdaten – ein Kaufdatum lässt sich nicht setzen.' };
+      return day === false ? { pos, c, error: 'Das Datum darf nicht in der Zukunft liegen.' } : { pos, c, day, cost: fromDisplay(pf.parseInput($('#e-cost').value)) };
+    }
     const units = pf.parseInput($('#e-amount').value);
     if (!(units > 0)) return { pos, c, error: 'Bitte eine Menge größer als 0 eingeben.' };
     if (units > pos.amount * 1.0000001) return { pos, c, error: `Du hast nur ${pos.amount.toLocaleString(settings.locale, { maximumFractionDigits: 8 })}.` };
@@ -2662,10 +2709,13 @@ function portfolioView(arg = '') {
     $('#e-help').textContent = EDIT[edit.action].help;
     $('#e-have').textContent = p.pos ? `(vorhanden: ${p.pos.amount.toLocaleString(settings.locale, { maximumFractionDigits: 8 })} ${sym})` : '';
     $('#e-target-row').hidden = edit.action !== 'swap';
-    $('#e-fee-row').hidden = edit.action === 'remove';
+    $('#e-fee-row').hidden = edit.action === 'remove' || edit.action === 'date';
+    $('#e-amount-row').hidden = edit.action === 'date';
+    $('#e-date-row').hidden = edit.action !== 'date';
     $('#e-submit').textContent = EDIT[edit.action].button;
     const units = (v) => v.toLocaleString(settings.locale, { maximumSignificantDigits: 6 });
     $('#e-preview').innerHTML = p.error ? ''
+      : edit.action === 'date' ? esc(i18n.say(p.day === null ? 'Ohne Datum rechnet die Wertentwicklung, als hättest du vor einem Jahr gekauft.' : 'Ab diesem Tag zählt die Position in der Wertentwicklung.'))
       : edit.action === 'swap' ? `${units(p.amount)} ${esc(sym)} (${money(p.usd)}) → rund <strong>${units(p.toUnits)} ${esc(p.to.symbol.toUpperCase())}</strong>${p.fee ? ` · Gebühr rund ${money(p.usd * p.fee * 2)}` : ''}`
         : edit.action === 'sell' ? `${units(p.amount)} ${esc(sym)} → <strong>${money(p.proceeds)}</strong> ins Bargeld${p.fee ? ` · Gebühr rund ${money(p.usd * p.fee)}` : ''}`
           : `${units(p.amount)} ${esc(sym)} werden entfernt${p.amount >= p.pos.amount ? ' – die Position verschwindet ganz' : ''}.`;
@@ -2683,6 +2733,9 @@ function portfolioView(arg = '') {
     edit = { key, action: find(pos) ? 'swap' : 'remove' };
     $('#e-amount').value = amountText(pos.amount);
     $('#e-target').value = '';
+    const known = find(pos)?.id ? tr.dateOf(depot.data.track, find(pos).id) : null;
+    $('#e-date').value = dayInput(known);
+    $('#e-cost').value = '';
     renderEdit();
     $('#dlg-edit').showModal();
   });
@@ -2694,13 +2747,24 @@ function portfolioView(arg = '') {
     const pos = depot.data.positions.find((p) => pf.keyOf(p) === edit.key);
     if (pos) { $('#e-amount').value = amountText(pos.amount); renderEdit(); }
   });
-  for (const id of ['#e-amount', '#e-target', '#e-fee']) $(id).addEventListener('input', () => renderEdit());
+  for (const id of ['#e-amount', '#e-target', '#e-fee', '#e-date', '#e-cost']) $(id).addEventListener('input', () => renderEdit());
 
   $('#p-edit').addEventListener('submit', (e) => {
     e.preventDefault();
     const p = renderEdit(true);
     if (p.error) return;
     const sym = (p.c?.symbol ?? p.pos.symbol ?? '').toUpperCase();
+    if (edit.action === 'date') {
+      const { key } = edit, { c, day, cost } = p;
+      message = 'Kaufdatum gespeichert.';
+      $('#dlg-edit').close();
+      // Der Kaufpreis folgt dem Datum, außer er ist eingetragen; ohne Datum bleibt er, wie er ist
+      const apply = (unit) => store(copy().map((x) => (pf.keyOf(x) !== key ? x : { ...x, id: x.id ?? c.id, ...(unit > 0 ? { cost: unit } : {}), ...(day !== null ? { since: day * 86_400_000 } : {}) })),
+        { track: tr.setDate(depot.data.track, c.id, day, cost > 0 ? cost : null) }, { internal: true, note: day === null ? `${sym}: Kaufdatum gelöscht` : `${sym}: gekauft am ${new Date(day * 86_400_000).toLocaleDateString(settings.locale)}` });
+      if (cost > 0 || day === null) return apply(cost > 0 ? cost : null);
+      priceOnDay(c, day).then(apply);
+      return undefined;
+    }
     const units = p.amount.toLocaleString(settings.locale, { maximumSignificantDigits: 6 });
     if (edit.action === 'remove') {
       message = `${units} ${sym} entfernt.`;
@@ -2818,7 +2882,7 @@ function portfolioView(arg = '') {
     el.hidden = !track.states.length;
     if (!track.states.length) return;
     for (const b of $('#p-perf-ranges').children) b.classList.toggle('active', b.dataset.perf === perfRange);
-    const today = tr.dayOf(Date.now()), start = tr.dayOf(track.states[0].t);
+    const today = tr.dayOf(Date.now()), captured = tr.dayOf(track.states[0].t);
     const ids = [...new Set(track.states.flatMap((st) => st.pos.map((x) => x[0])))];
     const wanted = ids.filter((id) => !state.daily.has(id) && !historyTried.has(id) && state.byId.get(id) && !state.byId.get(id).analysis.stable);
     if (wanted.length && !historyLoading && state.pagesLoaded >= api.PAGES) loadHistories(wanted);
@@ -2839,32 +2903,37 @@ function portfolioView(arg = '') {
     };
     const btc = (day) => (day >= today ? state.byId.get('bitcoin')?.current_price ?? null : closeOn(state.btcData, day));
     const span = PERF_RANGES[perfRange];
-    // Zurückrechnen lohnt nur, wenn zu Beginn schon Coins da waren – ein Start mit Bargeld (Autopilot) beginnt am ersten Tag
-    const backfill = track.states[0].pos.length > 0;
-    const from = backfill ? (span ? today - span : Math.min(start, today - 30)) : Math.max(start, span ? today - span : start);
-    const pts = tr.series(track, { fromDay: from, toDay: today, priceOn: price, btcOn: btc });
-    const all = tr.series(track, { fromDay: start, toDay: today, priceOn: price, btcOn: btc });
-    const first = pts.findIndex((x) => x.tracked);
+    // Jede Erfassung zählt ab ihrem Kaufdatum (Coins und Reserve); ohne Datum im Autopilot ab dem Tag des Eintragens, sonst ab vor einem Jahr
+    const dated = tr.backdated(track, { priceOn: price, undatedDays: depot.data.mode === 'auto' ? null : UNDATED_DAYS });
+    if (!dated.states.length) { $('#p-perf').hidden = true; return; }
+    const start = tr.dayOf(dated.states[0].t);
+    const from = Math.max(start, span ? today - span : start);
+    const pts = tr.series(dated, { fromDay: from, toDay: today, priceOn: price, btcOn: btc });
+    const all = tr.series(dated, { fromDay: start, toDay: today, priceOn: price, btcOn: btc });
+    // Die Marke zeigt, bis wohin aus den Kaufdaten zurückgerechnet ist
+    const first = captured > start ? pts.findIndex((x) => x.day >= captured) : 0;
     if (pts.length < 2) $('#p-perf-chart').innerHTML = `<p class="muted perf-empty">${esc(i18n.say('Die Aufzeichnung beginnt heute – ab morgen siehst du hier, wie sich dein Portfolio entwickelt.'))}</p>`;
     else drawChart($('#p-perf-chart'), {
       t: pts.map((x) => x.day * 86_400_000 + 43_200_000), p: pts.map((x) => x.value),
       overlays: [{ label: 'Eingezahlt', color: 'var(--muted)', values: pts.map((x) => x.in) },
         { label: 'Dasselbe Geld in Bitcoin', color: 'var(--accent)', values: pts.map((x) => x.btc) }],
-      marker: first > 0 ? { index: first, label: 'Beginn der Erfassung' } : null,
+      // Ganz am rechten Rand wäre die Beschriftung abgeschnitten – dort steht das Datum nur im Hinweis
+      marker: first > 0 && first < pts.length * 0.85 ? { index: first, label: 'Beginn der Erfassung' } : null,
     });
 
     const last = all[all.length - 1];
     const sinceStart = tr.performance(all), inRange = tr.performance(pts);
     const b0 = btc(start), b1 = btc(today);
-    const began = new Date(track.states[0].t).toLocaleDateString(settings.locale);
+    const began = new Date(dated.states[0].t).toLocaleDateString(settings.locale);
     const cell = (label, value, sub) => `<div><div class="label">${label}</div><div class="value">${value}</div><div class="muted">${sub}</div></div>`;
     $('#p-perf-stats').innerHTML =
       cell(`Zeitraum ${i18n.span(perfRange)}`, inRange === null ? '–' : pct(inRange), first > 0 ? 'teils zurückgerechnet' : 'ohne Ein- und Auszahlungen')
-      + cell('Seit Beginn', sinceStart === null ? '–' : pct(sinceStart), `erfasst seit ${began}`)
+      + cell('Seit Beginn', sinceStart === null ? '–' : pct(sinceStart), `seit ${began}`)
       + cell('Gewinn seit Beginn', `<span class="${tone(Math.round(last.value - last.in))}">${money(last.value - last.in)}</span>`, `eingezahlt ${money(last.in)}`)
       + cell('Bitcoin seit Beginn', b0 && b1 && all.length > 1 ? pct((b1 / b0 - 1) * 100) : '–', 'zum Vergleich');
     $('#p-perf-note').textContent = (all.length < 2 ? 'Die Aufzeichnung beginnt heute – ab morgen wächst hier dein tatsächlicher Verlauf. ' : '')
-      + (first > 0 ? 'Links der Markierung ist zurückgerechnet, wie sich dein damaliger Bestand entwickelt hätte. ' : '')
+      + (first > 0 ? `Vor dem ${new Date(track.states[0].t).toLocaleDateString(settings.locale)} ist aus den Kaufdaten zurückgerechnet. ` : '')
+      + (dated.undated.size ? 'Ohne Kaufdatum (auch bei der Reserve) zählt alles, als wäre es vor einem Jahr gekauft. Das Datum trägst du bei der Position und unter Strategie bei der Reserve nach. ' : '')
       + (flat.size ? `Ohne Kursgeschichte, mit heutigem Kurs gerechnet: ${[...flat].join(', ')}.` : '');
   }
 
@@ -2937,7 +3006,7 @@ function portfolioView(arg = '') {
         message = amount > 0 ? 'Fertig – hier steht, was du kaufst. Setz es bei deiner Börse um und tipp danach auf „Erledigt“.' : 'Sparrate gespeichert. Trag die erste Einzahlung ein, sobald das Geld bei deiner Börse ist.';
         saveDepot({ ...depot.data, cash, cashFix: null, mode: 'auto', reserveMode: mode, reservePct: null,
           auto: { monthly: monthly > 0 ? { amount: monthly, currency: settings.currency } : null, lastDeposit: amount > 0 ? monthKey() : null, began: Date.now() } },
-        { note: `Autopilot gestartet (${RESERVE_MODES[mode].label})${amount > 0 ? `, Startbetrag ${money(cash)}` : ''}` });
+        { note: `Autopilot gestartet (${RESERVE_MODES[mode].label})${amount > 0 ? `, Startbetrag ${money(cash)}` : ''}`, dated: [{ id: tr.CASH, amount: cash, day: tr.dayOf(Date.now()) }] });
       });
     }
     // Was nur zu einem der beiden Modi gehört
@@ -3132,7 +3201,7 @@ function portfolioView(arg = '') {
       const a = depot.data.auto ?? {}, usd = monthlyUsd(a.monthly);
       if (dep === 'yes') message = `${money(usd)} eingezahlt. Darunter steht, was du davon kaufst.`;
       return saveDepot({ ...depot.data, cash: depot.data.cash + (dep === 'yes' ? usd : 0), cashFix: null, auto: { ...a, lastDeposit: monthKey() } },
-        dep === 'yes' ? { note: `Sparrate eingezahlt: ${money(usd)}` } : { internal: true, note: 'Sparrate diesen Monat ausgesetzt' });
+        dep === 'yes' ? { note: `Sparrate eingezahlt: ${money(usd)}`, dated: [{ id: tr.CASH, amount: usd, day: tr.dayOf(Date.now()) }] } : { internal: true, note: 'Sparrate diesen Monat ausgesetzt' });
     }
     const all = e.target.closest('[data-auto-all]');
     const one = e.target.closest('[data-auto-move]')?.dataset.autoMove;
@@ -3184,6 +3253,8 @@ function portfolioView(arg = '') {
       ${h ? `In vergleichbaren Marktphasen seit 2018 stand der Markt 30 Tage später in <strong>${h.up} %</strong> der Fälle höher; im schlechtesten Zehntel der Fälle lag er mindestens <strong>${-h.worst} %</strong> tiefer.` : ''}`;
     const cashInput = $('#p-cash-value');
     if (document.activeElement !== cashInput) cashInput.value = cashText();
+    const cashDate = $('#p-cash-date');
+    if (document.activeElement !== cashDate) cashDate.value = dayInput(tr.dateOf(depot.data.track, tr.CASH));
     const monthlyInput = $('#p-monthly-value');
     if (document.activeElement !== monthlyInput) monthlyInput.value = monthlyText();
   }
