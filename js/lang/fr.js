@@ -2029,4 +2029,12 @@ export default {
   "Reserve: Datum gelöscht": "Réserve : date supprimée",
   "Reserve seit #": "Réserve depuis #",
   "Vor dem # ist aus den Kaufdaten zurückgerechnet": "Avant le #, le calcul remonte à partir des dates d’achat",
+  "Noch kein Konto? Dann tippe auf „Konto erstellen“": "Pas encore de compte ? Touche « Créer un compte »",
+  "Die Anmeldung mit Google geht in diesem Browser nicht. Bitte nimm die E-Mail-Adresse": "La connexion avec Google ne fonctionne pas dans ce navigateur. Utilise ton adresse e-mail",
+  "Konto erstellen oder anmelden": "Crée un compte ou connecte-toi",
+  "Du bist im Browser einer App, zum Beispiel Instagram": "Tu es dans le navigateur d’une application, par exemple Instagram",
+  "Die Anmeldung mit Google geht hier nicht – mit deiner E-Mail-Adresse dauert es # Sekunden": "La connexion avec Google ne fonctionne pas ici – avec ton e-mail, cela prend # secondes",
+  "In Chrome öffnen": "Ouvrir dans Chrome",
+  "Lieber im Browser? Tippe oben rechts auf ··· und dann auf „Im Browser öffnen“": "Tu préfères ton navigateur ? Touche ··· en haut à droite, puis « Ouvrir dans le navigateur »",
+  "Du sagst, wie viel. Der Autopilot sagt, was du kaufst": "Tu dis combien. Le pilote automatique dit quoi acheter",
 };

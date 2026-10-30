@@ -2029,4 +2029,12 @@ export default {
   "Reserve: Datum gelöscht": "Reserva: fecha eliminada",
   "Reserve seit #": "Reserva desde #",
   "Vor dem # ist aus den Kaufdaten zurückgerechnet": "Antes del # se calcula hacia atrás desde las fechas de compra",
+  "Noch kein Konto? Dann tippe auf „Konto erstellen“": "¿Aún sin cuenta? Toca «Crear cuenta»",
+  "Die Anmeldung mit Google geht in diesem Browser nicht. Bitte nimm die E-Mail-Adresse": "El inicio de sesión con Google no funciona en este navegador. Usa tu correo electrónico",
+  "Konto erstellen oder anmelden": "Crea una cuenta o inicia sesión",
+  "Du bist im Browser einer App, zum Beispiel Instagram": "Estás en el navegador de una app, por ejemplo Instagram",
+  "Die Anmeldung mit Google geht hier nicht – mit deiner E-Mail-Adresse dauert es # Sekunden": "El inicio de sesión con Google no funciona aquí: con tu correo tardas # segundos",
+  "In Chrome öffnen": "Abrir en Chrome",
+  "Lieber im Browser? Tippe oben rechts auf ··· und dann auf „Im Browser öffnen“": "¿Prefieres el navegador? Toca ··· arriba a la derecha y luego «Abrir en el navegador»",
+  "Du sagst, wie viel. Der Autopilot sagt, was du kaufst": "Tú dices cuánto. El piloto automático dice qué comprar",
 };

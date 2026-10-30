@@ -2019,4 +2019,12 @@ export default {
   "Reserve: Datum gelöscht": "Reserve: date removed",
   "Reserve seit #": "Reserve since #",
   "Vor dem # ist aus den Kaufdaten zurückgerechnet": "Before # the values are calculated back from the purchase dates",
+  "Noch kein Konto? Dann tippe auf „Konto erstellen“": "No account yet? Then tap “Create account”",
+  "Die Anmeldung mit Google geht in diesem Browser nicht. Bitte nimm die E-Mail-Adresse": "Google sign-in does not work in this browser. Please use your email address",
+  "Konto erstellen oder anmelden": "Create an account or sign in",
+  "Du bist im Browser einer App, zum Beispiel Instagram": "You are in an app’s browser, for example Instagram",
+  "Die Anmeldung mit Google geht hier nicht – mit deiner E-Mail-Adresse dauert es # Sekunden": "Google sign-in does not work here – with your email address it takes # seconds",
+  "In Chrome öffnen": "Open in Chrome",
+  "Lieber im Browser? Tippe oben rechts auf ··· und dann auf „Im Browser öffnen“": "Prefer your browser? Tap ··· at the top right, then “Open in browser”",
+  "Du sagst, wie viel. Der Autopilot sagt, was du kaufst": "You say how much. The autopilot says what to buy",
 };

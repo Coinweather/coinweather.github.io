@@ -1291,6 +1291,7 @@ function marketView(preview = false) {
     }).join('')}</div>`;
   }
 
+  if (preview && cameByLink) $('#weather').before($('#ap-teaser'));
   // Autopilot-Vorschau: einmal, sobald Kurse da sind, und wenn sich der Zugang ändert
   let apKey = null;
   const apTeaser = () => { const key = `${state.coins.length > 0}|${access().plan}|${depot.data.mode}|${state.record?.ap?.nav}`; if (key === apKey) return; apKey = key; autopilotTeaser($('#ap-teaser')); };
@@ -1774,6 +1775,11 @@ const usage = { uid: null, counts: null, recent: [], dirty: false, timer: null, 
 // Herkunft aus Werbe-Links wie coinweather.github.io/?von=reddit: Der erste Kanal zählt. Danach verschwindet der Zusatz
 // aus der Adresse, damit er beim Weitergeben des Links nicht mitwandert.
 const REF_KEY = 'coinwetter-von';
+// Über einen Link gekommen (Instagram, Teilen …): Diese Besucher sehen zuerst das Angebot statt der Marktlage
+const cameByLink = (() => { try { return new URLSearchParams(location.search).has('von'); } catch { return false; } })();
+// Eingebetteter Browser einer App: Google verbietet dort die Anmeldung („disallowed_useragent“)
+const IN_APP = /Instagram|FBAN|FBAV|FB_IAB|TikTok|musical_ly|BytedanceWebview|Snapchat|LinkedInApp|Pinterest|Line\/|; wv\)/i;
+const inAppBrowser = () => !!SITE.testInApp || IN_APP.test(navigator.userAgent);
 const referrer = (() => {
   let ref = null;
   try {
@@ -1841,6 +1847,17 @@ async function usageFlush() {
 setInterval(() => { if (usage.uid && document.visibilityState === 'visible') usageFlush(); }, USAGE_BEAT_MS);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && usage.dirty) usageFlush(); });
 
+// Handy, ohne Konto: feste Leiste über dem Menü – außer dort, wo es ums Anmelden oder Rechtstexte geht. Einmal weggeklickt bleibt sie weg
+const BAR_KEY = 'coinwetter-leiste-zu';
+function guestBar() {
+  const route_ = location.hash.replace(/^#\/?/, '').split(/[/?]/)[0];
+  let closed = false; try { closed = sessionStorage.getItem(BAR_KEY) === '1'; } catch { /* dann bleibt sie */ }
+  const show = depot.ready && !depot.user && !closed && !['konto', 'preise', 'admin', ...site.LEGAL_KINDS].includes(route_);
+  $('#guest-bar').hidden = !show;
+  document.body.classList.toggle('has-guest-bar', show);
+}
+$('#guest-bar-close').addEventListener('click', () => { try { sessionStorage.setItem(BAR_KEY, '1'); } catch { /* nur jetzt */ } $('#guest-bar').hidden = true; document.body.classList.remove('has-guest-bar'); });
+
 function renderAccountLink() {
   const link = $('#nav-account');
   link.textContent = depot.user ? (depot.user.name || depot.user.email || 'Konto') : 'Anmelden';
@@ -1848,6 +1865,7 @@ function renderAccountLink() {
   $('#nav-admin').hidden = !depot.owner;
   $('#foot-admin').hidden = !depot.owner;
   $('#tab-account b').textContent = depot.user ? 'Konto' : 'Anmelden';
+  guestBar();
 }
 
 auth.onUser(async (user) => {
@@ -2100,16 +2118,21 @@ function accountView(gate = false) {
       });
       return;
     }
+    // Neue zuerst zum Konto, Bekannte zum Anmelden; in App-Browsern geht nur die E-Mail-Adresse
+    const inApp = inAppBrowser(), fresh = !maybeSignedIn();
+    const chrome = /Android/i.test(navigator.userAgent) ? `intent://${location.host}/?von=app#Intent;scheme=https;package=com.android.chrome;end` : null;
     const form = `<section class="panel account">
-        <h2>Anmelden oder Konto erstellen</h2>
-        <button class="btn google" id="a-google" type="button">Mit Google anmelden</button>
-        <div class="or"><span>oder mit E-Mail-Adresse</span></div>
+        <h2>${fresh ? 'Konto erstellen oder anmelden' : 'Anmelden oder Konto erstellen'}</h2>
+        ${inApp ? `<p class="notice inapp-note"><strong>Du bist im Browser einer App, zum Beispiel Instagram.</strong> Die Anmeldung mit Google geht hier nicht – mit deiner E-Mail-Adresse dauert es 20 Sekunden.
+            ${chrome ? `<a href="${esc(chrome)}">In Chrome öffnen</a>` : '<span>Lieber im Browser? Tippe oben rechts auf ··· und dann auf „Im Browser öffnen“.</span>'}</p>`
+    : `<button class="btn google" id="a-google" type="button">Mit Google anmelden</button>
+        <div class="or"><span>oder mit E-Mail-Adresse</span></div>`}
         <form id="a-form" class="form">
           <label>E-Mail-Adresse <input id="a-email" type="email" autocomplete="email" required></label>
-          <label>Passwort (mindestens 6 Zeichen) <input id="a-password" type="password" autocomplete="current-password" required minlength="6"></label>
+          <label>Passwort (mindestens 6 Zeichen) <input id="a-password" type="password" autocomplete="${fresh ? 'new-password' : 'current-password'}" required minlength="6"></label>
           <div class="btn-row">
-            <button class="btn" type="submit" data-action="login">Anmelden</button>
-            <button class="btn ghost" type="submit" data-action="register">Konto erstellen</button>
+            ${fresh ? '<button class="btn" type="submit" data-action="register">Konto erstellen</button><button class="btn ghost" type="submit" data-action="login">Anmelden</button>'
+    : '<button class="btn" type="submit" data-action="login">Anmelden</button><button class="btn ghost" type="submit" data-action="register">Konto erstellen</button>'}
           </div>
           <button class="link" type="button" id="a-reset">Passwort vergessen?</button>
         </form>
@@ -2126,7 +2149,7 @@ function accountView(gate = false) {
         ${form}
       </div>
       ${prefsPanel()}`;
-    $('#a-google').addEventListener('click', () => act(() => auth.loginGoogle(), true));
+    $('#a-google')?.addEventListener('click', () => act(() => auth.loginGoogle(), true));
     $('#a-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const email = $('#a-email').value.trim(), password = $('#a-password').value;
@@ -4106,6 +4129,7 @@ function route() {
   else if (site.LEGAL_KINDS.includes(name)) current = site.legalView(view, name);
   else current = marketView();
   guard(current).update();
+  guestBar();
   window.__cwStarted = true;   // für den Start-Wächter in index.html
   window.scrollTo(0, 0);
   navBadge().catch(() => {});

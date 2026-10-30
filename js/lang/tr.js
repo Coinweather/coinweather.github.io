@@ -2029,4 +2029,12 @@ export default {
   "Reserve: Datum gelöscht": "Rezerv: tarih silindi",
   "Reserve seit #": "Rezerv başlangıcı #",
   "Vor dem # ist aus den Kaufdaten zurückgerechnet": "# öncesi satın alma tarihlerinden geriye doğru hesaplanmıştır",
+  "Noch kein Konto? Dann tippe auf „Konto erstellen“": "Henüz hesabın yok mu? “Hesap oluştur”a dokun",
+  "Die Anmeldung mit Google geht in diesem Browser nicht. Bitte nimm die E-Mail-Adresse": "Bu tarayıcıda Google ile giriş çalışmıyor. Lütfen e-posta adresini kullan",
+  "Konto erstellen oder anmelden": "Hesap oluştur veya giriş yap",
+  "Du bist im Browser einer App, zum Beispiel Instagram": "Bir uygulamanın tarayıcısındasın, örneğin Instagram",
+  "Die Anmeldung mit Google geht hier nicht – mit deiner E-Mail-Adresse dauert es # Sekunden": "Google ile giriş burada çalışmıyor – e-posta adresinle # saniye sürer",
+  "In Chrome öffnen": "Chrome’da aç",
+  "Lieber im Browser? Tippe oben rechts auf ··· und dann auf „Im Browser öffnen“": "Tarayıcını mı tercih edersin? Sağ üstte ···, sonra “Tarayıcıda aç”a dokun",
+  "Du sagst, wie viel. Der Autopilot sagt, was du kaufst": "Sen ne kadar dersin. Otomatik pilot ne alacağını söyler",
 };
