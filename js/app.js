@@ -2107,15 +2107,12 @@ function accountView(gate = false) {
       });
       return;
     }
-    // Neue zuerst zum Konto, Bekannte zum Anmelden; in App-Browsern geht nur die E-Mail-Adresse
+    // Neue zuerst zum Konto, Bekannte zum Anmelden; in App-Browsern fehlt der Google-Knopf still (dort sperrt Google die Anmeldung)
     const inApp = inAppBrowser(), fresh = !maybeSignedIn();
-    const chrome = /Android/i.test(navigator.userAgent) ? `intent://${location.host}/?von=app#Intent;scheme=https;package=com.android.chrome;end` : null;
     const form = `<section class="panel account">
         <h2>${fresh ? 'Konto erstellen oder anmelden' : 'Anmelden oder Konto erstellen'}</h2>
         ${gate === 'app' ? `<p class="account-pitch"><span>Du sagst, wie viel. Der Autopilot sagt, was du kaufst.</span>${!selling() ? ' <span>Kostenlos, ohne Zahlungsdaten.</span>' : SITE.trialDays > 0 ? ` <span>${SITE.trialDays} Tage alle Funktionen, ohne Zahlungsdaten.</span>` : ''}</p>` : ''}
-        ${inApp ? `<p class="notice inapp-note"><strong>Du bist im Browser einer App, zum Beispiel Instagram.</strong> Die Anmeldung mit Google geht hier nicht – mit deiner E-Mail-Adresse dauert es 20 Sekunden.
-            ${chrome ? `<a href="${esc(chrome)}">In Chrome öffnen</a>` : '<span>Lieber im Browser? Tippe oben rechts auf ··· und dann auf „Im Browser öffnen“.</span>'}</p>`
-    : `<button class="btn google" id="a-google" type="button">Mit Google anmelden</button>
+        ${inApp ? '' : `<button class="btn google" id="a-google" type="button">Mit Google anmelden</button>
         <div class="or"><span>oder mit E-Mail-Adresse</span></div>`}
         <form id="a-form" class="form">
           <label>E-Mail-Adresse <input id="a-email" type="email" autocomplete="email" required></label>
