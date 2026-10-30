@@ -2037,4 +2037,5 @@ export default {
   "In Chrome öffnen": "Chrome’da aç",
   "Lieber im Browser? Tippe oben rechts auf ··· und dann auf „Im Browser öffnen“": "Tarayıcını mı tercih edersin? Sağ üstte ···, sonra “Tarayıcıda aç”a dokun",
   "Du sagst, wie viel. Der Autopilot sagt, was du kaufst": "Sen ne kadar dersin. Otomatik pilot ne alacağını söyler",
+  "Melde dich an, um {*} zu nutzen": "{*} kullanmak için giriş yap",
 };

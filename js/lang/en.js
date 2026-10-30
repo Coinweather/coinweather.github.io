@@ -2027,4 +2027,5 @@ export default {
   "In Chrome öffnen": "Open in Chrome",
   "Lieber im Browser? Tippe oben rechts auf ··· und dann auf „Im Browser öffnen“": "Prefer your browser? Tap ··· at the top right, then “Open in browser”",
   "Du sagst, wie viel. Der Autopilot sagt, was du kaufst": "You say how much. The autopilot says what to buy",
+  "Melde dich an, um {*} zu nutzen": "Sign in to use {*}",
 };

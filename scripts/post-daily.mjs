@@ -227,7 +227,7 @@ const evening = env.EDITION === 'evening';
 const EVENING = { en: 'Today’s biggest crypto movers', de: 'Die größten Krypto-Bewegungen heute' }[lang];
 const hook = evening ? EVENING : R.tip ? (R.tip === TIP.rain ? H.rain(market.value) : H.sun(market.value)) : fng && Number.isFinite(fng.week) && Math.abs(fng.value - fng.week) >= 8 ? H.mood(fng.week, fng.value)
   : Math.abs(btcDay) >= 3 ? H.btc(btcDay) : H.plain[daily % H.plain.length];
-// Sonntags statt der Frage die Challenge „Schlag den Autopiloten“ – zum Mitmachen ohne Anmeldung
+// Sonntags statt der Frage die Challenge „Schlag den Autopiloten“
 const sunday = new Date(snap.time).getUTCDay() === 0;
 const ask = sunday ? (lang === 'de' ? '🏁 Sonntags-Challenge: Wähl drei Coins und tritt gegen unseren Autopiloten an – wer liegt in einer Woche vorne? 👇'
   : '🏁 Sunday challenge: pick three coins and take on our autopilot – who’s ahead in a week? 👇') : H.ask[daily % H.ask.length];

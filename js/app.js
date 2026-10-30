@@ -799,7 +799,7 @@ const SORTS = {
   d30: (c) => c.price_change_percentage_30d_in_currency, mcap: (c) => c.market_cap, score: (c) => c.analysis.score,
 };
 
-// Ohne Konto oder Abo: kostenlose Vorschau. Die Großwetterlage ist frei sichtbar, die Signale der einzelnen Coins
+// Mit Konto, aber ohne Testphase oder Abo: Vorschau. Die Großwetterlage ist frei sichtbar, die Signale der einzelnen Coins
 // sind verdeckt – außer bei Bitcoin und Ethereum als Beispiel. So sieht jeder Besucher sofort, was die Seite kann.
 const SAMPLES = ['bitcoin', 'ethereum'];
 const previewCta = (title, text) => {
@@ -1291,7 +1291,6 @@ function marketView(preview = false) {
     }).join('')}</div>`;
   }
 
-  if (preview && cameByLink) $('#weather').before($('#ap-teaser'));
   // Autopilot-Vorschau: einmal, sobald Kurse da sind, und wenn sich der Zugang ändert
   let apKey = null;
   const apTeaser = () => { const key = `${state.coins.length > 0}|${access().plan}|${depot.data.mode}|${state.record?.ap?.nav}`; if (key === apKey) return; apKey = key; autopilotTeaser($('#ap-teaser')); };
@@ -1778,13 +1777,6 @@ const REF_KEY = 'coinwetter-von';
 // Eingebetteter Browser einer App: Google verbietet dort die Anmeldung („disallowed_useragent“)
 const IN_APP = /Instagram|FBAN|FBAV|FB_IAB|TikTok|musical_ly|BytedanceWebview|Snapchat|LinkedInApp|Pinterest|Line\/|; wv\)/i;
 const inAppBrowser = () => !!SITE.testInApp || IN_APP.test(navigator.userAgent);
-// Von außen gekommen (Instagram, geteilter Link, Suche): Diese Besucher sehen zuerst das Angebot statt der Marktlage
-const cameByLink = (() => {
-  try {
-    if (new URLSearchParams(location.search).has('von') || inAppBrowser()) return true;
-    return !!document.referrer && new URL(document.referrer).hostname !== location.hostname;
-  } catch { return false; }
-})();
 const referrer = (() => {
   let ref = null;
   try {
@@ -1852,17 +1844,6 @@ async function usageFlush() {
 setInterval(() => { if (usage.uid && document.visibilityState === 'visible') usageFlush(); }, USAGE_BEAT_MS);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && usage.dirty) usageFlush(); });
 
-// Handy, ohne Konto: feste Leiste über dem Menü – außer dort, wo es ums Anmelden oder Rechtstexte geht. Einmal weggeklickt bleibt sie weg
-const BAR_KEY = 'coinwetter-leiste-zu';
-function guestBar() {
-  const route_ = location.hash.replace(/^#\/?/, '').split(/[/?]/)[0];
-  let closed = false; try { closed = sessionStorage.getItem(BAR_KEY) === '1'; } catch { /* dann bleibt sie */ }
-  const show = depot.ready && !depot.user && !closed && !['konto', 'preise', 'admin', ...site.LEGAL_KINDS].includes(route_);
-  $('#guest-bar').hidden = !show;
-  document.body.classList.toggle('has-guest-bar', show);
-}
-$('#guest-bar-close').addEventListener('click', () => { try { sessionStorage.setItem(BAR_KEY, '1'); } catch { /* nur jetzt */ } $('#guest-bar').hidden = true; document.body.classList.remove('has-guest-bar'); });
-
 function renderAccountLink() {
   const link = $('#nav-account');
   link.textContent = depot.user ? (depot.user.name || depot.user.email || 'Konto') : 'Anmelden';
@@ -1870,7 +1851,6 @@ function renderAccountLink() {
   $('#nav-admin').hidden = !depot.owner;
   $('#foot-admin').hidden = !depot.owner;
   $('#tab-account b').textContent = depot.user ? 'Konto' : 'Anmelden';
-  guestBar();
 }
 
 auth.onUser(async (user) => {
@@ -1924,7 +1904,7 @@ auth.onUser(async (user) => {
   // … und mit Bezahlschranke hängt jede Ansicht davon ab, wer angemeldet ist
   // Gäste sehen die Vorschau schon vor der Prüfung – bleibt es beim Gast, nicht neu aufbauen (sonst springt die Seite nach oben)
   // Eine Warteansicht („Anmeldung wird geprüft“) wird immer ersetzt – auch ohne Bezahlschranke, etwa auf der Betreiber-Seite
-  if (routedFor === 'wait' || (SITE.paywall && routedFor !== (depot.user?.uid ?? 'guest')) || /^#\/(portfolio|konto|preise|admin)/.test(location.hash)) route(); else current?.update();
+  if (routedFor !== (depot.user?.uid ?? 'guest') || /^#\/(portfolio|konto|preise|admin)/.test(location.hash)) route(); else current?.update();
 });
 
 const SYNC_TEXT = {
@@ -2073,7 +2053,8 @@ function tradingView() {
 // gate: Die Ansicht steht anstelle des Portfolios, solange niemand angemeldet ist
 function accountView(gate = false) {
   let shown = null, message = '', busy = false;
-  const key = () => (!depot.ready ? 'wait' : depot.user?.uid ?? (auth.available ? 'out' : 'off'));
+  // Wer noch nie angemeldet war, sieht das Formular sofort, auch bevor die Anmeldung geladen ist
+  const key = () => (!depot.ready && maybeSignedIn() ? 'wait' : depot.user?.uid ?? (auth.available ? 'out' : 'off'));
   const BENEFITS = `<ul class="benefits">
       <li><div><strong>Dein Portfolio, überall</strong><span>Im Konto gespeichert und auf jedem Gerät abrufbar.</span></div></li>
       <li><div><strong>Autopilot</strong><span>Betrag eingeben – er sagt dir, was du kaufst, und zeigt jede Woche, ob etwas zu tun ist. Live mitgemessen.</span></div></li>
@@ -2128,6 +2109,7 @@ function accountView(gate = false) {
     const chrome = /Android/i.test(navigator.userAgent) ? `intent://${location.host}/?von=app#Intent;scheme=https;package=com.android.chrome;end` : null;
     const form = `<section class="panel account">
         <h2>${fresh ? 'Konto erstellen oder anmelden' : 'Anmelden oder Konto erstellen'}</h2>
+        ${gate === 'app' ? `<p class="account-pitch"><span>Du sagst, wie viel. Der Autopilot sagt, was du kaufst.</span>${SITE.trialDays > 0 ? ` <span>${SITE.trialDays} Tage alle Funktionen, ohne Zahlungsdaten.</span>` : ''}</p>` : ''}
         ${inApp ? `<p class="notice inapp-note"><strong>Du bist im Browser einer App, zum Beispiel Instagram.</strong> Die Anmeldung mit Google geht hier nicht – mit deiner E-Mail-Adresse dauert es 20 Sekunden.
             ${chrome ? `<a href="${esc(chrome)}">In Chrome öffnen</a>` : '<span>Lieber im Browser? Tippe oben rechts auf ··· und dann auf „Im Browser öffnen“.</span>'}</p>`
     : `<button class="btn google" id="a-google" type="button">Mit Google anmelden</button>
@@ -2147,8 +2129,8 @@ function accountView(gate = false) {
       </section>`;
     view.innerHTML = `<div class="gate">
         <div>
-          <h1>${gate ? 'Melde dich an, um dein Portfolio zu sehen' : `Dein Konto bei ${esc(SITE.name)}`}</h1>
-          <p class="lead">${SITE.trialDays > 0 ? `Mit einem neuen Konto testest du ${SITE.trialDays} Tage lang alle Funktionen kostenlos – ohne Zahlungsdaten. ` : 'Für ein Abo brauchst du ein Konto. '}Darin liegen auch dein Portfolio und deine Einstellungen. <a href="#/preise">Pakete und Preise</a></p>
+          <h1>${gate === 'app' ? `Melde dich an, um ${esc(SITE.name)} zu nutzen` : gate ? 'Melde dich an, um dein Portfolio zu sehen' : `Dein Konto bei ${esc(SITE.name)}`}</h1>
+          <p class="lead">${SITE.trialDays > 0 ? `Mit einem neuen Konto testest du ${SITE.trialDays} Tage lang alle Funktionen kostenlos – ohne Zahlungsdaten. ` : 'Für ein Abo brauchst du ein Konto. '}Darin liegen auch dein Portfolio und deine Einstellungen.${gate === 'app' ? '' : ' <a href="#/preise">Pakete und Preise</a>'}</p>
           ${BENEFITS}
         </div>
         ${form}
@@ -2177,7 +2159,7 @@ function accountView(gate = false) {
       await fn();
       if (toPortfolio) {
         const next = nextAfterLogin();
-        location.hash = next ?? (gate ? '#/portfolio' : '#/');
+        location.hash = next ?? (gate === 'app' ? location.hash : gate ? '#/portfolio' : '#/');
       }
     } catch (err) { message = err.message; }
     busy = false;
@@ -3742,7 +3724,7 @@ async function modelSection(el) {
 }
 
 // ---------- Challenge: Schlag den Autopiloten (#/challenge?c=bitcoin@80728,solana@190&d=20751&n=Name) ----------
-// Für alle offen, ohne Konto und ohne Server: Auswahl, Startkurse und Starttag stehen in der Adresse. Verglichen wird mit echten
+// Ohne Server: Auswahl, Startkurse und Starttag stehen in der Adresse. Verglichen wird mit echten
 // Kursen gegen die Live-Messung des Autopiloten (state.record.ap) und Bitcoin. Wer den Link teilt, lädt andere zum Mitmachen ein.
 const CHALLENGE_KEY = 'coinwetter-challenge';
 function challengeView() {
@@ -3915,7 +3897,7 @@ function compareView(arg) {
 }
 
 // ---------- Rechner: Sparplan und Einmalanlage im Rückblick ----------
-// Für alle offen, auch ohne Konto: Was wäre aus einem monatlichen Sparplan oder einer Einmalanlage geworden?
+// Was wäre aus einem monatlichen Sparplan oder einer Einmalanlage geworden?
 // Gerechnet mit echten Tageskursen (Binance oder Gate.io, bis zu 4 Jahre; sonst CoinGecko, 1 Jahr), ohne Gebühren und Steuern.
 // Die Einstellungen stehen in der Adresse (#/rechner/bitcoin?m=plan&b=100&s=2023-01) – so lässt sich ein Ergebnis teilen.
 
@@ -4111,12 +4093,17 @@ function route() {
   try { id = decodeURIComponent(arg ?? ''); } catch { /* fehlerhafte Adresse – unverändert verwenden */ }
   const open = ['konto', 'rechner', 'indikatoren', 'modell', 'vergleich', 'challenge'].includes(name) || pages.includes(name);
   const sales = () => site.pricingView(view, { access, user: () => depot.user, record: () => state.record });
+  // Die App gibt es nur mit Konto. Frei bleiben Anmeldung, Preise und Rechtstexte. Die Adresse bleibt stehen: Nach dem Anmelden geht es dorthin
+  const checking = !depot.ready && maybeSignedIn();
+  const gated = auth.available && !depot.user && !['konto', ...pages].includes(name);
+  document.body.classList.toggle('login-gate', auth.available && !depot.user && !checking);
   // Mit Bezahlschranke erst abwarten, wer angemeldet ist und ob ein Abo läuft – sonst blitzt die Verkaufsseite kurz auf
   usagePage(name || 'markt', arg);
-  visits.page(name || 'markt', name === 'coin' ? id : null);
-  if (name === 'admin') current = !depot.ready ? waitView() : depot.owner ? adminView() : accountView();
+  if (!checking) visits.page(gated ? 'konto' : name || 'markt', !gated && name === 'coin' ? id : null);
+  if (gated) current = checking ? waitView() : accountView('app');
+  else if (name === 'admin') current = !depot.ready ? waitView() : depot.owner ? adminView() : accountView();
   else if (SITE.paywall && !open && ((!depot.ready && maybeSignedIn()) || (depot.user && !depot.owner && !abo.loaded))) current = waitView();
-  // Ohne Abo: Markt als kostenlose Vorschau, Bitcoin und Ethereum als Beispiel, sonst das Angebot
+  // Mit Konto, aber ohne Testphase oder Abo: Markt als Vorschau, Bitcoin und Ethereum als Beispiel, sonst das Angebot
   else if (!open && !access().plan) {
     current = name === 'coin' && id ? (SAMPLES.includes(id) ? detailView(id) : lockedCoinView(id))
       : section === 'market' ? marketView(true) : sales();
@@ -4134,7 +4121,6 @@ function route() {
   else if (site.LEGAL_KINDS.includes(name)) current = site.legalView(view, name);
   else current = marketView();
   guard(current).update();
-  guestBar();
   window.__cwStarted = true;   // für den Start-Wächter in index.html
   window.scrollTo(0, 0);
   navBadge().catch(() => {});

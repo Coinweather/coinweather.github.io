@@ -1,5 +1,8 @@
 # Die ersten 10 Nutzer (Stand 30.10.2026)
 
+**Wichtig:** Die App verlangt seit dem 30.10.2026 ein Konto. Ältere Texte weiter unten, die „ohne Anmeldung“ oder „no signup“ sagen, nicht mehr verwenden
+oder diesen Zusatz streichen. Ohne Anmeldung bleiben nur die Info-Seiten (z. B. `/crypto-portfolio-autopilot/`) und das Widget.
+
 **Die Rechnung, ehrlich:** Ein Konto mit 1 Follower bekommt pro Reel oft nur wenige hundert Aufrufe. Von 1000 Aufrufen klicken grob 2 bis 10 auf
 den Link im Profil, davon legt vielleicht jeder Fünfte ein Konto an (Erfahrungswerte, keine Messung). Reels allein bringen in einer Woche also eher
 1 bis 3 Nutzer. Die ersten 10 kommen von **direkten Nachrichten an Menschen**. Reels sind das, was wächst, wenn man dranbleibt.

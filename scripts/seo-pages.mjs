@@ -231,7 +231,7 @@ const TX = {
     open: 'Open the app', today: 'Crypto market today', fngNav: 'Fear & Greed Index', all: 'All coins', risk: 'Risk notice', legal: 'Legal notice', privacy: 'Privacy',
     foot: (d) => `Not financial advice. Coinweather is an information service. Prices cannot be predicted reliably; probabilities are based on past prices and can be wrong. Crypto assets can fall sharply – up to a total loss. Updated ${d}.`,
     offer: 'Free account: the signal and outlook for 1,000 coins, portfolio check and an open track record – 30 days of all features, no payment details.',
-    start: 'Start free', noSignup: 'See today’s market – no signup',
+    start: 'Start free',
     idx: 'Buy score', fng: 'Fear & Greed', ago7: (v) => `7 days ago ${v}`, cyc: 'Cycle (12 months)', belowAth: 'below Bitcoin’s all-time high', sig: 'Buy signals', ofRated: (n) => `of ${n} rated coins`,
     label: { 'Kaufen': 'Buy', 'Eher kaufen': 'Lean buy', 'Halten': 'Hold', 'Eher verkaufen': 'Lean sell', 'Verkaufen': 'Sell' },
     zone: { deep: 'deep in the cycle', low: 'lower third of the cycle', mid: 'middle of the cycle', high: 'near the high' },
@@ -280,7 +280,7 @@ const TX = {
     open: 'App öffnen', today: 'Kryptomarkt heute', fngNav: 'Fear & Greed Index', all: 'Alle Coins', risk: 'Risikohinweis', legal: 'Impressum', privacy: 'Datenschutz',
     foot: (d) => `Keine Anlageberatung. Coinweather ist ein Informationsdienst. Kurse lassen sich nicht sicher vorhersagen; die Wahrscheinlichkeiten beruhen auf vergangenen Kursen und können falsch liegen. Kryptowerte können stark fallen – bis zum Totalverlust. Stand ${d}.`,
     offer: 'Kostenloses Konto: Signal und Aussicht für 1000 Coins, Portfolio-Check und eine offene Erfolgskontrolle – 30 Tage alle Funktionen, ohne Zahlungsdaten.',
-    start: 'Kostenlos starten', noSignup: 'Markt heute ansehen – ohne Anmeldung',
+    start: 'Kostenlos starten',
     idx: 'Kauf-Score', fng: 'Fear & Greed', ago7: (v) => `vor 7 Tagen ${v}`, cyc: 'Zyklus (12 Monate)', belowAth: 'unter dem Allzeithoch von Bitcoin', sig: 'Kaufsignale', ofRated: (n) => `von ${n} bewerteten Coins`,
     label: { 'Kaufen': 'Kaufen', 'Eher kaufen': 'Eher kaufen', 'Halten': 'Halten', 'Eher verkaufen': 'Eher verkaufen', 'Verkaufen': 'Verkaufen' },
     zone: { deep: 'tief im Zyklus', low: 'unteres Drittel des Zyklus', mid: 'Mitte des Zyklus', high: 'nahe am Hoch' },
@@ -329,7 +329,7 @@ const TX = {
     open: 'Abrir la app', today: 'Mercado cripto hoy', fngNav: 'Índice Fear & Greed', all: 'Todas las monedas', risk: 'Aviso de riesgo', legal: 'Aviso legal', privacy: 'Privacidad',
     foot: (d) => `No es asesoramiento financiero. Coinweather es un servicio informativo. Los precios no se pueden predecir con seguridad; las probabilidades se basan en precios pasados y pueden fallar. Las criptomonedas pueden caer con fuerza, hasta la pérdida total. Actualizado el ${d}.`,
     offer: 'Cuenta gratuita: señal y perspectiva de 1000 monedas, revisión de cartera y un historial abierto, 30 días con todas las funciones, sin datos de pago.',
-    start: 'Empezar gratis', noSignup: 'Ver el mercado de hoy, sin registro',
+    start: 'Empezar gratis',
     idx: 'Puntuación de compra', fng: 'Fear & Greed', ago7: (v) => `hace 7 días ${v}`, cyc: 'Ciclo (12 meses)', belowAth: 'por debajo del máximo histórico de Bitcoin', sig: 'Señales de compra', ofRated: (n) => `de ${n} monedas evaluadas`,
     label: { 'Kaufen': 'Comprar', 'Eher kaufen': 'Más bien comprar', 'Halten': 'Mantener', 'Eher verkaufen': 'Más bien vender', 'Verkaufen': 'Vender' },
     zone: { deep: 'en lo profundo del ciclo', low: 'tercio inferior del ciclo', mid: 'mitad del ciclo', high: 'cerca del máximo' },
@@ -378,7 +378,7 @@ const TX = {
     open: 'Ouvrir l’app', today: 'Marché crypto aujourd’hui', fngNav: 'Indice Fear & Greed', all: 'Toutes les cryptos', risk: 'Avertissement sur les risques', legal: 'Mentions légales', privacy: 'Confidentialité',
     foot: (d) => `Pas un conseil en investissement. Coinweather est un service d’information. Les cours ne peuvent pas être prédits de façon sûre ; les probabilités reposent sur des cours passés et peuvent se tromper. Les cryptos peuvent chuter fortement, jusqu’à la perte totale. Mis à jour le ${d}.`,
     offer: 'Compte gratuit : signal et perspectives pour 1000 cryptos, bilan de portefeuille et suivi public – 30 jours avec toutes les fonctions, sans données de paiement.',
-    start: 'Commencer gratuitement', noSignup: 'Voir le marché du jour – sans inscription',
+    start: 'Commencer gratuitement',
     idx: 'Score d’achat', fng: 'Fear & Greed', ago7: (v) => `il y a 7 jours ${v}`, cyc: 'Cycle (12 mois)', belowAth: 'sous le record de Bitcoin', sig: 'Signaux d’achat', ofRated: (n) => `sur ${n} cryptos évaluées`,
     label: { 'Kaufen': 'Acheter', 'Eher kaufen': 'Plutôt acheter', 'Halten': 'Conserver', 'Eher verkaufen': 'Plutôt vendre', 'Verkaufen': 'Vendre' },
     zone: { deep: 'au creux du cycle', low: 'tiers inférieur du cycle', mid: 'milieu du cycle', high: 'près du sommet' },
@@ -427,7 +427,7 @@ const TX = {
     open: 'Apri l’app', today: 'Mercato crypto oggi', fngNav: 'Indice Fear & Greed', all: 'Tutti i coin', risk: 'Avvertenza sui rischi', legal: 'Note legali', privacy: 'Privacy',
     foot: (d) => `Non è una consulenza finanziaria. Coinweather è un servizio informativo. I prezzi non si possono prevedere con certezza; le probabilità si basano su prezzi passati e possono sbagliare. Le crypto possono crollare, fino alla perdita totale. Aggiornato il ${d}.`,
     offer: 'Account gratuito: segnale e prospettive per 1000 coin, controllo del portafoglio e track record pubblico – 30 giorni con tutte le funzioni, senza dati di pagamento.',
-    start: 'Inizia gratis', noSignup: 'Vedi il mercato di oggi – senza registrazione',
+    start: 'Inizia gratis',
     idx: 'Punteggio di acquisto', fng: 'Fear & Greed', ago7: (v) => `7 giorni fa ${v}`, cyc: 'Ciclo (12 mesi)', belowAth: 'sotto il massimo storico di Bitcoin', sig: 'Segnali di acquisto', ofRated: (n) => `su ${n} coin valutati`,
     label: { 'Kaufen': 'Comprare', 'Eher kaufen': 'Piuttosto comprare', 'Halten': 'Mantenere', 'Eher verkaufen': 'Piuttosto vendere', 'Verkaufen': 'Vendere' },
     zone: { deep: 'in fondo al ciclo', low: 'terzo inferiore del ciclo', mid: 'metà del ciclo', high: 'vicino al massimo' },
@@ -476,7 +476,7 @@ const TX = {
     open: 'Abrir o app', today: 'Mercado cripto hoje', fngNav: 'Índice Fear & Greed', all: 'Todas as moedas', risk: 'Aviso de risco', legal: 'Aviso legal', privacy: 'Privacidade',
     foot: (d) => `Não é recomendação de investimento. O Coinweather é um serviço informativo. Os preços não podem ser previstos com segurança; as probabilidades se baseiam em preços passados e podem errar. Criptoativos podem cair muito, até a perda total. Atualizado em ${d}.`,
     offer: 'Conta gratuita: sinal e perspectiva de 1000 moedas, checagem da carteira e um histórico aberto – 30 dias com todos os recursos, sem dados de pagamento.',
-    start: 'Começar grátis', noSignup: 'Ver o mercado de hoje – sem cadastro',
+    start: 'Começar grátis',
     idx: 'Pontuação de compra', fng: 'Fear & Greed', ago7: (v) => `há 7 dias ${v}`, cyc: 'Ciclo (12 meses)', belowAth: 'abaixo da máxima histórica do Bitcoin', sig: 'Sinais de compra', ofRated: (n) => `de ${n} moedas avaliadas`,
     label: { 'Kaufen': 'Comprar', 'Eher kaufen': 'Tendência de compra', 'Halten': 'Manter', 'Eher verkaufen': 'Tendência de venda', 'Verkaufen': 'Vender' },
     zone: { deep: 'no fundo do ciclo', low: 'terço inferior do ciclo', mid: 'meio do ciclo', high: 'perto da máxima' },
@@ -525,7 +525,7 @@ const TX = {
     open: 'Uygulamayı aç', today: 'Bugün kripto piyasası', fngNav: 'Korku ve Açgözlülük Endeksi', all: 'Tüm coinler', risk: 'Risk uyarısı', legal: 'Künye', privacy: 'Gizlilik',
     foot: (d) => `Yatırım tavsiyesi değildir. Coinweather bir bilgi hizmetidir. Fiyatlar kesin olarak tahmin edilemez; olasılıklar geçmiş fiyatlara dayanır ve yanılabilir. Kripto varlıklar sert düşebilir – tamamen değer kaybına kadar. Güncelleme: ${d}.`,
     offer: 'Ücretsiz hesap: 1000 coin için sinyal ve görünüm, portföy kontrolü ve açık performans kaydı – 30 gün tüm özellikler, ödeme bilgisi olmadan.',
-    start: 'Ücretsiz başla', noSignup: 'Bugünkü piyasayı gör – kayıt olmadan',
+    start: 'Ücretsiz başla',
     idx: 'Alım skoru', fng: 'Korku ve Açgözlülük', ago7: (v) => `7 gün önce ${v}`, cyc: 'Döngü (12 ay)', belowAth: 'Bitcoin’in zirvesinin altında', sig: 'Alım sinyalleri', ofRated: (n) => `değerlendirilen ${n} coinden`,
     label: { 'Kaufen': 'Al', 'Eher kaufen': 'Almaya yakın', 'Halten': 'Tut', 'Eher verkaufen': 'Satmaya yakın', 'Verkaufen': 'Sat' },
     zone: { deep: 'döngünün dibinde', low: 'döngünün alt üçte biri', mid: 'döngünün ortası', high: 'zirveye yakın' },
@@ -1058,7 +1058,7 @@ for (const lang of LANG_ORDER) {
   ogText[lang] = { label, day, idx: L.idx, fng: fng ? `${L.fng}: ${fng.value} – ${mood(fng.value)}` : '', btc: btc ? `Bitcoin ${usd(btc.current_price)}` : '' };
   const add = (key, path, title, description, body, head = '') => pages.push({ lang, key, path: `${pre}${path}`, title, description, body, head, day, L, app });
   const offer = (text) => `<section class="panel cta"><strong>${text}</strong><p class="muted">${L.offer}</p>
-    <p><a class="btn" href="${app('#/konto')}">${L.start}</a> <a class="btn ghost" href="${app()}">${L.noSignup}</a></p></section>`;
+    <p><a class="btn" href="${app('#/konto')}">${L.start}</a></p></section>`;
   const stats = () => `<div class="grid">
     <div class="panel stat"><div class="l">${L.idx}</div><div class="v">${market.value}/100</div><div>${esc(label)}</div></div>
     ${fng ? `<div class="panel stat"><div class="l">${esc(L.fng)}</div><div class="v">${fng.value}</div><div>${mood(fng.value)}${isNum(fng.week) ? ` · ${L.ago7(fng.week)}` : ''}</div></div>` : ''}

@@ -1044,15 +1044,10 @@ input[type="date"] { color-scheme: dark; }
 @media (prefers-color-scheme: light) { input[type="date"] { color-scheme: light; } }
 .inline-form input[type="date"] { width: 160px; }
 
-/* Für Besucher ohne Konto auf dem Handy */
-.guest-bar { display: none; }
+/* Ohne Konto gibt es nur die Anmeldung und die Rechtstexte: kein Menü, das ins Leere führt */
 .inapp-note a { font-weight: 700; display: inline-block; margin-top: 6px; }
-@media (max-width: 720px) {
-  .guest-bar:not([hidden]) { position: fixed; left: 8px; right: 8px; bottom: calc(66px + env(safe-area-inset-bottom)); z-index: 59; display: flex; align-items: center; gap: 4px;
-    background: var(--panel-2); border: 1px solid var(--accent); border-radius: 14px; padding: 6px 6px 6px 12px; box-shadow: 0 6px 20px rgb(0 0 0 / .35); }
-  .guest-bar a { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-size: 12.5px; line-height: 1.25; }
-  .guest-bar a span { flex: 1; min-width: 0; }
-  .guest-bar a b { flex: none; background: var(--accent); color: var(--on-accent); padding: 8px 10px; border-radius: 10px; font-size: 13px; }
-  .guest-bar button { flex: none; background: none; border: 0; color: var(--muted); font-size: 14px; padding: 6px; cursor: pointer; }
-  body.has-guest-bar { padding-bottom: calc(132px + env(safe-area-inset-bottom)); }
-}
+body.login-gate header.top nav, body.login-gate .tabbar { display: none; }
+.account-pitch { margin: 0 0 14px; color: var(--muted); }
+.account-pitch span:first-child { color: var(--text); font-weight: 700; }
+@media (max-width: 720px) { body.login-gate { padding-bottom: 16px; } }
+

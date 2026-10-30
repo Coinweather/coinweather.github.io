@@ -2037,4 +2037,5 @@ export default {
   "In Chrome öffnen": "Abrir no Chrome",
   "Lieber im Browser? Tippe oben rechts auf ··· und dann auf „Im Browser öffnen“": "Prefere o navegador? Toque em ··· no canto superior direito e depois em “Abrir no navegador”",
   "Du sagst, wie viel. Der Autopilot sagt, was du kaufst": "Você diz quanto. O piloto automático diz o que comprar",
+  "Melde dich an, um {*} zu nutzen": "Entre para usar {*}",
 };
