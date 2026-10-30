@@ -2038,4 +2038,7 @@ export default {
   "Lieber im Browser? Tippe oben rechts auf ··· und dann auf „Im Browser öffnen“": "¿Prefieres el navegador? Toca ··· arriba a la derecha y luego «Abrir en el navegador»",
   "Du sagst, wie viel. Der Autopilot sagt, was du kaufst": "Tú dices cuánto. El piloto automático dice qué comprar",
   "Melde dich an, um {*} zu nutzen": "Inicia sesión para usar {*}",
+  "Im Moment sind alle Funktionen kostenlos freigeschaltet": "Por ahora todas las funciones están desbloqueadas gratis",
+  "Kostenlos, ohne Zahlungsdaten": "Gratis, sin datos de pago",
+  "Mit einem kostenlosen Konto nutzt du alle Funktionen, ohne Zahlungsdaten": "Con una cuenta gratuita usas todas las funciones, sin datos de pago",
 };

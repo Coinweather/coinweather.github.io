@@ -85,7 +85,7 @@ export function pricingView(el, { access, user, record }) {
     const manage = (label, otherwise) => (SITE.manageUrl ? `<a class="btn ghost" href="${esc(SITE.manageUrl)}" target="_blank" rel="noopener">${label}</a>` : otherwise);
     const button = (key) => {
       const plan = SITE.plans[key];
-      if (a.reason === 'open' || a.reason === 'owner') return '<span class="muted">Für dich freigeschaltet.</span>';
+      if (a.reason === 'open' || a.reason === 'owner' || a.reason === 'free') return '<span class="muted">Für dich freigeschaltet.</span>';
       if (a.reason === 'trial') return '<span class="muted">In deiner Testphase freigeschaltet.</span>';
       if (!user() && SITE.trialDays > 0) return `<a class="btn" href="#/konto">${SITE.trialDays} Tage kostenlos testen</a>`;
       if (a.reason === 'paid') return a.plan === key ? `<span class="badge buy">Dein Paket</span> ${manage('Abo verwalten', '')}`
@@ -100,6 +100,7 @@ export function pricingView(el, { access, user, record }) {
     const status = a.reason === 'paid' ? `<p class="notice ok">Dein Paket ${esc(SITE.plans[a.plan].name)} ist aktiv${until}${a.cancel ? ' und verlängert sich nicht mehr' : ''}.</p>`
       : a.reason === 'owner' ? '<p class="notice ok">Betreiber-Zugang: Alle Funktionen sind für dich freigeschaltet.</p>'
       : a.reason === 'open' ? '<p class="notice">Die Bezahlschranke ist ausgeschaltet – alle Funktionen sind offen.</p>'
+      : a.reason === 'free' ? '<p class="notice ok">Im Moment sind alle Funktionen kostenlos freigeschaltet.</p>'
       : a.reason === 'trial' ? `<p class="notice ok">Deine kostenlose Testphase läuft${until} – alle Funktionen sind freigeschaltet. Danach endet der Zugang von selbst.</p>`
       : a.reason === 'expired' ? `<p class="notice">Deine kostenlose Testphase ist abgelaufen${until ? ` (${new Date(a.until).toLocaleDateString(settings.locale)})` : ''}. Wähle ein Paket, um weiterzumachen.</p>`
       : a.reason === 'none' ? '<p class="notice">Für dein Konto läuft kein Abo. Wähle ein Paket, um die Inhalte zu sehen.</p>' : '';

@@ -2,7 +2,7 @@ import * as visits from './visits.js';   // als erstes: erkennt, ob der Browser 
 import { $, esc, settings, sleep, isNum, money, compact, num, signed, tone, pct, fromDisplay, toDisplay, currencyCode, localise } from './util.js';
 import * as i18n from './i18n.js';
 import { lineChart, proChart } from './charts.js';
-import { SITE } from './config.js';
+import { SITE, selling } from './config.js';
 import * as site from './site.js';
 import * as api from './api.js';
 import * as pf from './portfolio.js';
@@ -1713,6 +1713,8 @@ function access() {
   if (depot.owner) return { plan: 'full', reason: 'owner' };
   const s = abo.sub;
   if (s && ['active', 'trialing'].includes(s.status) && (!s.until || s.until > Date.now())) return { plan: s.plan, reason: 'paid', until: s.until, cancel: s.cancel };
+  // Solange nichts gekauft werden kann, sperrt die Testphase niemanden aus: Alle Konten haben vollen Zugang
+  if (!selling()) return { plan: 'full', reason: 'free' };
   // Kostenlose Testphase ab dem Erstellen des Kontos: alle Funktionen, danach endet der Zugang von selbst
   const trialEnd = SITE.trialDays > 0 && depot.user.created ? depot.user.created + SITE.trialDays * 86_400_000 : null;
   if (trialEnd) return trialEnd > Date.now() ? { plan: 'full', reason: 'trial', until: trialEnd } : { plan: null, reason: 'expired', until: trialEnd };
@@ -2080,6 +2082,7 @@ function accountView(gate = false) {
       const a = access(), until = a.until ? new Date(a.until).toLocaleDateString(settings.locale) : null;
       const planText = a.reason === 'open' ? 'Die Bezahlschranke ist ausgeschaltet – alle Funktionen sind offen.'
         : a.reason === 'owner' ? 'Betreiber-Zugang – alle Funktionen sind freigeschaltet.'
+        : a.reason === 'free' ? 'Im Moment sind alle Funktionen kostenlos freigeschaltet.'
         : a.reason === 'paid' ? `Paket ${SITE.plans[a.plan].name} ist aktiv${until ? ` bis ${until}` : ''}${a.cancel ? ' und verlängert sich nicht mehr' : ''}.`
         : a.reason === 'trial' ? `Kostenlose Testphase bis ${until}: Alle Funktionen sind freigeschaltet. Danach endet der Zugang von selbst – es entstehen keine Kosten.`
         : a.reason === 'expired' ? `Deine kostenlose Testphase ist am ${until} abgelaufen.`
@@ -2091,7 +2094,7 @@ function accountView(gate = false) {
         <p id="a-msg" class="notice" hidden></p>
       </section>
       <section class="panel"><div class="label">Abo</div><p>${planText}</p>
-        <p><a class="btn ghost" href="#/preise">Pakete und Preise</a>${a.reason === 'paid' && SITE.manageUrl ? ` <a class="btn ghost" href="${esc(SITE.manageUrl)}" target="_blank" rel="noopener">Abo verwalten</a>` : ''}</p></section>
+        <p>${a.reason === 'free' ? '' : '<a class="btn ghost" href="#/preise">Pakete und Preise</a>'}${a.reason === 'paid' && SITE.manageUrl ? ` <a class="btn ghost" href="${esc(SITE.manageUrl)}" target="_blank" rel="noopener">Abo verwalten</a>` : ''}</p></section>
       ${prefsPanel()}
       <section class="panel"><div class="label">Deine Daten</div>
         <p class="hint">Dein Portfolio kannst du auf der Portfolio-Seite als Tabelle exportieren. Löschst du dein Konto, werden Portfolio und Anmeldung endgültig entfernt.${a.reason === 'paid' ? ' Ein laufendes Abo kündigst du bitte vorher.' : ''}</p>
@@ -2109,7 +2112,7 @@ function accountView(gate = false) {
     const chrome = /Android/i.test(navigator.userAgent) ? `intent://${location.host}/?von=app#Intent;scheme=https;package=com.android.chrome;end` : null;
     const form = `<section class="panel account">
         <h2>${fresh ? 'Konto erstellen oder anmelden' : 'Anmelden oder Konto erstellen'}</h2>
-        ${gate === 'app' ? `<p class="account-pitch"><span>Du sagst, wie viel. Der Autopilot sagt, was du kaufst.</span>${SITE.trialDays > 0 ? ` <span>${SITE.trialDays} Tage alle Funktionen, ohne Zahlungsdaten.</span>` : ''}</p>` : ''}
+        ${gate === 'app' ? `<p class="account-pitch"><span>Du sagst, wie viel. Der Autopilot sagt, was du kaufst.</span>${!selling() ? ' <span>Kostenlos, ohne Zahlungsdaten.</span>' : SITE.trialDays > 0 ? ` <span>${SITE.trialDays} Tage alle Funktionen, ohne Zahlungsdaten.</span>` : ''}</p>` : ''}
         ${inApp ? `<p class="notice inapp-note"><strong>Du bist im Browser einer App, zum Beispiel Instagram.</strong> Die Anmeldung mit Google geht hier nicht – mit deiner E-Mail-Adresse dauert es 20 Sekunden.
             ${chrome ? `<a href="${esc(chrome)}">In Chrome öffnen</a>` : '<span>Lieber im Browser? Tippe oben rechts auf ··· und dann auf „Im Browser öffnen“.</span>'}</p>`
     : `<button class="btn google" id="a-google" type="button">Mit Google anmelden</button>
@@ -2130,7 +2133,7 @@ function accountView(gate = false) {
     view.innerHTML = `<div class="gate">
         <div>
           <h1>${gate === 'app' ? `Melde dich an, um ${esc(SITE.name)} zu nutzen` : gate ? 'Melde dich an, um dein Portfolio zu sehen' : `Dein Konto bei ${esc(SITE.name)}`}</h1>
-          <p class="lead">${SITE.trialDays > 0 ? `Mit einem neuen Konto testest du ${SITE.trialDays} Tage lang alle Funktionen kostenlos – ohne Zahlungsdaten. ` : 'Für ein Abo brauchst du ein Konto. '}Darin liegen auch dein Portfolio und deine Einstellungen.${gate === 'app' ? '' : ' <a href="#/preise">Pakete und Preise</a>'}</p>
+          <p class="lead">${!selling() ? 'Mit einem kostenlosen Konto nutzt du alle Funktionen, ohne Zahlungsdaten. ' : SITE.trialDays > 0 ? `Mit einem neuen Konto testest du ${SITE.trialDays} Tage lang alle Funktionen kostenlos – ohne Zahlungsdaten. ` : 'Für ein Abo brauchst du ein Konto. '}Darin liegen auch dein Portfolio und deine Einstellungen.${gate === 'app' ? '' : ' <a href="#/preise">Pakete und Preise</a>'}</p>
           ${BENEFITS}
         </div>
         ${form}
@@ -3385,7 +3388,7 @@ function portfolioView(arg = '') {
 // Die Seite bleibt deutsch (translate="no"): Sie ist für den Betreiber, nicht für Kunden.
 const ADMIN_PAGES = { markt: 'Markt', coin: 'Coin-Details', portfolio: 'Portfolio', daytrading: 'Daytrading', konto: 'Konto', preise: 'Preise',
   agb: 'AGB', datenschutz: 'Datenschutz', impressum: 'Impressum', risiko: 'Risikohinweis' };
-const ADMIN_ACCESS = { trial: 'Testphase', expired: 'Test abgelaufen', paid: 'Abo', owner: 'Betreiber', none: 'kein Zugang', open: 'offen' };
+const ADMIN_ACCESS = { free: 'Kostenlos', trial: 'Testphase', expired: 'Test abgelaufen', paid: 'Abo', owner: 'Betreiber', none: 'kein Zugang', open: 'offen' };
 const MINUTE = 60_000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
 let adminTimer = null;
 
@@ -3487,7 +3490,7 @@ function adminView() {
         ${card('Online', count((u) => seen(u) < 5 * MINUTE), 'letzte 5 Minuten')}
         ${card('Aktiv heute', count((u) => seen(u) < DAY), 'letzte 24 Stunden')}
         ${card('Aktiv 7 Tage', count((u) => seen(u) < 7 * DAY), `30 Tage: ${count((u) => seen(u) < 30 * DAY)}`)}
-        ${card('In Testphase', count((u) => u.access === 'trial'), `abgelaufen: ${count((u) => u.access === 'expired')}`)}
+        ${card('Kostenlos oder Testphase', count((u) => u.access === 'trial' || u.access === 'free'), `abgelaufen: ${count((u) => u.access === 'expired')}`)}
         ${card('Mit Abo', count((u) => u.access === 'paid'), '')}
         ${card('Herkunft', '', Object.entries(users.reduce((m, u) => { const k = u.source ?? 'direkt'; m[k] = (m[k] ?? 0) + 1; return m; }, {}))
           .sort((a, b) => b[1] - a[1]).map(([k, n]) => `${esc(k)} ${n}`).join(' · ') || '–')}

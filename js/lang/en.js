@@ -2028,4 +2028,7 @@ export default {
   "Lieber im Browser? Tippe oben rechts auf ··· und dann auf „Im Browser öffnen“": "Prefer your browser? Tap ··· at the top right, then “Open in browser”",
   "Du sagst, wie viel. Der Autopilot sagt, was du kaufst": "You say how much. The autopilot says what to buy",
   "Melde dich an, um {*} zu nutzen": "Sign in to use {*}",
+  "Im Moment sind alle Funktionen kostenlos freigeschaltet": "All features are currently unlocked for free",
+  "Kostenlos, ohne Zahlungsdaten": "Free, no payment details",
+  "Mit einem kostenlosen Konto nutzt du alle Funktionen, ohne Zahlungsdaten": "With a free account you can use all features, no payment details needed",
 };

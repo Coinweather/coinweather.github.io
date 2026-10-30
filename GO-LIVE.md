@@ -14,7 +14,10 @@ Technisch ist die Seite bereit für den Betrieb (siehe „Technik und Betrieb“
 5. **Hosting**: Umzug weg von GitHub Pages auf eine eigene Domain (Abschnitt 4).
 6. **Zahlungsanbieter** anfragen, Bezahl-Links eintragen, Freischaltung einrichten (Abschnitt 5).
 
-Bis dahin läuft die Seite kostenlos mit 30 Tagen Testphase für neue Konten; Kauf-Knöpfe erscheinen erst mit Punkt 3 und 6.
+Bis dahin ist die Seite für alle Konten kostenlos und ohne Zeitlimit (`access()` in `js/app.js`, Zustand „free“); Kauf-Knöpfe erscheinen erst mit Punkt 3 und 6.
+
+**Achtung beim Verkaufsstart:** Sobald Betreiberangaben und beide Bezahl-Links eingetragen sind, gilt sofort die Testphase: Konten, die älter als `trialDays` sind,
+verlieren in diesem Moment den Zugang zu den Inhalten. Vorher die Nutzer informieren und entscheiden, ob bestehende Konten noch eine Frist bekommen.
 
 ## Technik und Betrieb (Stand 26.10.2026)
 

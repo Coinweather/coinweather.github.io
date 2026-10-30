@@ -2038,4 +2038,7 @@ export default {
   "Lieber im Browser? Tippe oben rechts auf ··· und dann auf „Im Browser öffnen“": "Tu préfères ton navigateur ? Touche ··· en haut à droite, puis « Ouvrir dans le navigateur »",
   "Du sagst, wie viel. Der Autopilot sagt, was du kaufst": "Tu dis combien. Le pilote automatique dit quoi acheter",
   "Melde dich an, um {*} zu nutzen": "Connecte-toi pour utiliser {*}",
+  "Im Moment sind alle Funktionen kostenlos freigeschaltet": "Pour le moment, toutes les fonctions sont débloquées gratuitement",
+  "Kostenlos, ohne Zahlungsdaten": "Gratuit, sans données de paiement",
+  "Mit einem kostenlosen Konto nutzt du alle Funktionen, ohne Zahlungsdaten": "Avec un compte gratuit, tu utilises toutes les fonctions, sans données de paiement",
 };

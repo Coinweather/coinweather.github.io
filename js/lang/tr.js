@@ -2038,4 +2038,7 @@ export default {
   "Lieber im Browser? Tippe oben rechts auf ··· und dann auf „Im Browser öffnen“": "Tarayıcını mı tercih edersin? Sağ üstte ···, sonra “Tarayıcıda aç”a dokun",
   "Du sagst, wie viel. Der Autopilot sagt, was du kaufst": "Sen ne kadar dersin. Otomatik pilot ne alacağını söyler",
   "Melde dich an, um {*} zu nutzen": "{*} kullanmak için giriş yap",
+  "Im Moment sind alle Funktionen kostenlos freigeschaltet": "Şu anda tüm özellikler ücretsiz olarak açık",
+  "Kostenlos, ohne Zahlungsdaten": "Ücretsiz, ödeme bilgisi gerekmez",
+  "Mit einem kostenlosen Konto nutzt du alle Funktionen, ohne Zahlungsdaten": "Ücretsiz bir hesapla tüm özellikleri kullanırsın, ödeme bilgisi gerekmez",
 };
