@@ -746,7 +746,8 @@ const INFO = {
     <ul><li><strong>Wert:</strong> alle Coins zum Tageskurs plus Bargeld.</li>
       <li><strong>Eingezahlt:</strong> Geld, das von außen kam – neue Positionen und Bargeld, abzüglich Entnahmen. Käufe, Verkäufe und Tausche innerhalb des Portfolios zählen nicht dazu.</li>
       <li><strong>Wertentwicklung in Prozent:</strong> zeitgewichtet, also ohne den Einfluss von Ein- und Auszahlungen.</li>
-      <li><strong>Vergleich mit Bitcoin:</strong> Jede Einzahlung wäre am selben Tag in Bitcoin geflossen.</li></ul>
+      <li><strong>Vergleich mit Bitcoin:</strong> Jede Einzahlung wäre am selben Tag in Bitcoin geflossen. Beginnt der Zeitraum später, startet die Linie am ersten Tag mit dem Wert deines Portfolios.</li>
+      <li><strong>Y-Achse:</strong> Bis 90 Tage richtet sie sich nur nach deinem Portfolio, damit du die Bewegungen siehst. Die Bitcoin-Linie kann dann über den Rand hinausgehen.</li></ul>
     <p>Links der Markierung „Beginn der Erfassung“ ist zurückgerechnet, wie sich dein damaliger Bestand entwickelt hätte. Für Coins ohne Kursgeschichte wird der heutige Kurs angenommen.</p>` },
 };
 
@@ -2205,7 +2206,8 @@ const dateText = (d) => d.toLocaleDateString(settings.locale, { day: '2-digit', 
 let advice = null;
 const ADVICE_STALE_MS = 30 * 60_000;
 
-const PERF_RANGES = { '30T': 30, '90T': 90, '1J': 365, 'Seit Beginn': null };
+const PERF_RANGES = { '7T': 7, '30T': 30, '90T': 90, '1J': 365, 'Seit Beginn': null };
+const PERF_FOCUS_DAYS = 90;   // bis zu diesem Zeitraum richtet sich die Y-Achse nur nach dem Portfolio
 // Autopilot: Monat als „2026-10“ und die Sparrate in US-Dollar zum heutigen Wechselkurs
 const NOTIFY_KEY = 'coinwetter-autopilot-melden';
 const notifyOn = () => { try { return localStorage.getItem(NOTIFY_KEY) === '1' && 'Notification' in window && Notification.permission === 'granted'; } catch { return false; } };
@@ -2214,7 +2216,8 @@ const monthlyUsd = (m) => (m ? m.amount / (i18n.rateOf(m.currency) || 1) : 0);
 
 function portfolioView(arg = '') {
   let message = '';
-  let perfRange = '90T';
+  let perfRange = '30T';
+  let trackGain = null;    // Gewinn oder Verlust laut Aufzeichnung, falls Kaufpreise fehlen
   let trackStarted = false;
   let imp = null;          // Import: eingelesene Tabelle und Spaltenzuordnung
   let recalc = false;
@@ -2245,8 +2248,8 @@ function portfolioView(arg = '') {
       <section class="panel" id="p-perf" hidden>
         <div class="panel-top"><div><h2>Wertentwicklung</h2>${infoBtn('performance')}</div>
           <div class="chips" id="p-perf-ranges">${Object.keys(PERF_RANGES).map((r) => `<button class="chip" data-perf="${r}">${i18n.span(r)}</button>`).join('')}</div></div>
+        <div class="perf-now" id="p-perf-stats"></div>
         <div id="p-perf-chart" class="chart"></div>
-        <div class="stat-grid" id="p-perf-stats"></div>
         <p class="hint" id="p-perf-note"></p>
       </section>
       <h2>Bestand</h2>
@@ -2834,25 +2837,29 @@ function portfolioView(arg = '') {
     const all = tr.series(dated, { fromDay: start, toDay: today, priceOn: price, btcOn: btc });
     // Die Marke zeigt, bis wohin aus den Kaufdaten zurückgerechnet ist
     const first = captured > start ? pts.findIndex((x) => x.day >= captured) : 0;
+    const focus = !!span && span <= PERF_FOCUS_DAYS;
+    const values = pts.map((x) => x.value), low = Math.min(...values), high = Math.max(...values);
+    // In den kurzen Zeiträumen liegt „Eingezahlt“ meist weit weg: Die Linie erscheint nur, wenn sie im Bild läge
+    const paidInView = !focus || pts.some((x) => x.in >= low * 0.98 && x.in <= high * 1.02);
+    const btcLine = from > start ? tr.rebasedBtc(pts, btc) : pts.map((x) => x.btc);
     if (pts.length < 2) $('#p-perf-chart').innerHTML = `<p class="muted perf-empty">${esc(i18n.say('Die Aufzeichnung beginnt heute – ab morgen siehst du hier, wie sich dein Portfolio entwickelt.'))}</p>`;
     else drawChart($('#p-perf-chart'), {
       t: pts.map((x) => x.day * 86_400_000 + 43_200_000), p: pts.map((x) => x.value),
-      overlays: [{ label: 'Eingezahlt', color: 'var(--muted)', values: pts.map((x) => x.in) },
-        { label: 'Dasselbe Geld in Bitcoin', color: 'var(--accent)', values: pts.map((x) => x.btc) }],
+      focus,
+      overlays: [...(paidInView ? [{ label: 'Eingezahlt', color: 'var(--muted)', values: pts.map((x) => x.in) }] : []),
+        { label: 'Dasselbe Geld in Bitcoin', color: 'var(--accent)', values: btcLine }],
       // Ganz am rechten Rand wäre die Beschriftung abgeschnitten – dort steht das Datum nur im Hinweis
       marker: first > 0 && first < pts.length * 0.85 ? { index: first, label: 'Beginn der Erfassung' } : null,
     });
 
     const last = all[all.length - 1];
-    const sinceStart = tr.performance(all), inRange = tr.performance(pts);
-    const b0 = btc(start), b1 = btc(today);
+    trackGain = last.value - last.in;
+    const inRange = tr.performance(pts);
     const began = new Date(dated.states[0].t).toLocaleDateString(settings.locale);
-    const cell = (label, value, sub) => `<div><div class="label">${label}</div><div class="value">${value}</div><div class="muted">${sub}</div></div>`;
-    $('#p-perf-stats').innerHTML =
-      cell(`Zeitraum ${i18n.span(perfRange)}`, inRange === null ? '–' : pct(inRange), first > 0 ? 'teils zurückgerechnet' : 'ohne Ein- und Auszahlungen')
-      + cell('Seit Beginn', sinceStart === null ? '–' : pct(sinceStart), `seit ${began}`)
-      + cell('Gewinn seit Beginn', `<span class="${tone(Math.round(last.value - last.in))}">${money(last.value - last.in)}</span>`, `eingezahlt ${money(last.in)}`)
-      + cell('Bitcoin seit Beginn', b0 && b1 && all.length > 1 ? pct((b1 / b0 - 1) * 100) : '–', 'zum Vergleich');
+    // Nur die Zahl zum offenen Zeitraum; der Rest steht oben in den Kacheln
+    const period = !span || from === start ? `Seit ${began}` : span === 365 ? 'Letzte 12 Monate' : `Letzte ${span} Tage`;
+    $('#p-perf-stats').innerHTML = `<strong>${inRange === null ? '–' : pct(inRange)}</strong>
+      <span class="muted">${period} · ohne Ein- und Auszahlungen</span>`;
     $('#p-perf-note').textContent = (all.length < 2 ? 'Die Aufzeichnung beginnt heute – ab morgen wächst hier dein tatsächlicher Verlauf. ' : '')
       + (first > 0 ? `Vor dem ${new Date(track.states[0].t).toLocaleDateString(settings.locale)} ist aus den Kaufdaten zurückgerechnet. ` : '')
       + (dated.undated.size ? 'Ohne Kaufdatum (auch bei der Reserve) zählt alles, als wäre es vor einem Jahr gekauft. Das Datum trägst du bei der Position und unter Strategie bei der Reserve nach. ' : '')
@@ -2966,9 +2973,13 @@ function portfolioView(arg = '') {
       return s + (r.value !== null && isNum(ch) ? r.value - r.value / (1 + ch / 100) : 0);
     }, 0);
 
+    performancePanel();
     const card = (label, value, sub = '', cls = '') => `<div class="card ${cls}"><div class="label">${label}</div><div class="value">${value}</div><div class="muted">${sub}</div></div>`;
-    $('#p-summary').innerHTML = card('Gesamtwert', money(total), `heute ${pct(total - day > 0 ? day / (total - day) * 100 : 0)} (${money(day)})`, 'main') +
-      card('Gewinn / Verlust', priced.length ? `<span class="${tone(gain)}">${money(gain)}</span>` : '–', paid ? pct(gain / paid * 100) : 'Kaufpreise fehlen') +
+    const plus = (v) => `<span class="${tone(v)}">${v >= 0 ? '+' : '−'}${money(Math.abs(v))}</span>`;
+    // Gewinn seit dem Anlegen: aus den Kaufpreisen; fehlen welche, aus der Aufzeichnung (Wert minus eingezahlt)
+    const sinceIn = priced.length === rows.length && priced.length ? gain : trackGain ?? (priced.length ? gain : null);
+    $('#p-summary').innerHTML = card('Gesamtwert', money(total), isNum(sinceIn) ? `<span class="p-gain">${plus(sinceIn)}</span> seit dem Anlegen` : 'Kaufpreise fehlen', 'main') +
+      card('Heute', pct(total - day > 0 ? day / (total - day) * 100 : 0), plus(day)) +
       card('Reserve aktuell', money(cash + stableValue), total ? `${num((cash + stableValue) / total * 100, 0)} % des Portfolios${auto ? (follow() ? ` · Ziel ${Math.round(follow().reserveShare * 100)} %` : '') : ` · Ziel ${reserveTarget()} %`}` : '');
 
     $('#p-rows').innerHTML = rows.length ? rows.map(({ pos, c, value, unit, paid: p, gain: g }) => {
@@ -2992,7 +3003,6 @@ function portfolioView(arg = '') {
     }).join('') : '<tr><td colspan="11" class="empty">Noch keine Coins – nur Bargeld. Mit „+ Position“ fügst du Coins hinzu.</td></tr>';
 
     allocation(rows, cash, total);
-    performancePanel();
     reserve(cash + stableValue, total);
     if (auto) { $('#p-manager').innerHTML = ''; autoPanel(); } else { $('#p-auto').innerHTML = ''; manager(rows, total); }
     logPanel();

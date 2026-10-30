@@ -214,6 +214,20 @@ export function series(track, { fromDay, toDay, priceOn, btcOn = () => null }) {
   return out;
 }
 
+// Vergleich für einen Ausschnitt: Der Wert am ersten Tag wäre in Bitcoin geflossen, spätere Einzahlungen und Entnahmen am selben Tag auch.
+// So starten beide Linien am selben Punkt, auch wenn der Ausschnitt mitten im Verlauf beginnt
+export function rebasedBtc(points, btcOn) {
+  let units = null, mkt = null;
+  return points.map((x) => {
+    const b = btcOn(x.day);
+    if (!(b > 0)) return null;
+    if (units === null) units = x.value / b;
+    else if (Number.isFinite(x.mkt) && Number.isFinite(mkt)) units += (x.mkt - mkt) / b;
+    mkt = x.mkt;
+    return units * b;
+  });
+}
+
 // Zeitgewichtete Wertentwicklung in Prozent über eine Reihe aus series(): Einzahlungen und Entnahmen zählen nicht
 // als Gewinn oder Verlust. null, wenn sich nichts rechnen lässt.
 export function performance(points) {

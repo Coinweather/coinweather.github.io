@@ -461,7 +461,9 @@ h2 + .info-btn, .label + .info-btn { margin-top: 8px; }
 .mood-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 /* Wertentwicklung und Verlauf */
 #p-perf { margin-top: 18px; }
-#p-perf .stat-grid { margin-top: 14px; }
+.perf-now { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; margin: 4px 0 10px; }
+.perf-now strong { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.p-gain { font-weight: 800; font-size: 15px; }
 .log { margin-top: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 16px; }
 .log summary { cursor: pointer; font-weight: 600; }
 .log li { font-size: 13.5px; }

@@ -48,9 +48,12 @@ function toggleFull(box) {
 }
 
 // ---------- Verläufe ----------
+const FOCUS_MIN_RANGE = 0.01;   // die Y-Achse umfasst bei focus mindestens 1 % des Werts
 // Gleiche Angaben wie das frühere SVG-Diagramm: t (ms), p (Werte), overlays [{ values, color, label }], note, marker { index, label },
-// plain (Kennzahl statt Betrag), hourly; neu: levels [{ value, label, color }] als waagrechte Linien
-export async function lineChart(el, { t, p, overlays = [], note, marker, plain, hourly, levels = [] }) {
+// plain (Kennzahl statt Betrag), hourly; neu: levels [{ value, label, color }] als waagrechte Linien;
+// focus: Die Y-Achse richtet sich nur nach der Hauptlinie, damit kleine Bewegungen sichtbar sind – mit einer Mindesthöhe, sonst sähe ein fast
+// gleichbleibender Wert wild aus
+export async function lineChart(el, { t, p, overlays = [], note, marker, plain, hourly, levels = [], focus = false }) {
   const L = await LW();
   el._lw?.remove(); el._lw = null;
   const pts = t.map((ms, i) => [toTime(ms), p[i]]).filter(([, v]) => isNum(v));
@@ -68,16 +71,26 @@ export async function lineChart(el, { t, p, overlays = [], note, marker, plain, 
   el._lw = chart;
   const rising = pts[pts.length - 1][1] >= pts[0][1];
   const main = chart.addSeries(L.AreaSeries, { lineColor: rising ? th.up : th.down, topColor: alpha(rising ? th.up : th.down, 0.22), bottomColor: alpha(rising ? th.up : th.down, 0.01),
-    lineWidth: 2, priceLineVisible: false });
+    lineWidth: 2, priceLineVisible: false,
+    ...(focus ? { autoscaleInfoProvider: (original) => {
+      const r = original();
+      if (!r?.priceRange) return r;
+      const { minValue, maxValue } = r.priceRange, gap = Math.max(0, Math.abs(maxValue) * FOCUS_MIN_RANGE - (maxValue - minValue)) / 2;
+      return { ...r, priceRange: { minValue: minValue - gap, maxValue: maxValue + gap } };
+    } } : {}) });
   const dedupe = (arr) => arr.filter((x, i) => i === arr.length - 1 || x.time !== arr[i + 1].time);
   main.setData(dedupe(pts.map(([time, value]) => ({ time, value }))));
   const extra = overlays.map((o) => {
-    const s = chart.addSeries(L.LineSeries, { color: resolve(o.color), lineWidth: 1.5, lineStyle: L.LineStyle.Dashed, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    const s = chart.addSeries(L.LineSeries, { color: resolve(o.color), lineWidth: 1.5, lineStyle: L.LineStyle.Dashed, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, ...(focus ? { autoscaleInfoProvider: () => null } : {}) });
     s.setData(dedupe(t.map((ms, i) => (isNum(o.values[i]) ? { time: toTime(ms), value: o.values[i] } : { time: toTime(ms) })).filter((x, i, a) => i === 0 || x.time > a[i - 1].time)));
     return [o, s];
   });
   for (const lv of levels) main.createPriceLine({ price: lv.value, color: resolve(lv.color ?? 'var(--muted)'), lineWidth: 1, lineStyle: L.LineStyle.Dotted, axisLabelVisible: true, title: i18n.say(lv.label ?? '') });
   if (marker && t[marker.index]) L.createSeriesMarkers(main, [{ time: toTime(t[marker.index]), position: 'aboveBar', shape: 'arrowDown', color: th.accent, text: i18n.say(marker.label) }]);
+  if (focus) {
+    chart.priceScale('right').applyOptions({ scaleMargins: { top: 0.08, bottom: 0.06 } });
+    chart.timeScale().applyOptions({ rightOffset: 0.4 });   // bei wenigen Tagen wäre der übliche Rand rechts ein Drittel des Bilds
+  }
   chart.timeScale().fitContent();
   // Wert unter dem Fadenkreuz, sonst der letzte
   const show = (time) => {
