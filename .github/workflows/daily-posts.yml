@@ -20,6 +20,14 @@ on:
         description: "Nur den Facebook-/Instagram-Zugang prüfen, nichts posten"
         type: boolean
         default: false
+      preview:
+        description: "Nur das Reel bauen und als Anhang ablegen, nichts posten"
+        type: boolean
+        default: false
+      format:
+        description: "Reel-Format erzwingen: whatif, dca, ath, guess, fear, demo, versus, movers. Leer = Format des Tages"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -33,6 +41,8 @@ jobs:
       EDITION: ${{ github.event.schedule == '30 16 * * *' && 'evening' || github.event.inputs.edition || 'morning' }}
       ONLY: ${{ github.event.inputs.only || (github.event.schedule == '30 16 * * *' && 'Instagram-Reel,Facebook-Reel') || '' }}
       CHECK: ${{ github.event.inputs.check == 'true' }}
+      PREVIEW: ${{ github.event.inputs.preview == 'true' }}
+      REEL_FORMAT: ${{ github.event.inputs.format }}
       HAS_INSTAGRAM: ${{ secrets.INSTAGRAM_USER_ID != '' }}
     steps:
       - uses: actions/checkout@v4
@@ -48,6 +58,14 @@ jobs:
         # Fertige ffmpeg-Datei aus npm: lädt in Sekunden (apt-get brauchte einmal 14 Minuten)
         run: |
           echo "FFMPEG=$(node -p "require('ffmpeg-static')")" >> "$GITHUB_ENV"
+      # Die laute Schrift der Reels (Anton, freie Lizenz OFL). Fehlt sie, nimmt scripts/reels.mjs DejaVu Sans
+      - name: Schrift für die Reels bereitstellen
+        if: env.CHECK != 'true'
+        continue-on-error: true
+        run: |
+          mkdir -p ~/.fonts
+          curl -sfL -o ~/.fonts/Anton-Regular.ttf https://raw.githubusercontent.com/google/fonts/main/ofl/anton/Anton-Regular.ttf
+          fc-cache -f && fc-list | grep -c Anton
       # KI-Sprecher für das Reel: Piper (offene Sprach-KI, läuft hier ohne Konto). Stimmen mit freien Datensätzen:
       # en_US-joe (CC0), de_DE-thorsten (CC0). Klappt das nicht, entsteht wie bisher ein stilles Reel.
       - uses: actions/setup-python@v5
@@ -75,7 +93,7 @@ jobs:
       # Der Tagesstand wird gespeichert, damit Text und Bilder sicher zusammenpassen
       - name: Bilder erzeugen
         if: env.CHECK != 'true'
-        run: node scripts/post-daily.mjs --dry --images out --save-data today.json --video out/reel.mp4 && ls -l out/reel.mp4
+        run: node scripts/post-daily.mjs --dry --images out --save-data today.json --video out/reel.mp4 && ls -l out/reel.mp4 out/reel.mp4.json
       - name: Bilder zum Ansehen ablegen
         if: env.CHECK != 'true'
         uses: actions/upload-artifact@v4
@@ -84,10 +102,11 @@ jobs:
           path: |
             out/*.jpg
             out/reel.mp4
+            out/reel.mp4.json
           retention-days: 7
       # Instagram holt die Bilder von öffentlichen Adressen: Sie liegen dafür im Zweig "media"
       - name: Bilder für Instagram bereitstellen
-        if: env.CHECK != 'true' && env.HAS_INSTAGRAM == 'true'
+        if: env.CHECK != 'true' && env.PREVIEW != 'true' && env.HAS_INSTAGRAM == 'true'
         run: |
           stamp="$(date -u +%Y%m%d-%H%M)"
           cd out
@@ -102,7 +121,7 @@ jobs:
           echo "REEL_URL=https://raw.githubusercontent.com/${{ github.repository }}/media/$stamp-reel.mp4" >> "$GITHUB_ENV"
           sleep 10
       - name: Posten
-        if: env.CHECK != 'true'
+        if: env.CHECK != 'true' && env.PREVIEW != 'true'
         run: node scripts/post-daily.mjs
         env:
           DATA_FILE: today.json

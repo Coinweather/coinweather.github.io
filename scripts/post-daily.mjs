@@ -20,6 +20,7 @@ import crypto from 'node:crypto';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import sharp from 'sharp';
 import { buyHistory } from '../js/model.js';
+import { pickReel, renderReel } from './reels.mjs';
 
 const REPO = 'Coinweather/coinweather.github.io';
 const SNAPSHOT = `https://raw.githubusercontent.com/${REPO}/data/snapshot.json`;
@@ -78,8 +79,15 @@ async function checkMeta() {
   // Reichweite: Follower, Likes und Kommentare der letzten Beiträge – zeigt, ob die Beiträge überhaupt jemanden erreichen
   const fmtDay = (t) => new Date(t).toLocaleDateString('de-CH', { timeZone: 'Europe/Zurich' });
   if (env.INSTAGRAM_USER_ID) {
-    const acc = await graph(env.INSTAGRAM_USER_ID, { fields: 'followers_count,follows_count,media_count', access_token: meta.token });
-    if (!acc.error) console.log(`Instagram: ${acc.followers_count} Follower · ${acc.media_count} Beiträge`);
+    const acc = await graph(env.INSTAGRAM_USER_ID, { fields: 'followers_count,follows_count,media_count,biography,website', access_token: meta.token });
+    if (!acc.error) console.log(`Instagram: ${acc.followers_count} Follower · ${acc.media_count} Beiträge\n  Link im Profil: ${acc.website ?? 'FEHLT – ohne Link kommt niemand auf die Seite!'}\n  Bio: ${(acc.biography ?? 'leer').replace(/\n/g, ' / ')}`);
+    // Aufrufe je Reel: zeigt, welche Formate funktionieren (braucht die Berechtigung instagram_manage_insights)
+    const reels = await graph(`${env.INSTAGRAM_USER_ID}/media`, { fields: 'id,timestamp,media_type,caption', limit: '14', access_token: meta.token });
+    for (const m of (reels.data ?? []).filter((x) => x.media_type === 'VIDEO')) {
+      const ins = await graph(`${m.id}/insights`, { metric: 'views,reach,likes,comments,saved,shares', access_token: meta.token });
+      const val = (k) => ins.data?.find((x) => x.name === k)?.values?.[0]?.value ?? '–';
+      console.log(`  Reel ${new Date(m.timestamp).toLocaleString('de-CH', { timeZone: 'Europe/Zurich' })}: ${ins.error ? `keine Zahlen (${ins.error.message})` : `${val('views')} Aufrufe · ${val('reach')} erreicht · ${val('likes')} Likes · ${val('comments')} Kommentare · ${val('saved')} gespeichert · ${val('shares')} geteilt`} · ${(m.caption ?? '').split('\n')[0].slice(0, 60)}`);
+    }
     const media = await graph(`${env.INSTAGRAM_USER_ID}/media`, { fields: 'timestamp,like_count,comments_count', limit: '10', access_token: meta.token });
     for (const m of media.data ?? []) console.log(`  ${fmtDay(m.timestamp)}: ${m.like_count ?? 0} Likes · ${m.comments_count ?? 0} Kommentare`);
   }
@@ -683,6 +691,15 @@ async function makeVoiceReel(jpgs, file) {
   return readFile(file);
 }
 const buildReel = async (jpgs, file) => {
+  // Neue Reels mit Bewegung (scripts/reels.mjs); der passende Text liegt daneben, weil gebaut und gepostet in getrennten Schritten wird
+  try {
+    const model = await fetch(`${SITE}data/model-curve.json?t=${Date.now()}`).then((r) => r.json()).catch(() => null);
+    const f = await pickReel({ snap, lang, evening, model, format: env.REEL_FORMAT || null });
+    const { peak } = await renderReel(f, file, env.FFMPEG ?? 'ffmpeg');
+    await writeFile(`${file}.json`, JSON.stringify({ format: f.name, instagram: f.caption.instagram, facebook: f.caption.facebook }));
+    console.log(`Reel: Format ${f.name}, ${f.dur} s, Tonspitze ${peak.toFixed(2)}`);
+    return readFile(file);
+  } catch (err) { console.warn(`Neues Reel gescheitert, altes Format: ${err.message}`); }
   if (env.PIPER_MODEL) {
     try { return await makeVoiceReel(jpgs, file); } catch (err) { console.warn(`Reel mit Stimme gescheitert, stilles Reel: ${err.message}`); }
   }
@@ -939,6 +956,13 @@ const CHANNELS = [
   ['Instagram-Reel', ['INSTAGRAM_USER_ID', 'FACEBOOK_PAGE_TOKEN'], instagramReel],
   ['Facebook-Reel', ['FACEBOOK_PAGE_ID', 'FACEBOOK_PAGE_TOKEN'], facebookReel],
 ];
+
+// Text zum Reel, das der Bild-Schritt gebaut hat
+try {
+  const made = JSON.parse(await readFile(`${env.REEL_FILE ?? 'reel.mp4'}.json`, 'utf8'));
+  text.instagramReel = made.instagram; text.facebookReel = made.facebook;
+  console.log(`Reel-Format heute: ${made.format}`);
+} catch { /* noch nicht gebaut: es gilt der allgemeine Text */ }
 
 const jpgs = await images();
 if (arg('--images')) {
